@@ -132,6 +132,20 @@ class TestArguments:
         assert name in result_text(result)
         assert fake_api.requests == []
 
+    async def test_tells_claude_a_number_is_the_wrong_type_for_person_id(
+        self, connect: Connect, fake_api: FakeApi
+    ) -> None:
+        # get_members returns person_id as a string. A number isn't converted, so Claude learns to send the string.
+        fake_api.serve_fixture(HOUSING_BY_10887)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": 10887})
+
+        assert result.is_error
+        assert "person_id" in result_text(result)
+        assert "Input should be a valid string" in result_text(result)
+        assert fake_api.requests == []
+
 
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
