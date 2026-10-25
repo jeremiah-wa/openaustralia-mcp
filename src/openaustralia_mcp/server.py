@@ -18,7 +18,14 @@ from openaustralia_mcp.errors import (
     KeyRejectedError,
     MissingKeyError,
 )
-from openaustralia_mcp.models import MEMBERS_LICENCE, SITE_URL, Member, MembersResult
+from openaustralia_mcp.models import (
+    HANSARD_LICENCE,
+    MEMBERS_LICENCE,
+    SITE_URL,
+    HansardSearchResult,
+    Member,
+    MembersResult,
+)
 from openaustralia_mcp.openaustralia import OpenAustraliaClient, Representative
 
 VERSION = version("openaustralia-mcp")
@@ -76,6 +83,19 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             source_url=SITE_URL,
             licence=MEMBERS_LICENCE,
         )
+
+    @server.tool(annotations=READ_ONLY)
+    async def search_hansard(
+        query: Annotated[str, Field(description='Words to search for, e.g. "housing affordability".')],
+        person_id: Annotated[str, Field(description="Only speeches by this member. Get it from get_members.")],
+    ) -> HansardSearchResult:
+        """Search what was said in federal Parliament (Hansard), in both the House and the Senate.
+
+        Returns the 20 most recent matching speeches, each with the speaker, date, debate title, a short
+        excerpt, a gid and a url to the full speech.
+        """
+        await openaustralia.search_hansard(query, person_id)
+        return HansardSearchResult(source_url=SITE_URL, licence=HANSARD_LICENCE)
 
     return server
 

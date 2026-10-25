@@ -50,6 +50,10 @@ class OpenAustraliaClient:
         """House of Representatives members whose electorate covers the postcode."""
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
 
+    async def search_hansard(self, search: str, person: str) -> Any:
+        """Speeches in either house that match the search, newest first, 20 to a page."""
+        return await self._call("getHansard", search=search, person=person)
+
     async def _call(self, function: str, **params: str) -> Any:
         if not self._api_key:
             raise MissingKeyError(API_NAME, OPENAUSTRALIA_KEY_ENV, KEY_URL)

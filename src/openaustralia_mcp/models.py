@@ -10,6 +10,9 @@ SITE_URL = "https://www.openaustralia.org.au"
 MEMBERS_LICENCE = (
     "Members data: OpenAustralia Foundation, CC BY-SA 2.5 (https://creativecommons.org/licenses/by-sa/2.5/)"
 )
+HANSARD_LICENCE = (
+    "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
+)
 
 
 class Member(BaseModel):
@@ -37,5 +40,10 @@ class Member(BaseModel):
 class MembersResult(BaseModel):
     members: list[Member]
     note: str | None = Field(default=None, description="A caveat to pass on to the user, if any.")
+    source_url: str
+    licence: str
+
+
+class HansardSearchResult(BaseModel):
     source_url: str
     licence: str
