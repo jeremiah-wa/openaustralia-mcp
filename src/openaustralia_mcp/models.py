@@ -1,6 +1,7 @@
 """Tool result models: the small, citable shapes the tools return."""
 
 import html
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -64,10 +65,15 @@ class HansardHit(BaseModel):
             speaker=f"{row.speaker.first_name} {row.speaker.last_name}",
             person_id=row.speaker.person_id,
             debate=row.parent.body,
-            excerpt=row.body,
+            excerpt=_plain_text(row.body),
             # listurl is relative and HTML-escaped (`&amp;`).
             url=SITE_URL + html.unescape(row.listurl),
         )
+
+
+def _plain_text(markup: str) -> str:
+    """Drops tags such as the search-term highlighting and decodes entities. The words are left as they are."""
+    return html.unescape(re.sub(r"<[^>]+>", "", markup))
 
 
 class HansardSearchResult(BaseModel):

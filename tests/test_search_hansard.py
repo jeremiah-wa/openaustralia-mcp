@@ -46,3 +46,20 @@ class TestSearchResult:
         assert content["licence"] == (
             "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
         )
+
+
+class TestExcerpt:
+    async def test_strips_highlighting_and_entities(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(HOUSING_BY_10887)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
+
+        # The fixture has `<span class="hi">housing</span>` and `&#8212;`. OpenAustralia's `....` and `...` stay.
+        assert result.structured_content["hits"][0]["excerpt"] == (
+            ".... This means something to those 13 million Australian workers we've talked about. "
+            "It's relieving the tax burden for so many Australians. It's giving support to 75,000 more "
+            "homeowners to get into the housing market. That's support; it's not harm. And, to be fair, "
+            "the shadow Treasurer talked a lot about small business—very passionately, very "
+            "aggressively—and how much he loves..."
+        )
