@@ -130,7 +130,12 @@ npx @modelcontextprotocol/inspector@latest uv run openaustralia-mcp
 npx @modelcontextprotocol/inspector@latest --cli --method tools/list uv run openaustralia-mcp
 ```
 
-Copy `.env.example` to `.env` to keep keys out of your shell history. `.env` is gitignored.
+Copy `.env.example` to `.env` to keep keys out of your shell history. `.env` is gitignored. Load it with `--env-file`:
+
+```bash
+uv run --env-file .env pytest                       # includes the live smoke tests
+npx @modelcontextprotocol/inspector@latest uv run --env-file .env openaustralia-mcp
+```
 
 See [architecture.md](docs/architecture.md) for how the server is put together.
 

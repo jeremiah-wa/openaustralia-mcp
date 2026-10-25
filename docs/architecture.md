@@ -1,6 +1,6 @@
 # Architecture
 
-How the OpenAustralia MCP server is put together, and why. This is a draft written before any code exists. Where something hasn't been verified yet, it's marked **unverified**.
+How the OpenAustralia MCP server is put together, and why. It started as a draft before any code existed, and it's updated as tools are built. Where something hasn't been verified yet, it's marked **unverified**.
 
 ## Overview
 
@@ -27,7 +27,7 @@ flowchart TB
     end
 
     subgraph core["Server core (transport-agnostic)"]
-        factory["Server factory<br/>build_server(http_client, clock, config)"]
+        factory["Server factory<br/>build_server(http_client, config)"]
         tools["Tool layer<br/>names, descriptions, instructions"]
         shape["Result shaping<br/>trim · paginate · attribute"]
         cache["Cache<br/>TTL + bounded LRU"]
@@ -50,9 +50,9 @@ flowchart TB
 | Component | Responsibility |
 |---|---|
 | **Entry points** | Read config, build the server, attach a transport. Stage 1 ships stdio only. The HTTP entry point is a later addition and doesn't change the core. |
-| **Server factory** | The single construction point. It takes an HTTP client, a clock and the config, so tests can swap in fakes (see [Testing](#testing)). |
+| **Server factory** | The single construction point. It takes an HTTP client and the config, so tests can swap in fakes (see [Testing](#testing)). A clock parameter is added along with the cache. |
 | **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
-| **Result shaping** | Turns raw API responses into small, citable results. This is where most of the design work goes. |
+| **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. |
 | **Cache** | Avoids repeat calls for data that rarely or never changes. |
 | **API clients** | One per API. They build requests, attach the key, and turn error responses into typed errors. They don't know anything about MCP. |
 
@@ -75,7 +75,17 @@ Notes on naming:
 - **Only one tool looks up members.** They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
 - **`getComments` is left out.**
 
-Exact parameters per tool are **unverified**: both docs sites are behind a Cloudflare challenge. They'll be taken from the `openaustralia` Python package source and from live calls.
+Exact parameters per tool are taken from the `openaustralia` Python package docs and from live calls, because both API docs sites are behind a Cloudflare challenge. Recorded responses are in `tests/fixtures/`.
+
+What live calls have shown so far (OpenAustralia):
+
+- **Request:** `GET https://www.openaustralia.org.au/api/<function>?key=…&output=js&…`. `getRepresentatives` takes `postcode`, `date`, `party` and `search`.
+- **Response:** a JSON array. IDs come back as strings (`"person_id": "10887"`). Name, party and electorate are `full_name`, `party` and `constituency`. `office` lists positions, where `to_date: "9999-12-31"` means current.
+- **Errors:** HTTP 200 with `{"error": "…"}`. A bad key gives `"Invalid API key."` and an unknown postcode gives `"Unknown postcode"`.
+- **Encoding:** the header says `charset=iso-8859-1`, but all 150 current members come back as plain ASCII.
+- **Member page URL:** `https://www.openaustralia.org.au/mp/?p=<person_id>` is **unverified**. The website returns 403 to scripts.
+
+Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next.
 
 ## A typical question
 
@@ -128,7 +138,11 @@ flowchart TD
 
 - **Validation is lazy.** The server always starts, and a key problem comes back as a tool result that Claude can explain to the user. Failing at startup would only show up in Claude Desktop as an unhelpful "server disconnected".
 - **Each key is independent.** Missing a They Vote For You key disables only the voting tools.
-- **Keys never appear in logs, results or errors.**
+- **Keys never appear in logs, results or errors.** OpenAustralia only accepts the key in the query string, so every request URL contains it. That's why:
+  - `build_server` raises the `httpx2` and `httpcore2` loggers to WARNING. At INFO, httpx2 logs every request URL, and the SDK writes INFO logs to stderr.
+  - The API clients catch HTTP errors and re-raise them `from None` with the status only, because httpx2 errors carry the request and its URL.
+  - Tests check results and captured logs for a sentinel key.
+- **Network failures, non-200 statuses and non-JSON bodies** (such as a Cloudflare challenge page) all return "couldn't be reached" or "didn't respond normally (HTTP …)".
 
 ## Result shaping
 
@@ -191,7 +205,8 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 ## Open questions
 
 - Does They Vote For You use the same `person_id`s as OpenAustralia? This decides whether one server is still the right call.
-- What exact parameters does each OpenAustralia and They Vote For You function take?
+- What exact parameters does each OpenAustralia and They Vote For You function take? (`getRepresentatives` is done. See [Tools](#tools).)
+- Is `/mp/?p=<person_id>` the right member page URL?
 - How well do the result-size defaults hold up against real responses?
 
 ## Later stages
