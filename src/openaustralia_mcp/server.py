@@ -1,11 +1,13 @@
 """Builds the MCP server: tool registration, descriptions and error messages."""
 
 from importlib.metadata import version
+from typing import Annotated
 
 import httpx2
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from openaustralia_mcp.config import Config
 from openaustralia_mcp.errors import (
@@ -36,7 +38,9 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION)
 
     @server.tool(annotations=READ_ONLY)
-    async def get_members(postcode: str) -> MembersResult:
+    async def get_members(
+        postcode: Annotated[str, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')],
+    ) -> MembersResult:
         """Find the federal member of the House of Representatives (MP) for an Australian postcode.
 
         Returns each member's person_id, name, party, electorate and current positions. A postcode can

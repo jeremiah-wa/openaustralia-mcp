@@ -125,3 +125,18 @@ class TestApiUnavailable:
 
         assert result.is_error
         assert result_text(result) == f"Error executing tool get_members: {message}"
+
+
+class TestPostcodeValidation:
+    @pytest.mark.parametrize("postcode", ["30", "30560", "abcd", " 3056"])
+    async def test_rejects_a_malformed_postcode_without_a_request(
+        self, connect: Connect, fake_api: FakeApi, postcode: str
+    ) -> None:
+        fake_api.serve_fixture(POSTCODE_3056)
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": postcode})
+
+        assert result.is_error
+        assert "postcode" in result_text(result)
+        assert fake_api.requests == []
