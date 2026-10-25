@@ -13,6 +13,8 @@ These protect users' keys and keep the project within the data licences. Don't b
    - Test fixtures are recorded from live calls, and the request URL contains `key=…`.
    - Remove the key before committing a fixture.
    - Check with `git diff --staged` before every commit that adds or changes fixtures.
+   - Run `uv run pre-commit install` once per clone. A pre-commit hook then runs [gitleaks](https://github.com/gitleaks/gitleaks) on what's staged, using the rule in [.gitleaks.toml](../.gitleaks.toml), and blocks a commit that contains a key. Don't bypass it with `--no-verify`.
+   - CI scans every commit with the same rule and fails if it finds a key. Both are backstops, not a reason to skip the check.
 3. **Keys never appear in logs, tool results or error messages.**
 4. **Read-only.** No tool changes data anywhere.
 5. **Cut Hansard text, never rewrite it.**
@@ -41,8 +43,8 @@ These protect users' keys and keep the project within the data licences. Don't b
 - Test through the MCP tool call, using the in-memory client and recorded responses. Don't test internal functions directly. That's what lets the internals change when tools are reworked around tasks.
 - Take expected values from an independent source, such as a recorded response or the API docs. Never work them out the same way the code does.
 - Group related tests in classes named after the behaviour, e.g. `TestMissingKey` and `TestKeyNeverLeaks`.
-- Every new tool gets a test for its normal result, for a missing key and for an API error.
-- `uv run pytest` must pass before you commit. Live smoke tests run only when the key env vars are set, and they never run in CI.
+- Every new tool gets a test for its normal result, for a missing key, for an API error and for never leaking the key (`TestKeyNeverLeaks`).
+- `uv run pytest` must pass before you commit. CI ([ci.yml](../.github/workflows/ci.yml)) also runs it, with ruff, on every pull request and every push to `main`. Live smoke tests run only when the key env vars are set. In CI they run only in [live.yml](../.github/workflows/live.yml), weekly, by hand and on pull requests that change them, with the key from the `OPENAUSTRALIA_API_KEY` repository secret. Don't add a live call to any other workflow.
 
 ## Commits
 

@@ -1,0 +1,14 @@
+# Secret scan run in CI (see .github/workflows/ci.yml). Keeps gitleaks' default rules and adds one for our keys:
+# GitHub's own secret scanning doesn't know OpenAustralia or They Vote For You key formats.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "openaustralia-or-theyvoteforyou-key"
+description = "OpenAustralia or They Vote For You API key in a request URL, params dict or client config"
+# Real keys are 20-24 letters and digits. The placeholders (TEST-KEY-not-real, your-openaustralia-key) contain
+# hyphens, so they never match.
+regex = '''(?i)(?:[?&]key=|["']key["']\s*:\s*["']|(?:OPENAUSTRALIA|THEYVOTEFORYOU)_API_KEY["']?\s*[=:]\s*["']?)([a-z0-9]{16,64})\b'''
+secretGroup = 1
+keywords = ["key"]

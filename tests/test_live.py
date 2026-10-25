@@ -1,4 +1,4 @@
-"""Smoke tests against the real APIs. Skipped unless the key env vars are set; never run in CI."""
+"""Smoke tests against the real APIs. Skipped unless the key env vars are set. CI runs them in live.yml."""
 
 import os
 

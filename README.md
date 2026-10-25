@@ -115,11 +115,12 @@ If you fork this project, these terms apply to you too.
 git clone https://github.com/jeremiah-wa/openaustralia-mcp
 cd openaustralia-mcp
 uv sync
+uv run pre-commit install   # blocks commits that contain an API key
 uv run pytest
 ```
 
 - Unit tests run against recorded API responses and don't need a key.
-- Set `OPENAUSTRALIA_API_KEY` (and optionally `THEYVOTEFORYOU_API_KEY`) to also run the live smoke tests.
+- Set `OPENAUSTRALIA_API_KEY` (and optionally `THEYVOTEFORYOU_API_KEY`) to also run the live smoke tests. CI runs them weekly against the real API.
 - To poke at the tools by hand, use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (needs Node 22.19 or later). Keep `@latest` in the command, or npx may run an old cached v1:
 
 ```bash
