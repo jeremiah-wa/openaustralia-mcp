@@ -85,6 +85,15 @@ What live calls have shown so far (OpenAustralia):
 - **Postcodes in abolished electorates:** OpenAustralia's postcode data still includes electorates abolished in the 2025 redistribution, such as Higgins. `getRepresentatives` puts `false` in the list where a division has no current member. 3142 gives `[false]`, and 3181 gives `[false, Josh Burns]`. `get_members` skips the `false` entries. If some were skipped, it adds a `note` saying the list may be incomplete. If none are left, it says no current member is on record.
 - **Encoding:** the header says `charset=iso-8859-1`, but all 150 current members come back as plain ASCII.
 - **Member page URL:** `https://www.openaustralia.org.au/mp/?p=<person_id>` is **unverified**. The website returns 403 to scripts.
+- **Past dates:** `getRepresentatives?date=2015-01-01` returned `{}`, not a list. Not yet understood.
+
+What live calls have shown so far (They Vote For You):
+
+- **Request:** `GET https://theyvoteforyou.org.au/api/v1/<path>.json?key=…`, e.g. `people.json`, `people/<id>.json`, `divisions.json`, `divisions/<id>.json`. `divisions.json` takes `house`, `start_date` and `end_date`, and returns up to 100 votes.
+- **Response:** real JSON (`application/json; charset=utf-8`), with integer IDs. `people.json` lists current members only: 226, the same as OpenAustralia's 150 Representatives plus 76 Senators.
+- **Same IDs as OpenAustralia:** a person's `id` is OpenAustralia's `person_id`, and `latest_member.id` is OpenAustralia's `member_id`. All 226 current members matched on both, and on name, electorate and house. Former members match too: the 8 former members checked from a 2015 vote came back with the same name from OpenAustralia's `getRepresentative?id=<id>`. In a vote, each member is `member.person.id`.
+- **Party labels differ for presiding officers:** OpenAustralia says `Speaker`, `President` and `Deputy-President`, and They Vote For You says `SPK`, `PRES` and `DPRES`.
+- **Policy scores:** `people/<id>.json` includes `policy_comparisons`, each with the policy, `agreement` (a percentage as a string, e.g. `"100"`) and `voted`.
 
 Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next.
 
@@ -122,7 +131,7 @@ sequenceDiagram
 
 Every result includes the IDs the next call needs (`person_id` → `gid`). The model never has to guess at API syntax.
 
-The last step depends on They Vote For You using the same `person_id`s as OpenAustralia. That's **unverified**, and it's the first thing to check once live keys are available. If the IDs differ, the server has to match people across the two APIs, and splitting it into two servers becomes the better option.
+The last step relies on They Vote For You using the same `person_id`s as OpenAustralia. Live calls confirmed it does (see [Tools](#tools)), so a `person_id` from `get_members` can be passed straight to the voting tools, with no matching across the two APIs.
 
 ## Keys and errors
 
@@ -196,7 +205,7 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | Language | Python, `uv`, the official `mcp` SDK (2.x) | Less boilerplate. The focus is MCP, not the language. |
 | HTTP client | `httpx2` | The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two |
 | Transport | stdio first, with a transport-agnostic core | Local use needs no hosting, and HTTP can be added later without a refactor |
-| Servers | One server, two API clients | Speech and votes join on the member, and one server can name things clearly |
+| Servers | One server, two API clients | Speech and votes join on the member, both APIs use the same `person_id`, and one server can name things clearly |
 | Tool shape | One tool per API function, for now | Real usage should drive the redesign around tasks |
 | Workflow guidance | Server `instructions` and tool descriptions | The model always sees these. Prompts and resources are chosen by the user, not the model. |
 | Key validation | On first call | Readable errors instead of an opaque startup crash |
@@ -205,7 +214,6 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 
 ## Open questions
 
-- Does They Vote For You use the same `person_id`s as OpenAustralia? This decides whether one server is still the right call.
 - What exact parameters does each OpenAustralia and They Vote For You function take? (`getRepresentatives` is done. See [Tools](#tools).)
 - Is `/mp/?p=<person_id>` the right member page URL?
 - How well do the result-size defaults hold up against real responses?
