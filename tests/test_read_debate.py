@@ -118,3 +118,18 @@ class TestPaging:
             f"Error executing tool read_debate: offset 100000 is past the end of the text, "
             f"which is {total_length} characters long. Start from 0, or pass next_offset from the last call."
         )
+
+
+class TestSenate:
+    async def test_reads_a_senate_speech(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getDebates_senate_2026-10-15.118.1.json")
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", {"gid": "2026-10-15.118.1", "house": "senate"})
+
+        [request] = fake_api.requests
+        assert request.url.params["type"] == "senate"
+        content = result.structured_content
+        assert content["house"] == "senate"
+        assert content["url"] == "https://www.openaustralia.org.au/senate/?id=2026-10-15.117.1#g118.1"
+        assert content["text"].startswith("Jenny McAllister:\n\n")
