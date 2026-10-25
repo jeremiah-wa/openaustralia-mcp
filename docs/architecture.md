@@ -98,7 +98,7 @@ What live calls have shown so far (They Vote For You):
 - **Party labels differ for presiding officers:** OpenAustralia says `Speaker`, `President` and `Deputy-President`, and They Vote For You says `SPK`, `PRES` and `DPRES`.
 - **Policy scores:** `people/<id>.json` includes `policy_comparisons`, each with the policy, `agreement` (a percentage as a string, e.g. `"100"`) and `voted`.
 
-Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next.
+Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next. `search_hansard` searches by query, `person_id` or both, and returns the first page of 20. Paging and `order` come next.
 
 ## A typical question
 

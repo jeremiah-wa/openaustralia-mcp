@@ -35,7 +35,9 @@ INSTRUCTIONS = """\
 Answers questions about the federal Australian Parliament using OpenAustralia data.
 
 Start with get_members to find a member and their person_id; later calls about that member use the person_id.
-Every result includes a url and a licence line: cite the url when you use the data.\
+To find what a member said in Parliament, pass their person_id to search_hansard, with or without a query.
+Every result includes a url and a licence line: cite the url when you use the data.
+Hansard excerpts are Commonwealth copyright (no derivatives): quote them as they are, and summarise in your own words.\
 """
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
