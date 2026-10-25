@@ -74,6 +74,16 @@ class TestSearchResult:
             hits["2026-10-15.11.1"]["url"] == "https://www.openaustralia.org.au/debates/?id=2026-10-15.8.2&s=NDIS#g11.1"
         )
 
+    async def test_returns_no_hits_without_error(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getHansard_search_no_results.json")
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "xyzzyplughnonsenseword"})
+
+        assert not result.is_error
+        assert result.structured_content["hits"] == []
+        assert result.structured_content["total_results"] == 0
+
 
 class TestExcerpt:
     async def test_strips_highlighting_and_entities(self, connect: Connect, fake_api: FakeApi) -> None:

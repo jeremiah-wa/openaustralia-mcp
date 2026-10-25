@@ -3,7 +3,7 @@
 from typing import Any, Literal
 
 import httpx2
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, field_validator
 
 from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
 from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError
@@ -70,6 +70,12 @@ class HansardInfo(BaseModel):
 class HansardSearch(BaseModel):
     info: HansardInfo
     rows: list[HansardRow]
+
+    @field_validator("rows", mode="before")
+    @classmethod
+    def _no_rows(cls, rows: Any) -> Any:
+        # With no hits, OpenAustralia sends `{}` (an empty PHP array) rather than `[]`.
+        return [] if rows == {} else rows
 
 
 class OpenAustraliaClient:

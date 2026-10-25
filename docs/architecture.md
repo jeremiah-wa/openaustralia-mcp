@@ -87,7 +87,7 @@ What live calls have shown so far (OpenAustralia):
 - **Member page URL:** `https://www.openaustralia.org.au/mp/?p=<person_id>` is **unverified**. The website returns 403 to scripts.
 - **Past dates:** `getRepresentatives?date=2015-01-01` returned `{}`, not a list. Not yet understood.
 - **`getHansard`** takes `search`, `person`, `order` and `page`, and needs at least one. With none, it returns `{"error": "No parameter provided…"}`. Passing `num` gives HTTP 500, so a page is always 20 rows. The default `order` is `d` (newest first). `r` sorts by relevance.
-- **`getHansard` response:** `{"info": {…, "total_results"}, "rows": […]}`. No hits gives `rows: []`, also for a `person` that doesn't exist. Each row has `gid`, `hdate`, `major` (`"1"` House, `"101"` Senate), `body`, `listurl`, `speaker` (with `person_id`) and `parent.body` (the debate title). All 300 rows sampled had a speaker and a parent.
+- **`getHansard` response:** `{"info": {…, "total_results"}, "rows": […]}`. No hits gives `rows: {}` (an empty PHP array, not `[]`), also for a `person` that doesn't exist. Each row has `gid`, `hdate`, `major` (`"1"` House, `"101"` Senate), `body`, `listurl`, `speaker` (with `person_id`) and `parent.body` (the debate title). All 300 rows sampled had a speaker and a parent.
 - **Hansard excerpts:** `body` is already an excerpt of about 400 characters, made by OpenAustralia. It contains `<span class="hi">` around the search terms and HTML entities such as `&#8212;`. `listurl` is a relative, HTML-escaped link to the speech, under `/debates/` or `/senate/`.
 
 What live calls have shown so far (They Vote For You):
