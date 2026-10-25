@@ -1,3 +1,5 @@
+import logging
+
 import httpx2
 import pytest
 
@@ -301,3 +303,44 @@ class TestApiUnavailable:
 
         assert result.is_error
         assert result_text(result) == f"Error executing tool read_debate: {message}"
+
+
+def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
+    # Real HTTP errors mention the URL, and the URL contains the key.
+    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
+
+
+LEAK_CASES = {
+    "success": KHALIL,
+    "rejected-key": "openaustralia/getDebates_bad_key.json",
+    "api-error": "openaustralia/getDebates_unknown_type.json",
+    "not-found": lambda request: httpx2.Response(404, text=f"<html>{request.url}</html>"),
+    "connection-error": _connection_refused_naming_the_url,
+    "server-error": lambda request: httpx2.Response(500),
+}
+
+
+class TestKeyNeverLeaks:
+    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
+    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
+        if isinstance(request.param, str):
+            fake_api.serve_fixture(request.param)
+        else:
+            fake_api.serve(request.param)
+
+    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None) -> None:
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        assert TEST_KEY not in result_text(result)
+
+    async def test_not_in_the_logs(
+        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.DEBUG)
+
+        async with connect() as client:
+            await client.call_tool("read_debate", KHALIL_ARGS)
+
+        assert caplog.records, "expected some log output to check"
+        assert TEST_KEY not in caplog.text
