@@ -58,6 +58,22 @@ class TestSearchResult:
             "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
         )
 
+    async def test_labels_senate_and_house_hits(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(NDIS)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "NDIS"})
+
+        hits = {hit["gid"]: hit for hit in result.structured_content["hits"]}
+        assert hits["2026-10-15.118.1"]["house"] == "senate"
+        assert hits["2026-10-15.118.1"]["url"] == (
+            "https://www.openaustralia.org.au/senate/?id=2026-10-15.117.1&s=NDIS#g118.1"
+        )
+        assert hits["2026-10-15.11.1"]["house"] == "representatives"
+        assert (
+            hits["2026-10-15.11.1"]["url"] == "https://www.openaustralia.org.au/debates/?id=2026-10-15.8.2&s=NDIS#g11.1"
+        )
+
 
 class TestExcerpt:
     async def test_strips_highlighting_and_entities(self, connect: Connect, fake_api: FakeApi) -> None:

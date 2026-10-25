@@ -49,7 +49,7 @@ class MembersResult(BaseModel):
 class HansardHit(BaseModel):
     gid: str = Field(description="Identifies this speech in Hansard.")
     date: str
-    house: Literal["representatives"]
+    house: Literal["representatives", "senate"]
     speaker: str
     person_id: str = Field(description="The speaker's person_id. Pass it to other tools.")
     debate: str = Field(description="Title of the debate the speech was part of.")
@@ -61,7 +61,7 @@ class HansardHit(BaseModel):
         return cls(
             gid=row.gid,
             date=row.hdate,
-            house="representatives",
+            house="senate" if row.major == "101" else "representatives",
             speaker=f"{row.speaker.first_name} {row.speaker.last_name}",
             person_id=row.speaker.person_id,
             debate=row.parent.body,

@@ -56,6 +56,7 @@ class HansardRow(BaseModel):
 
     gid: str
     hdate: str
+    major: Literal["1", "101"]  # House of Representatives debates, Senate debates
     body: str
     listurl: str
     speaker: HansardSpeaker
