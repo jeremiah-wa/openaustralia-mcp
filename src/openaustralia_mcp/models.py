@@ -1,10 +1,11 @@
 """Tool result models: the small, citable shapes the tools return."""
 
+import html
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from openaustralia_mcp.openaustralia import Representative
+from openaustralia_mcp.openaustralia import HansardRow, Representative
 
 SITE_URL = "https://www.openaustralia.org.au"
 MEMBERS_LICENCE = (
@@ -44,6 +45,33 @@ class MembersResult(BaseModel):
     licence: str
 
 
+class HansardHit(BaseModel):
+    gid: str = Field(description="Identifies this speech in Hansard.")
+    date: str
+    house: Literal["representatives"]
+    speaker: str
+    person_id: str = Field(description="The speaker's person_id. Pass it to other tools.")
+    debate: str = Field(description="Title of the debate the speech was part of.")
+    excerpt: str = Field(description="The part of the speech that matched, as OpenAustralia excerpts it.")
+    url: str = Field(description="The speech on OpenAustralia. Cite it.")
+
+    @classmethod
+    def from_row(cls, row: HansardRow) -> "HansardHit":
+        return cls(
+            gid=row.gid,
+            date=row.hdate,
+            house="representatives",
+            speaker=f"{row.speaker.first_name} {row.speaker.last_name}",
+            person_id=row.speaker.person_id,
+            debate=row.parent.body,
+            excerpt=row.body,
+            # listurl is relative and HTML-escaped (`&amp;`).
+            url=SITE_URL + html.unescape(row.listurl),
+        )
+
+
 class HansardSearchResult(BaseModel):
+    hits: list[HansardHit]
+    total_results: int = Field(description="How many speeches matched in all, including those not returned.")
     source_url: str
     licence: str

@@ -22,6 +22,7 @@ from openaustralia_mcp.models import (
     HANSARD_LICENCE,
     MEMBERS_LICENCE,
     SITE_URL,
+    HansardHit,
     HansardSearchResult,
     Member,
     MembersResult,
@@ -94,8 +95,13 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         Returns the 20 most recent matching speeches, each with the speaker, date, debate title, a short
         excerpt, a gid and a url to the full speech.
         """
-        await openaustralia.search_hansard(query, person_id)
-        return HansardSearchResult(source_url=SITE_URL, licence=HANSARD_LICENCE)
+        search = await openaustralia.search_hansard(query, person_id)
+        return HansardSearchResult(
+            hits=[HansardHit.from_row(row) for row in search.rows],
+            total_results=search.info.total_results,
+            source_url=SITE_URL,
+            licence=HANSARD_LICENCE,
+        )
 
     return server
 

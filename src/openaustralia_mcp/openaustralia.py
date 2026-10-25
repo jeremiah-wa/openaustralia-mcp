@@ -41,6 +41,36 @@ Representatives = list[Representative | Literal[False]]
 _representatives = TypeAdapter(Representatives)
 
 
+class HansardSpeaker(BaseModel):
+    person_id: str
+    first_name: str
+    last_name: str
+
+
+class HansardParent(BaseModel):
+    body: str
+
+
+class HansardRow(BaseModel):
+    """A speech as getHansard returns it, with OpenAustralia's field names. Other fields are ignored."""
+
+    gid: str
+    hdate: str
+    body: str
+    listurl: str
+    speaker: HansardSpeaker
+    parent: HansardParent
+
+
+class HansardInfo(BaseModel):
+    total_results: int
+
+
+class HansardSearch(BaseModel):
+    info: HansardInfo
+    rows: list[HansardRow]
+
+
 class OpenAustraliaClient:
     def __init__(self, http: httpx2.AsyncClient, api_key: str | None) -> None:
         self._http = http
@@ -50,9 +80,9 @@ class OpenAustraliaClient:
         """House of Representatives members whose electorate covers the postcode."""
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
 
-    async def search_hansard(self, search: str, person: str) -> Any:
+    async def search_hansard(self, search: str, person: str) -> HansardSearch:
         """Speeches in either house that match the search, newest first, 20 to a page."""
-        return await self._call("getHansard", search=search, person=person)
+        return HansardSearch.model_validate(await self._call("getHansard", search=search, person=person))
 
     async def _call(self, function: str, **params: str) -> Any:
         if not self._api_key:
