@@ -59,3 +59,15 @@ class TestDebateResult:
         )
         assert "<p>" not in text
         assert "&#8212;" not in text
+
+    async def test_keeps_paragraph_breaks(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        # In the fixture: `...in a quarter of a century.</p><p>We've delivered this...`
+        assert (
+            "probably the most significant in a quarter of a century.\n\nWe've delivered this because"
+            in result.structured_content["text"]
+        )

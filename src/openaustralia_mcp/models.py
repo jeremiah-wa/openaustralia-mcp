@@ -112,8 +112,8 @@ class DebateResult(BaseModel):
 
 
 def _speech_text(entry: DebateEntry) -> str:
-    """The speaker's name on its own line, then the speech."""
-    text = _plain_text(entry.body)
+    """The speaker's name on its own line, then the speech, with a blank line between paragraphs."""
+    text = _plain_text(re.sub(r"</p>\s*<p[^>]*>", "\n\n", entry.body))
     if entry.speaker is None:
         return text
     return f"{entry.speaker.first_name} {entry.speaker.last_name}:\n\n{text}"
