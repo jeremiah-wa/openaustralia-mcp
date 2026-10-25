@@ -7,7 +7,7 @@ It is a thin layer over two existing APIs run by the [OpenAustralia Foundation](
 - **[OpenAustralia](https://www.openaustralia.org.au/api/)**: members, electorates, Hansard and debates.
 - **[They Vote For You](https://theyvoteforyou.org.au/)**: votes in Parliament (divisions) and policy positions.
 
-> **Status: draft.** This README describes the planned first release. The server hasn't been built yet, so the install commands below won't work until it is.
+> **Status: early build.** This README describes the planned first release. So far `get_members` (Representatives by postcode), `search_hansard` and `read_debate` work. The other tools haven't been built yet.
 
 ## What you can ask
 
@@ -27,7 +27,7 @@ Claude picks the tools, chains them (find the member → search Hansard → read
 | `get_members` | OpenAustralia | Find Representatives and Senators by name, postcode or party. Returns `person_id`s. |
 | `get_electorates` | OpenAustralia | Look up electorates (OpenAustralia calls them "divisions") by name or postcode. |
 | `search_hansard` | OpenAustralia | Search what was said in Parliament. Returns short excerpts with a `gid` per hit. |
-| `read_debate` | OpenAustralia | Read the full text of a debate item by `gid`, a page at a time. |
+| `read_debate` | OpenAustralia | Read the full text of a speech, or a whole debate, by `gid` and house, a page at a time. |
 | `get_policies` / `get_policy` | They Vote For You | Policy topics and how each member's votes line up with them. |
 | `get_votes` / `get_vote` | They Vote For You | Individual votes in Parliament (divisions) and how each member voted. |
 
