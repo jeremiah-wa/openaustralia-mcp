@@ -133,3 +133,43 @@ class TestSenate:
         assert content["house"] == "senate"
         assert content["url"] == "https://www.openaustralia.org.au/senate/?id=2026-10-15.117.1#g118.1"
         assert content["text"].startswith("Jenny McAllister:\n\n")
+
+
+class TestWholeDebate:
+    async def test_reads_every_speech_under_a_heading_gid(self, connect: Connect, fake_api: FakeApi) -> None:
+        # 2026-06-23.78.2 is the "Budget" heading, the `id=` in the url of each speech in the debate.
+        fake_api.serve_fixture("openaustralia/getDebates_representatives_2026-06-23.78.2.json")
+        args = {"gid": "2026-06-23.78.2", "house": "representatives"}
+
+        pages = []
+        offset: int | None = 0
+        async with connect() as client:
+            while offset is not None and len(pages) < 20:
+                result = await client.call_tool("read_debate", {**args, "offset": offset})
+                assert not result.is_error
+                pages.append(result.structured_content)
+                offset = result.structured_content["next_offset"]
+
+        assert pages[0]["debate"] == "Matters of Public Importance: Budget"
+        assert pages[0]["url"] == "https://www.openaustralia.org.au/debates/?id=2026-06-23.78.2"
+        # In fixture order. Melissa Price and Sharon Claydon speak twice.
+        expected = [
+            "Milton Dick",
+            "Tim Wilson",
+            "Peter Khalil",
+            "Michael McCormack",
+            "Ali France",
+            "Anne Webster",
+            "Jerome Laxale",
+            "Melissa Price",
+            "Sharon Claydon",
+            "Melissa Price",
+            "Carina Garland",
+            "Tom Venning",
+            "Alice Jordan-Baird",
+            "Sharon Claydon",
+        ]
+        text = "".join(page["text"] for page in pages)
+        name_lines = [line.removesuffix(":") for line in text.split("\n") if line.removesuffix(":") in expected]
+        assert name_lines == expected
+        assert text.startswith("Milton Dick:\n\n")

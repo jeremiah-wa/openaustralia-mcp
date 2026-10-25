@@ -92,7 +92,7 @@ class DebateResult(BaseModel):
     date: str
     debate: str = Field(description="Title of the debate.")
     url: str = Field(description="The speech or debate on OpenAustralia. Cite it.")
-    text: str = Field(description="One page of the speech as Hansard records it, after the speaker's name.")
+    text: str = Field(description="One page of the speech(es) as Hansard records them, each after the speaker's name.")
     offset: int = Field(description="Where this page starts in the full text.")
     next_offset: int | None = Field(description="Pass as offset to read the next page. None on the last page.")
     total_length: int = Field(description="Length of the full text in characters.")
@@ -104,7 +104,8 @@ class DebateResult(BaseModel):
         cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"], offset: int
     ) -> "DebateResult":
         [requested] = [entry for entry in entries if entry.gid == gid]
-        text = _speech_text(requested)
+        # A speech gid brings just that speech. A heading gid brings every speech under it.
+        text = "\n\n".join(_speech_text(entry) for entry in entries if not entry.is_heading)
         end = offset + DEBATE_PAGE_SIZE
         return cls(
             gid=gid,
