@@ -1,10 +1,11 @@
 from unittest.mock import ANY
 
+import httpx2
 import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import TEST_KEY, Connect, FakeApi, result_text
+from .conftest import TEST_KEY, Connect, FakeApi, Handler, result_text
 
 pytestmark = pytest.mark.anyio
 
@@ -150,6 +151,67 @@ class TestMissingKey:
             await client.call_tool("search_hansard", {"query": "housing"})
 
         assert fake_api.requests == []
+
+
+class TestRejectedKey:
+    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getHansard_bad_key.json")
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "housing"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool search_hansard: The OpenAustralia key was rejected. "
+            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
+        )
+
+
+class TestApiError:
+    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Recorded from a call with no parameters, which the tool itself never makes.
+        fake_api.serve_fixture("openaustralia/getHansard_no_parameters.json")
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool search_hansard: OpenAustralia returned an error for query=housing, person_id=10887: "
+            'No parameter provided to function "getHansard". Possible choices are: search, person, order, page, num'
+        )
+
+
+def _connection_refused(request: httpx2.Request) -> httpx2.Response:
+    raise httpx2.ConnectError("connection refused", request=request)
+
+
+class TestApiUnavailable:
+    @pytest.mark.parametrize(
+        ("handler", "message"),
+        [
+            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
+            (
+                lambda request: httpx2.Response(502, text="Bad gateway"),
+                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
+            ),
+            (
+                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
+                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
+            ),
+        ],
+        ids=["connection-error", "server-error", "not-json"],
+    )
+    async def test_says_to_try_again_later(
+        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
+    ) -> None:
+        fake_api.serve(handler)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "housing"})
+
+        assert result.is_error
+        assert result_text(result) == f"Error executing tool search_hansard: {message}"
 
 
 class TestExcerpt:
