@@ -7,6 +7,7 @@ from .conftest import TEST_KEY, Connect, FakeApi
 pytestmark = pytest.mark.anyio
 
 HOUSING_BY_10887 = "openaustralia/getHansard_search_housing_person_10887.json"
+NDIS = "openaustralia/getHansard_search_ndis.json"
 
 
 class TestSearchRequest:
@@ -19,6 +20,16 @@ class TestSearchRequest:
         [request] = fake_api.requests
         assert str(request.url).startswith("https://www.openaustralia.org.au/api/getHansard?")
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "search": "housing", "person": "10887"}
+
+    async def test_sends_no_person_for_a_query_alone(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(NDIS)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "NDIS"})
+
+        assert not result.is_error
+        [request] = fake_api.requests
+        assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "search": "NDIS"}
 
 
 class TestSearchResult:
