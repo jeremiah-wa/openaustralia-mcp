@@ -65,7 +65,7 @@ At first the tools follow the API functions one to one, with three changes: resu
 | `get_members` | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate/state |
 | `get_electorates` | OA `getDivisions` | Electorates (electoral divisions) |
 | `search_hansard` | OA `getHansard` | 20 hits (one OpenAustralia page): speaker, `person_id`, date, house, debate title, excerpt, `gid`, URL. Plus the total number of hits |
-| `read_debate` | OA `getDebates` (by `gid`) | Up to ~4,000 characters per call, plus `offset` for the next page |
+| `read_debate` | OA `getDebates` (by `gid` and `type`) | Up to ~4,000 characters per call, plus `offset` for the next page |
 | `get_policies`, `get_policy` | TVFY `/policies` | Policy topics, with each member's agreement score |
 | `get_votes`, `get_vote` | TVFY `/divisions` | Individual votes and how each member voted |
 
@@ -89,6 +89,11 @@ What live calls have shown so far (OpenAustralia):
 - **`getHansard`** takes `search`, `person`, `order` and `page`, and needs at least one. With none, it returns `{"error": "No parameter provided…"}`. Passing `num` gives HTTP 500, so a page is always 20 rows. The default `order` is `d` (newest first). `r` sorts by relevance.
 - **`getHansard` response:** `{"info": {…, "total_results"}, "rows": […]}`. No hits gives `rows: {}` (an empty PHP array, not `[]`), also for a `person` that doesn't exist. Each row has `gid`, `hdate`, `major` (`"1"` House, `"101"` Senate), `body`, `listurl`, `speaker` (with `person_id`) and `parent.body` (the debate title). All 300 rows sampled had a speaker and a parent.
 - **Hansard excerpts:** `body` is already an excerpt of about 400 characters, made by OpenAustralia. It contains `<span class="hi">` around the search terms and HTML entities such as `&#8212;`. `listurl` is a relative, HTML-escaped link to the speech, under `/debates/` or `/senate/`.
+- **`getDebates`** takes `type` (`representatives` or `senate`) and `gid`. Without a `type` it returns `{"error": "You must supply a type"}`, and an unknown `type` gives `{"error": "Unknown type"}`.
+- **`gid`s repeat across houses.** `2026-06-23.80.1` is Peter Khalil in the House and Lidia Thorpe in the Senate. The wrong `type` silently returns the other house's speech, so the house has to come with the `gid`. `search_hansard` hits carry it.
+- **`getDebates` response:** a JSON array of entries, each with `gid`, `htype`, `hdate`, `body` and `listurl`. A speech `gid` gives three entries: the section heading (`htype` 10, e.g. "Matters of Public Importance"), the subsection heading (`htype` 11, e.g. "Budget") and the speech (`htype` 12, with `speaker`). The two headings together make `getHansard`'s `parent.body`. A heading `gid` (the `id=` in a speech's `listurl`) gives the whole debate: for `2026-06-23.78.2`, the 2 headings and 14 speeches. Headings have `speaker: {}` or no `speaker`.
+- **Debate text:** `body` is HTML with `<p>` and `<i>` tags and entities such as `&#8212;`. One speech by Peter Khalil is 8,715 characters as plain text, and its whole debate is about 51,000.
+- **Unknown `gid`:** HTTP 404 with an HTML page, not an `{"error": …}` body. A malformed `gid` gives the same.
 
 What live calls have shown so far (They Vote For You):
 
