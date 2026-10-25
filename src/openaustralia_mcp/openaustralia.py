@@ -4,7 +4,12 @@ from typing import Any
 
 import httpx2
 
+from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
+from openaustralia_mcp.errors import MissingKeyError
+
+API_NAME = "OpenAustralia"
 BASE_URL = "https://www.openaustralia.org.au/api"
+KEY_URL = "https://www.openaustralia.org.au/api/key"
 
 
 class OpenAustraliaClient:
@@ -17,6 +22,9 @@ class OpenAustraliaClient:
         return await self._call("getRepresentatives", postcode=postcode)
 
     async def _call(self, function: str, **params: str) -> Any:
+        if not self._api_key:
+            raise MissingKeyError(API_NAME, OPENAUSTRALIA_KEY_ENV, KEY_URL)
+
         response = await self._http.get(
             f"{BASE_URL}/{function}",
             params={"key": self._api_key, "output": "js", **params},

@@ -73,4 +73,6 @@ def connect(fake_api: FakeApi) -> Connect:
 def result_text(result: CallToolResult) -> str:
     """Everything the model would see from a tool call."""
     texts = [block.text for block in result.content if hasattr(block, "text")]
-    return "\n".join(texts) + json.dumps(result.structured_content)
+    if result.structured_content is not None:
+        texts.append(json.dumps(result.structured_content))
+    return "\n".join(texts)

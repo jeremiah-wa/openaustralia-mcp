@@ -1,6 +1,8 @@
 import pytest
 
-from .conftest import TEST_KEY, Connect, FakeApi
+from openaustralia_mcp.config import Config
+
+from .conftest import TEST_KEY, Connect, FakeApi, result_text
 
 pytestmark = pytest.mark.anyio
 
@@ -42,3 +44,24 @@ class TestLookupByPostcode:
         [request] = fake_api.requests
         assert str(request.url).startswith("https://www.openaustralia.org.au/api/getRepresentatives?")
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "postcode": "3056"}
+
+
+class TestMissingKey:
+    async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
+        async with connect(Config()) as client:
+            result = await client.call_tool("get_members", {"postcode": "3056"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: No OpenAustralia key set. "
+            "Get one at https://www.openaustralia.org.au/api/key, "
+            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
+        )
+
+    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(POSTCODE_3056)
+
+        async with connect(Config()) as client:
+            await client.call_tool("get_members", {"postcode": "3056"})
+
+        assert fake_api.requests == []
