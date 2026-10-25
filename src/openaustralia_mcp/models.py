@@ -89,6 +89,7 @@ class DebateResult(BaseModel):
     date: str
     debate: str = Field(description="Title of the debate.")
     url: str = Field(description="The speech or debate on OpenAustralia. Cite it.")
+    text: str = Field(description="The speech as Hansard records it, after the speaker's name.")
     source_url: str
     licence: str
 
@@ -104,6 +105,15 @@ class DebateResult(BaseModel):
             # Section and subsection headings, the same title getHansard gives as `parent.body`.
             debate=": ".join(entry.body for entry in entries if entry.is_heading),
             url=SITE_URL + html.unescape(requested.listurl),
+            text=_speech_text(requested),
             source_url=SITE_URL,
             licence=HANSARD_LICENCE,
         )
+
+
+def _speech_text(entry: DebateEntry) -> str:
+    """The speaker's name on its own line, then the speech."""
+    text = _plain_text(entry.body)
+    if entry.speaker is None:
+        return text
+    return f"{entry.speaker.first_name} {entry.speaker.last_name}:\n\n{text}"

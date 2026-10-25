@@ -86,6 +86,13 @@ class DebateEntry(BaseModel):
     hdate: str
     body: str
     listurl: str
+    speaker: HansardSpeaker | None = None
+
+    @field_validator("speaker", mode="before")
+    @classmethod
+    def _no_speaker(cls, speaker: Any) -> Any:
+        # Headings come with `{}` (an empty PHP array) or no speaker at all.
+        return None if speaker == {} else speaker
 
     @property
     def is_heading(self) -> bool:

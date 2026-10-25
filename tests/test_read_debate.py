@@ -44,3 +44,18 @@ class TestDebateResult:
         # The same title search_hansard gives this speech.
         assert content["debate"] == "Matters of Public Importance: Budget"
         assert content["url"] == "https://www.openaustralia.org.au/debates/?id=2026-06-23.78.2#g80.1"
+
+    async def test_returns_the_speech_after_the_speakers_name(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        # The fixture's body starts `<p>'Hyperbole'&#8212;I looked up`.
+        text = result.structured_content["text"]
+        assert text.startswith(
+            "Peter Khalil:\n\n'Hyperbole'—I looked up the definition in the dictionary: 'a figure of speech or a "
+            "statement that uses extreme, deliberate exaggeration to make a point, emphasise emotion or create humour'."
+        )
+        assert "<p>" not in text
+        assert "&#8212;" not in text
