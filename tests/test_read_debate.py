@@ -1,6 +1,6 @@
 import pytest
 
-from .conftest import TEST_KEY, Connect, FakeApi
+from .conftest import TEST_KEY, Connect, FakeApi, result_text
 
 pytestmark = pytest.mark.anyio
 
@@ -104,3 +104,17 @@ class TestPaging:
         # The fixture's body ends `...lay out the facts today.</p> `.
         assert pages[-1]["text"].endswith("This is why it's so important to lay out the facts today.")
         assert len("".join(page["text"] for page in pages)) == pages[0]["total_length"]
+
+    async def test_explains_an_offset_past_the_end(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        async with connect() as client:
+            first = await client.call_tool("read_debate", KHALIL_ARGS)
+            result = await client.call_tool("read_debate", {**KHALIL_ARGS, "offset": 100000})
+
+        total_length = first.structured_content["total_length"]
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool read_debate: offset 100000 is past the end of the text, "
+            f"which is {total_length} characters long. Start from 0, or pass next_offset from the last call."
+        )

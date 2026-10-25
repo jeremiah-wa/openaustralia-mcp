@@ -136,7 +136,13 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             entries = await openaustralia.get_debates(house, gid)
         except ApiClientError as exc:
             raise ToolError(_describe(exc, gid=gid, house=house)) from None
-        return DebateResult.from_entries(entries, gid, house, offset)
+        result = DebateResult.from_entries(entries, gid, house, offset)
+        if offset > 0 and offset >= result.total_length:
+            raise ToolError(
+                f"offset {offset} is past the end of the text, which is {result.total_length} characters long. "
+                "Start from 0, or pass next_offset from the last call."
+            )
+        return result
 
     return server
 
