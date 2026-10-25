@@ -17,12 +17,13 @@ permissions:
 jobs:
   live:
     runs-on: ubuntu-latest
-    env:
-      OPENAUSTRALIA_API_KEY: ${{ secrets.OPENAUSTRALIA_API_KEY }}
+    # The key is set only on the steps that need it, so the action and package installs never see it.
     steps:
       # Without a key the live tests skip, and the job would pass without testing anything. Pull requests from forks
       # get no secrets, so they stop here too.
       - name: Check the key is set
+        env:
+          OPENAUSTRALIA_API_KEY: ${{ secrets.OPENAUSTRALIA_API_KEY }}
         run: |
           if [ -z "$OPENAUSTRALIA_API_KEY" ]; then
             echo "::error::The OPENAUSTRALIA_API_KEY repository secret isn't set."
@@ -32,3 +33,5 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - run: uv sync --locked
       - run: uv run pytest tests/test_live.py -rs
+        env:
+          OPENAUSTRALIA_API_KEY: ${{ secrets.OPENAUSTRALIA_API_KEY }}
