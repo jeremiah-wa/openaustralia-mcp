@@ -106,10 +106,14 @@ uv run pytest
 
 - Unit tests run against recorded API responses and don't need a key.
 - Set `OPENAUSTRALIA_API_KEY` (and optionally `THEYVOTEFORYOU_API_KEY`) to also run the live smoke tests.
-- To poke at the tools by hand, use [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+- To poke at the tools by hand, use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (needs Node 22.19 or later). Keep `@latest` in the command, or npx may run an old cached v1:
 
 ```bash
-npx @modelcontextprotocol/inspector uv run openaustralia-mcp
+# Web UI
+npx @modelcontextprotocol/inspector@latest uv run openaustralia-mcp
+
+# CLI, e.g. to list the tools
+npx @modelcontextprotocol/inspector@latest --cli --method tools/list uv run openaustralia-mcp
 ```
 
 Copy `.env.example` to `.env` to keep keys out of your shell history. `.env` is gitignored.
