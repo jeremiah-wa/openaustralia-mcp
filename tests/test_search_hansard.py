@@ -2,6 +2,8 @@ from unittest.mock import ANY
 
 import pytest
 
+from openaustralia_mcp.config import Config
+
 from .conftest import TEST_KEY, Connect, FakeApi, result_text
 
 pytestmark = pytest.mark.anyio
@@ -126,6 +128,27 @@ class TestArguments:
 
         assert result.is_error
         assert name in result_text(result)
+        assert fake_api.requests == []
+
+
+class TestMissingKey:
+    async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
+        async with connect(Config()) as client:
+            result = await client.call_tool("search_hansard", {"query": "housing"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool search_hansard: No OpenAustralia key set. "
+            "Get one at https://www.openaustralia.org.au/api/key, "
+            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
+        )
+
+    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(HOUSING_BY_10887)
+
+        async with connect(Config()) as client:
+            await client.call_tool("search_hansard", {"query": "housing"})
+
         assert fake_api.requests == []
 
 

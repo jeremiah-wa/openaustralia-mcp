@@ -102,7 +102,13 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         """
         if query is None and person_id is None:
             raise ToolError("Give a query, a person_id, or both.")
-        search = await openaustralia.search_hansard(query, person_id)
+        try:
+            search = await openaustralia.search_hansard(query, person_id)
+        except ApiClientError as exc:
+            given = {"query": query, "person_id": person_id}
+            raise ToolError(
+                _describe(exc, **{name: value for name, value in given.items() if value is not None})
+            ) from None
         return HansardSearchResult(
             hits=[HansardHit.from_row(row) for row in search.rows],
             total_results=search.info.total_results,
