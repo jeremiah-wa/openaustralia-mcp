@@ -35,11 +35,25 @@ All tools are read-only.
 
 ## Requirements
 
-- [uv](https://docs.astral.sh/uv/) (to install and run the server)
-- An OpenAustralia API key: <https://www.openaustralia.org.au/api/key> (free for low-volume, non-commercial use)
-- Optional: a They Vote For You API key, for the voting tools. Get one by signing in at <https://theyvoteforyou.org.au/>.
+### To use the server
 
-Each key is optional. If a key is missing or rejected, the tools that need it return a message saying so and linking to where to get one. The other tools keep working.
+| You need | Why | How to get it |
+|---|---|---|
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Installs and runs the server. You don't need to install Python yourself: uv downloads a suitable version (3.12 or later) the first time. | macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
+| [Git](https://git-scm.com/downloads) | uv fetches the server straight from this repository. | Already installed on most developer machines. Check with `git --version`. |
+| An MCP client | Runs the server and talks to it. | [Claude Desktop](https://claude.ai/download), Claude Code, or another client that supports local (stdio) servers |
+| An OpenAustralia API key | Used by the member, electorate and Hansard tools | <https://www.openaustralia.org.au/api/key>. Free for low-volume, non-commercial use. |
+| A They Vote For You API key | Used by the voting and policy tools | Sign in at <https://theyvoteforyou.org.au/>. |
+
+The server starts without either key. Each tool needs only its own key: if that key is missing or rejected, the tool returns a message saying so and linking to where to get one, and the other tools keep working. So you can start with just the OpenAustralia key and add the other later.
+
+### For development
+
+All of the above, plus:
+
+- [Node.js](https://nodejs.org/) 22.19 or later, only if you want to use MCP Inspector (see [Development](#development)).
+
+Keys are optional here too. The unit tests run against recorded responses.
 
 ## Setup
 
@@ -54,7 +68,7 @@ Add this to `claude_desktop_config.json` (Settings → Developer → Edit Config
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/<your-github-user>/openaustralia-mcp",
+        "git+https://github.com/jeremiah-wa/openaustralia-mcp",
         "openaustralia-mcp"
       ],
       "env": {
@@ -71,7 +85,7 @@ Restart Claude Desktop after saving.
 ### Claude Code
 
 ```bash
-claude mcp add openaustralia -e OPENAUSTRALIA_API_KEY=your-openaustralia-key -e THEYVOTEFORYOU_API_KEY=your-theyvoteforyou-key -- uvx --from git+https://github.com/<your-github-user>/openaustralia-mcp openaustralia-mcp
+claude mcp add openaustralia -e OPENAUSTRALIA_API_KEY=your-openaustralia-key -e THEYVOTEFORYOU_API_KEY=your-theyvoteforyou-key -- uvx --from git+https://github.com/jeremiah-wa/openaustralia-mcp openaustralia-mcp
 ```
 
 ### Other MCP clients
@@ -98,7 +112,7 @@ If you fork this project, these terms apply to you too.
 ## Development
 
 ```bash
-git clone https://github.com/<your-github-user>/openaustralia-mcp
+git clone https://github.com/jeremiah-wa/openaustralia-mcp
 cd openaustralia-mcp
 uv sync
 uv run pytest
