@@ -126,13 +126,17 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             Literal["representatives", "senate"],
             Field(description="The house the gid is from, as search_hansard gives it. gids repeat across houses."),
         ],
+        offset: Annotated[int, Field(description="Where to start reading. Pass next_offset from the last call.")] = 0,
     ) -> DebateResult:
-        """Read the full text of a speech in federal Parliament (Hansard), by its gid and house."""
+        """Read the full text of a speech in federal Parliament (Hansard), by its gid and house.
+
+        Returns up to 4,000 characters at a time. Pass next_offset as offset to read on.
+        """
         try:
             entries = await openaustralia.get_debates(house, gid)
         except ApiClientError as exc:
             raise ToolError(_describe(exc, gid=gid, house=house)) from None
-        return DebateResult.from_entries(entries, gid, house)
+        return DebateResult.from_entries(entries, gid, house, offset)
 
     return server
 

@@ -101,10 +101,11 @@ class DebateResult(BaseModel):
 
     @classmethod
     def from_entries(
-        cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"]
+        cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"], offset: int
     ) -> "DebateResult":
         [requested] = [entry for entry in entries if entry.gid == gid]
         text = _speech_text(requested)
+        end = offset + DEBATE_PAGE_SIZE
         return cls(
             gid=gid,
             house=house,
@@ -112,9 +113,9 @@ class DebateResult(BaseModel):
             # Section and subsection headings, the same title getHansard gives as `parent.body`.
             debate=": ".join(entry.body for entry in entries if entry.is_heading),
             url=SITE_URL + html.unescape(requested.listurl),
-            text=text[:DEBATE_PAGE_SIZE],
-            offset=0,
-            next_offset=DEBATE_PAGE_SIZE if len(text) > DEBATE_PAGE_SIZE else None,
+            text=text[offset:end],
+            offset=offset,
+            next_offset=end if len(text) > end else None,
             total_length=len(text),
             source_url=SITE_URL,
             licence=HANSARD_LICENCE,
@@ -123,7 +124,7 @@ class DebateResult(BaseModel):
 
 def _speech_text(entry: DebateEntry) -> str:
     """The speaker's name on its own line, then the speech, with a blank line between paragraphs."""
-    text = _plain_text(re.sub(r"</p>\s*<p[^>]*>", "\n\n", entry.body))
+    text = _plain_text(re.sub(r"</p>\s*<p[^>]*>", "\n\n", entry.body)).strip()
     if entry.speaker is None:
         return text
     return f"{entry.speaker.first_name} {entry.speaker.last_name}:\n\n{text}"

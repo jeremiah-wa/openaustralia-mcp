@@ -86,3 +86,21 @@ class TestPaging:
         assert content["offset"] == 0
         assert content["next_offset"] == 4000
         assert content["total_length"] > 8715
+
+    async def test_follows_next_offset_to_the_end_of_the_speech(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        pages = []
+        offset: int | None = 0
+        async with connect() as client:
+            # Bounded, so a next_offset that never becomes None fails the test instead of hanging it.
+            while offset is not None and len(pages) < 5:
+                result = await client.call_tool("read_debate", {**KHALIL_ARGS, "offset": offset})
+                assert not result.is_error
+                pages.append(result.structured_content)
+                offset = result.structured_content["next_offset"]
+
+        assert [page["offset"] for page in pages] == [0, 4000, 8000]
+        # The fixture's body ends `...lay out the facts today.</p> `.
+        assert pages[-1]["text"].endswith("This is why it's so important to lay out the facts today.")
+        assert len("".join(page["text"] for page in pages)) == pages[0]["total_length"]
