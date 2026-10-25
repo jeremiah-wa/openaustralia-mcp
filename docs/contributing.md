@@ -41,8 +41,8 @@ These protect users' keys and keep the project within the data licences. Don't b
 - Test through the MCP tool call, using the in-memory client and recorded responses. Don't test internal functions directly. That's what lets the internals change when tools are reworked around tasks.
 - Take expected values from an independent source, such as a recorded response or the API docs. Never work them out the same way the code does.
 - Group related tests in classes named after the behaviour, e.g. `TestMissingKey` and `TestKeyNeverLeaks`.
-- Every new tool gets a test for its normal result, for a missing key and for an API error.
-- `uv run pytest` must pass before you commit. Live smoke tests run only when the key env vars are set, and they never run in CI.
+- Every new tool gets a test for its normal result, for a missing key, for an API error and for never leaking the key (`TestKeyNeverLeaks`).
+- `uv run pytest` must pass before you commit. CI ([ci.yml](../.github/workflows/ci.yml)) also runs it, with ruff, on every pull request and every push to `main`. Live smoke tests run only when the key env vars are set, and they never run in CI.
 
 ## Commits
 
