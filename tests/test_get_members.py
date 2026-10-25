@@ -65,3 +65,17 @@ class TestMissingKey:
             await client.call_tool("get_members", {"postcode": "3056"})
 
         assert fake_api.requests == []
+
+
+class TestRejectedKey:
+    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_bad_key.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3056"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: The OpenAustralia key was rejected. "
+            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
+        )

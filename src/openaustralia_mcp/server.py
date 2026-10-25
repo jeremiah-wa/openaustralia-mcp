@@ -8,7 +8,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from openaustralia_mcp.config import Config
-from openaustralia_mcp.errors import ApiClientError, MissingKeyError
+from openaustralia_mcp.errors import ApiClientError, KeyRejectedError, MissingKeyError
 from openaustralia_mcp.models import MembersResult, members_from_representatives
 from openaustralia_mcp.openaustralia import OpenAustraliaClient
 
@@ -50,5 +50,7 @@ def _describe(exc: ApiClientError) -> str:
     match exc:
         case MissingKeyError():
             return f"No {exc.api} key set. Get one at {exc.key_url}, then set {exc.env_var} in your MCP client config."
+        case KeyRejectedError():
+            return f"The {exc.api} key was rejected. Check it or get a new one at {exc.key_url}."
         case _:
             return f"{exc.api} request failed."

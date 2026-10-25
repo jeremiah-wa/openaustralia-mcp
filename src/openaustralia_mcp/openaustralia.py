@@ -5,7 +5,7 @@ from typing import Any
 import httpx2
 
 from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
-from openaustralia_mcp.errors import MissingKeyError
+from openaustralia_mcp.errors import KeyRejectedError, MissingKeyError
 
 API_NAME = "OpenAustralia"
 BASE_URL = "https://www.openaustralia.org.au/api"
@@ -29,4 +29,11 @@ class OpenAustraliaClient:
             f"{BASE_URL}/{function}",
             params={"key": self._api_key, "output": "js", **params},
         )
-        return response.json()
+        data = response.json()
+
+        # Errors come back as HTTP 200 with a body like {"error": "Invalid API key."}.
+        if isinstance(data, dict) and "error" in data:
+            message = str(data["error"])
+            if "api key" in message.lower():
+                raise KeyRejectedError(API_NAME, KEY_URL)
+        return data
