@@ -66,8 +66,23 @@ class TestDebateResult:
         async with connect() as client:
             result = await client.call_tool("read_debate", KHALIL_ARGS)
 
-        # In the fixture: `...in a quarter of a century.</p><p>We've delivered this...`
+        # In the fixture: `...in a quarter of a century.</p><p>We've delivered this...`, within the first page.
         assert (
             "probably the most significant in a quarter of a century.\n\nWe've delivered this because"
             in result.structured_content["text"]
         )
+
+
+class TestPaging:
+    async def test_returns_the_first_4000_characters(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        # The speech alone is 8,715 characters as plain text.
+        content = result.structured_content
+        assert len(content["text"]) == 4000
+        assert content["offset"] == 0
+        assert content["next_offset"] == 4000
+        assert content["total_length"] > 8715

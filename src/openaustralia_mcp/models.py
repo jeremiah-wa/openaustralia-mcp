@@ -16,6 +16,9 @@ HANSARD_LICENCE = (
     "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
 )
 
+# Characters of debate text per read_debate call.
+DEBATE_PAGE_SIZE = 4000
+
 
 class Member(BaseModel):
     person_id: str = Field(description="Stable ID for this person. Pass it to other tools.")
@@ -89,7 +92,10 @@ class DebateResult(BaseModel):
     date: str
     debate: str = Field(description="Title of the debate.")
     url: str = Field(description="The speech or debate on OpenAustralia. Cite it.")
-    text: str = Field(description="The speech as Hansard records it, after the speaker's name.")
+    text: str = Field(description="One page of the speech as Hansard records it, after the speaker's name.")
+    offset: int = Field(description="Where this page starts in the full text.")
+    next_offset: int | None = Field(description="Pass as offset to read the next page. None on the last page.")
+    total_length: int = Field(description="Length of the full text in characters.")
     source_url: str
     licence: str
 
@@ -98,6 +104,7 @@ class DebateResult(BaseModel):
         cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"]
     ) -> "DebateResult":
         [requested] = [entry for entry in entries if entry.gid == gid]
+        text = _speech_text(requested)
         return cls(
             gid=gid,
             house=house,
@@ -105,7 +112,10 @@ class DebateResult(BaseModel):
             # Section and subsection headings, the same title getHansard gives as `parent.body`.
             debate=": ".join(entry.body for entry in entries if entry.is_heading),
             url=SITE_URL + html.unescape(requested.listurl),
-            text=_speech_text(requested),
+            text=text[:DEBATE_PAGE_SIZE],
+            offset=0,
+            next_offset=DEBATE_PAGE_SIZE if len(text) > DEBATE_PAGE_SIZE else None,
+            total_length=len(text),
             source_url=SITE_URL,
             licence=HANSARD_LICENCE,
         )
