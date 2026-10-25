@@ -6,7 +6,7 @@ import httpx2
 from pydantic import BaseModel, TypeAdapter, field_validator
 
 from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
-from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError
+from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError, NotFoundError
 
 API_NAME = "OpenAustralia"
 BASE_URL = "https://www.openaustralia.org.au/api"
@@ -133,6 +133,8 @@ class OpenAustraliaClient:
             )
         except httpx2.HTTPError:
             raise ApiUnavailableError(API_NAME) from None
+        if response.status_code == 404:
+            raise NotFoundError(API_NAME)
         if response.status_code != 200:
             raise ApiUnavailableError(API_NAME, response.status_code)
         try:

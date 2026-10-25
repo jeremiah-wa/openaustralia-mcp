@@ -1,3 +1,4 @@
+import httpx2
 import pytest
 
 from .conftest import TEST_KEY, Connect, FakeApi, result_text
@@ -173,3 +174,18 @@ class TestWholeDebate:
         name_lines = [line.removesuffix(":") for line in text.split("\n") if line.removesuffix(":") in expected]
         assert name_lines == expected
         assert text.startswith("Milton Dick:\n\n")
+
+
+class TestNotFound:
+    async def test_says_no_speech_has_that_gid_in_that_house(self, connect: Connect, fake_api: FakeApi) -> None:
+        # What OpenAustralia sends for a gid it doesn't have: a 404 page, not an {"error": ...} body.
+        fake_api.serve(lambda request: httpx2.Response(404, text="<!DOCTYPE html><html>...</html>"))
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", {"gid": "1999-01-01.1.1", "house": "senate"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool read_debate: OpenAustralia has no speech or debate with gid 1999-01-01.1.1 "
+            "in the senate. Check that house matches the search_hansard hit the gid came from."
+        )

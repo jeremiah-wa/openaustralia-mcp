@@ -17,6 +17,7 @@ from openaustralia_mcp.errors import (
     ApiUnavailableError,
     KeyRejectedError,
     MissingKeyError,
+    NotFoundError,
 )
 from openaustralia_mcp.models import (
     HANSARD_LICENCE,
@@ -138,6 +139,11 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         """
         try:
             entries = await openaustralia.get_debates(house, gid)
+        except NotFoundError:
+            raise ToolError(
+                f"OpenAustralia has no speech or debate with gid {gid} in the {house}. "
+                "Check that house matches the search_hansard hit the gid came from."
+            ) from None
         except ApiClientError as exc:
             raise ToolError(_describe(exc, gid=gid, house=house)) from None
         result = DebateResult.from_entries(entries, gid, house, offset)
