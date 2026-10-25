@@ -25,13 +25,24 @@ class Member(BaseModel):
 
 class MembersResult(BaseModel):
     members: list[Member]
+    note: str | None = Field(default=None, description="A caveat to pass on to the user, if any.")
     source_url: str
     licence: str
 
 
-def members_from_representatives(raw: list[dict[str, Any]]) -> MembersResult:
+PARTIAL_MATCH_NOTE = (
+    "OpenAustralia couldn't match part of this postcode to a current member, so this list may be incomplete. "
+    "Its postcode data can lag behind changes to electorate boundaries."
+)
+
+
+def members_from_representatives(raw: list[Any]) -> MembersResult:
+    # OpenAustralia puts `false` in the list for a division it has no current member for,
+    # such as an electorate abolished in a redistribution that its postcode data still includes.
+    found = [member for member in raw if isinstance(member, dict)]
     return MembersResult(
-        members=[_member_from_representative(member) for member in raw],
+        members=[_member_from_representative(member) for member in found],
+        note=PARTIAL_MATCH_NOTE if len(found) < len(raw) else None,
         source_url=SITE_URL,
         licence=MEMBERS_LICENCE,
     )

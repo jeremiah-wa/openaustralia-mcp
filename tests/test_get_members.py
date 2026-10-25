@@ -32,6 +32,7 @@ class TestLookupByPostcode:
                     "url": "https://www.openaustralia.org.au/mp/?p=10887",
                 }
             ],
+            "note": None,
             "source_url": "https://www.openaustralia.org.au",
             "licence": (
                 "Members data: OpenAustralia Foundation, CC BY-SA 2.5 (https://creativecommons.org/licenses/by-sa/2.5/)"
@@ -182,3 +183,32 @@ class TestKeyNeverLeaks:
 
         assert caplog.records, "expected some log output to check"
         assert TEST_KEY not in caplog.text
+
+
+class TestPostcodeWithoutCurrentMember:
+    """OpenAustralia still maps some postcodes to abolished electorates (e.g. Higgins) and puts `false` in their place."""
+
+    async def test_lists_the_members_it_can_match_and_warns_the_list_may_be_incomplete(
+        self, connect: Connect, fake_api: FakeApi
+    ) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_3181.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3181"})
+
+        assert not result.is_error
+        assert result.structured_content["members"] == [
+            {
+                "person_id": "10934",
+                "name": "Josh Burns",
+                "party": "Australian Labor Party",
+                "electorate": "Macnamara",
+                "house": "representatives",
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/mp/?p=10934",
+            }
+        ]
+        assert result.structured_content["note"] == (
+            "OpenAustralia couldn't match part of this postcode to a current member, so this list may be "
+            "incomplete. Its postcode data can lag behind changes to electorate boundaries."
+        )
