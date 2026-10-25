@@ -37,7 +37,10 @@ These protect users' keys and keep the project within the data licences. Don't b
 
 ## Tests
 
+- **Write the test first.** Write one failing test for the next behaviour, run it to see it fail, then write only the code that makes it pass. Repeat for each behaviour. Don't write the code first and then add tests that fit it.
 - Test through the MCP tool call, using the in-memory client and recorded responses. Don't test internal functions directly. That's what lets the internals change when tools are reworked around tasks.
+- Take expected values from an independent source, such as a recorded response or the API docs. Never work them out the same way the code does.
+- Group related tests in classes named after the behaviour, e.g. `TestMissingKey` and `TestKeyNeverLeaks`.
 - Every new tool gets a test for its normal result, for a missing key and for an API error.
 - `uv run pytest` must pass before you commit. Live smoke tests run only when the key env vars are set, and they never run in CI.
 
@@ -70,7 +73,8 @@ fix(cache): stop caching responses that contain an API error
 docs: record person_id check result in architecture.md
 ```
 
-- Keep each commit to one logical change. Code, its tests and any doc updates for it go in the same commit.
+- Keep each commit to one logical change, small enough to revert without losing other work. A tool is usually several commits: one per behaviour, each with its test and the code that makes it pass, e.g. "add get_members lookup by postcode", then "explain a missing OpenAustralia key".
+- Code, its tests and any doc updates for it go in the same commit.
 - Mark breaking changes to a tool's name or arguments with `!` (e.g. `feat(tools)!: rename get_members query argument`) and explain the change in the body.
 
 ## Branches and pull requests
