@@ -115,6 +115,7 @@ If you fork this project, these terms apply to you too.
 git clone https://github.com/jeremiah-wa/openaustralia-mcp
 cd openaustralia-mcp
 uv sync
+uv run pre-commit install   # blocks commits that contain an API key
 uv run pytest
 ```
 

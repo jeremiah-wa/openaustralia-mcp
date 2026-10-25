@@ -155,7 +155,7 @@ flowchart TD
   - `build_server` raises the `httpx2` and `httpcore2` loggers to WARNING. At INFO, httpx2 logs every request URL, and the SDK writes INFO logs to stderr.
   - The API clients catch HTTP errors and re-raise them `from None` with the status only, because httpx2 errors carry the request and its URL.
   - Tests check results and captured logs for a sentinel key.
-  - CI scans every commit with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed.
+  - A pre-commit hook and CI scan with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed.
 - **Network failures, non-200 statuses and non-JSON bodies** (such as a Cloudflare challenge page) all return "couldn't be reached" or "didn't respond normally (HTTP …)".
 
 ## Result shaping
@@ -217,7 +217,7 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | Hansard excerpt | OpenAustralia's own, markup stripped | It's already short. Cutting further would lose context for little saving. |
 | Distribution | `uvx --from git+…` | No release process needed. PyPI later. |
 | Live tests in CI | A separate weekly workflow, with the OpenAustralia key in a repository secret | Recorded responses can't show the API changing. Weekly keeps the load on a charity's free API small, and a separate workflow keeps the key out of the jobs that run on every push |
-| Committed-key check | gitleaks in CI, with a custom rule in `.gitleaks.toml` | GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You |
+| Committed-key check | gitleaks with a custom rule in `.gitleaks.toml`, run by a pre-commit hook and again in CI | GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You. The hook stops a key before it's committed. CI catches clones without the hook, and `--no-verify` |
 | Code licence | MIT | Data licences are documented separately |
 
 ## Open questions
