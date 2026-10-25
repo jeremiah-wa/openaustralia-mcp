@@ -2,7 +2,7 @@ from unittest.mock import ANY
 
 import pytest
 
-from .conftest import TEST_KEY, Connect, FakeApi
+from .conftest import TEST_KEY, Connect, FakeApi, result_text
 
 pytestmark = pytest.mark.anyio
 
@@ -94,6 +94,18 @@ class TestSearchResult:
         assert not result.is_error
         assert result.structured_content["hits"] == []
         assert result.structured_content["total_results"] == 0
+
+
+class TestArguments:
+    async def test_needs_a_query_or_person_id(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(HOUSING_BY_10887)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {})
+
+        assert result.is_error
+        assert result_text(result) == "Error executing tool search_hansard: Give a query, a person_id, or both."
+        assert fake_api.requests == []
 
 
 class TestExcerpt:

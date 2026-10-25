@@ -97,6 +97,8 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         Returns the 20 most recent matching speeches, each with the speaker, date, debate title, a short
         excerpt, a gid and a url to the full speech.
         """
+        if query is None and person_id is None:
+            raise ToolError("Give a query, a person_id, or both.")
         search = await openaustralia.search_hansard(query, person_id)
         return HansardSearchResult(
             hits=[HansardHit.from_row(row) for row in search.rows],
