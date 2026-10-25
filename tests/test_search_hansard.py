@@ -107,6 +107,27 @@ class TestArguments:
         assert result_text(result) == "Error executing tool search_hansard: Give a query, a person_id, or both."
         assert fake_api.requests == []
 
+    @pytest.mark.parametrize(
+        ("arguments", "name"),
+        [
+            ({"person_id": "abc"}, "person_id"),
+            ({"person_id": " 10887"}, "person_id"),
+            ({"person_id": ""}, "person_id"),
+            ({"query": ""}, "query"),
+        ],
+    )
+    async def test_rejects_malformed_arguments_without_a_request(
+        self, connect: Connect, fake_api: FakeApi, arguments: dict[str, str], name: str
+    ) -> None:
+        fake_api.serve_fixture(HOUSING_BY_10887)
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", arguments)
+
+        assert result.is_error
+        assert name in result_text(result)
+        assert fake_api.requests == []
+
 
 class TestExcerpt:
     async def test_strips_highlighting_and_entities(self, connect: Connect, fake_api: FakeApi) -> None:

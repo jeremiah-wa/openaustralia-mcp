@@ -87,9 +87,12 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
-        query: Annotated[str | None, Field(description='Words to search for, e.g. "housing affordability".')] = None,
+        query: Annotated[
+            str | None, Field(min_length=1, description='Words to search for, e.g. "housing affordability".')
+        ] = None,
         person_id: Annotated[
-            str | None, Field(description="Only speeches by this member. Get it from get_members.")
+            str | None,
+            Field(pattern=r"^\d+$", description="Only speeches by this member. Get it from get_members."),
         ] = None,
     ) -> HansardSearchResult:
         """Search what was said in federal Parliament (Hansard), in both the House and the Senate.
