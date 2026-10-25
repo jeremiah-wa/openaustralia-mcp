@@ -81,3 +81,8 @@ class HansardSearchResult(BaseModel):
     total_results: int = Field(description="How many speeches matched in all, including those not returned.")
     source_url: str
     licence: str
+
+
+class DebateResult(BaseModel):
+    source_url: str
+    licence: str

@@ -78,6 +78,15 @@ class HansardSearch(BaseModel):
         return [] if rows == {} else rows
 
 
+class DebateEntry(BaseModel):
+    """A heading or speech as getDebates returns it, with OpenAustralia's field names. Other fields are ignored."""
+
+    gid: str
+
+
+_debate_entries = TypeAdapter(list[DebateEntry])
+
+
 class OpenAustraliaClient:
     def __init__(self, http: httpx2.AsyncClient, api_key: str | None) -> None:
         self._http = http
@@ -92,6 +101,10 @@ class OpenAustraliaClient:
         params = {"search": search, "person": person}
         given = {name: value for name, value in params.items() if value is not None}
         return HansardSearch.model_validate(await self._call("getHansard", **given))
+
+    async def get_debates(self, type: Literal["representatives", "senate"], gid: str) -> list[DebateEntry]:
+        """The headings and speech(es) for a gid. gids repeat across houses, so the type picks the house."""
+        return _debate_entries.validate_python(await self._call("getDebates", type=type, gid=gid))
 
     async def _call(self, function: str, **params: str) -> Any:
         if not self._api_key:

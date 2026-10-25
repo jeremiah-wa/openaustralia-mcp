@@ -2,7 +2,7 @@
 
 import logging
 from importlib.metadata import version
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx2
 from mcp.server.mcpserver import MCPServer
@@ -22,6 +22,7 @@ from openaustralia_mcp.models import (
     HANSARD_LICENCE,
     MEMBERS_LICENCE,
     SITE_URL,
+    DebateResult,
     HansardHit,
     HansardSearchResult,
     Member,
@@ -117,6 +118,21 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             source_url=SITE_URL,
             licence=HANSARD_LICENCE,
         )
+
+    @server.tool(annotations=READ_ONLY)
+    async def read_debate(
+        gid: Annotated[str, Field(description="A speech's gid, from search_hansard.")],
+        house: Annotated[
+            Literal["representatives", "senate"],
+            Field(description="The house the gid is from, as search_hansard gives it. gids repeat across houses."),
+        ],
+    ) -> DebateResult:
+        """Read the full text of a speech in federal Parliament (Hansard), by its gid and house."""
+        try:
+            await openaustralia.get_debates(house, gid)
+        except ApiClientError as exc:
+            raise ToolError(_describe(exc, gid=gid, house=house)) from None
+        return DebateResult(source_url=SITE_URL, licence=HANSARD_LICENCE)
 
     return server
 
