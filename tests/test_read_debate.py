@@ -28,3 +28,19 @@ class TestDebateRequest:
         assert result.structured_content["licence"] == (
             "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
         )
+
+
+class TestDebateResult:
+    async def test_returns_the_debate_title_date_and_link(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        content = result.structured_content
+        assert content["gid"] == "2026-06-23.80.1"
+        assert content["house"] == "representatives"
+        assert content["date"] == "2026-06-23"
+        # The same title search_hansard gives this speech.
+        assert content["debate"] == "Matters of Public Importance: Budget"
+        assert content["url"] == "https://www.openaustralia.org.au/debates/?id=2026-06-23.78.2#g80.1"

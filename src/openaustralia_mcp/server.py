@@ -129,10 +129,10 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     ) -> DebateResult:
         """Read the full text of a speech in federal Parliament (Hansard), by its gid and house."""
         try:
-            await openaustralia.get_debates(house, gid)
+            entries = await openaustralia.get_debates(house, gid)
         except ApiClientError as exc:
             raise ToolError(_describe(exc, gid=gid, house=house)) from None
-        return DebateResult(source_url=SITE_URL, licence=HANSARD_LICENCE)
+        return DebateResult.from_entries(entries, gid, house)
 
     return server
 

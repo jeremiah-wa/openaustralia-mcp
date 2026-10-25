@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from openaustralia_mcp.openaustralia import HansardRow, Representative
+from openaustralia_mcp.openaustralia import DebateEntry, HansardRow, Representative
 
 SITE_URL = "https://www.openaustralia.org.au"
 MEMBERS_LICENCE = (
@@ -84,5 +84,26 @@ class HansardSearchResult(BaseModel):
 
 
 class DebateResult(BaseModel):
+    gid: str
+    house: Literal["representatives", "senate"]
+    date: str
+    debate: str = Field(description="Title of the debate.")
+    url: str = Field(description="The speech or debate on OpenAustralia. Cite it.")
     source_url: str
     licence: str
+
+    @classmethod
+    def from_entries(
+        cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"]
+    ) -> "DebateResult":
+        [requested] = [entry for entry in entries if entry.gid == gid]
+        return cls(
+            gid=gid,
+            house=house,
+            date=requested.hdate,
+            # Section and subsection headings, the same title getHansard gives as `parent.body`.
+            debate=": ".join(entry.body for entry in entries if entry.is_heading),
+            url=SITE_URL + html.unescape(requested.listurl),
+            source_url=SITE_URL,
+            licence=HANSARD_LICENCE,
+        )

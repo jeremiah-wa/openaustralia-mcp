@@ -82,6 +82,14 @@ class DebateEntry(BaseModel):
     """A heading or speech as getDebates returns it, with OpenAustralia's field names. Other fields are ignored."""
 
     gid: str
+    htype: str  # "10" section heading, "11" subsection heading, "12" speech
+    hdate: str
+    body: str
+    listurl: str
+
+    @property
+    def is_heading(self) -> bool:
+        return self.htype in ("10", "11")
 
 
 _debate_entries = TypeAdapter(list[DebateEntry])
