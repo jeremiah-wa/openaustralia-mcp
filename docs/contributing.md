@@ -13,6 +13,7 @@ These protect users' keys and keep the project within the data licences. Don't b
    - Test fixtures are recorded from live calls, and the request URL contains `key=…`.
    - Remove the key before committing a fixture.
    - Check with `git diff --staged` before every commit that adds or changes fixtures.
+   - CI scans every commit with [gitleaks](https://github.com/gitleaks/gitleaks), using the rule in [.gitleaks.toml](../.gitleaks.toml), and fails if it finds a key. It's a backstop, not a reason to skip the check. To run it locally, install gitleaks and run `gitleaks git . --redact`.
 3. **Keys never appear in logs, tool results or error messages.**
 4. **Read-only.** No tool changes data anywhere.
 5. **Cut Hansard text, never rewrite it.**
