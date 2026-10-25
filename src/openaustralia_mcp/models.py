@@ -1,16 +1,15 @@
-"""Tool result models, and how raw API responses become them: small and citable."""
+"""Tool result models: the small, citable shapes the tools return."""
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from openaustralia_mcp.openaustralia import Representative, Representatives
 
 SITE_URL = "https://www.openaustralia.org.au"
 MEMBERS_LICENCE = (
     "Members data: OpenAustralia Foundation, CC BY-SA 2.5 (https://creativecommons.org/licenses/by-sa/2.5/)"
 )
-
-# OpenAustralia marks "still current" with this date, for members and for their offices.
-STILL_CURRENT = "9999-12-31"
 
 
 class Member(BaseModel):
@@ -21,6 +20,18 @@ class Member(BaseModel):
     house: Literal["representatives"]
     positions: list[str] = Field(description="Current ministerial or other offices, if any.")
     url: str = Field(description="The member's page on OpenAustralia. Cite it.")
+
+    @classmethod
+    def from_representative(cls, representative: Representative) -> "Member":
+        return cls(
+            person_id=representative.person_id,
+            name=representative.full_name,
+            party=representative.party or "",
+            electorate=representative.constituency or "",
+            house="representatives",
+            positions=representative.current_positions,
+            url=f"{SITE_URL}/mp/?p={representative.person_id}",
+        )
 
 
 class MembersResult(BaseModel):
@@ -36,30 +47,11 @@ PARTIAL_MATCH_NOTE = (
 )
 
 
-def members_from_representatives(raw: list[Any]) -> MembersResult:
-    # OpenAustralia puts `false` in the list for a division it has no current member for,
-    # such as an electorate abolished in a redistribution that its postcode data still includes.
-    found = [member for member in raw if isinstance(member, dict)]
+def members_from_representatives(raw: Representatives) -> MembersResult:
+    found = [member for member in raw if isinstance(member, Representative)]
     return MembersResult(
-        members=[_member_from_representative(member) for member in found],
+        members=[Member.from_representative(member) for member in found],
         note=PARTIAL_MATCH_NOTE if len(found) < len(raw) else None,
         source_url=SITE_URL,
         licence=MEMBERS_LICENCE,
-    )
-
-
-def _member_from_representative(raw: dict[str, Any]) -> Member:
-    person_id = str(raw["person_id"])
-    return Member(
-        person_id=person_id,
-        name=raw.get("full_name") or raw.get("name") or "",
-        party=raw.get("party") or "",
-        electorate=raw.get("constituency") or "",
-        house="representatives",
-        positions=[
-            office["position"]
-            for office in raw.get("office") or []
-            if office.get("position") and office.get("to_date") == STILL_CURRENT
-        ],
-        url=f"{SITE_URL}/mp/?p={person_id}",
     )
