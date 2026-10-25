@@ -18,8 +18,8 @@ from openaustralia_mcp.errors import (
     KeyRejectedError,
     MissingKeyError,
 )
-from openaustralia_mcp.models import MembersResult, members_from_representatives
-from openaustralia_mcp.openaustralia import OpenAustraliaClient
+from openaustralia_mcp.models import MEMBERS_LICENCE, SITE_URL, Member, MembersResult
+from openaustralia_mcp.openaustralia import OpenAustraliaClient, Representative
 
 VERSION = version("openaustralia-mcp")
 
@@ -34,6 +34,11 @@ READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 
 # The HTTP library logs every request URL at INFO and below, and the URL contains the API key.
 HTTP_LOGGERS = ("httpx2", "httpcore2")
+
+PARTIAL_MATCH_NOTE = (
+    "OpenAustralia couldn't match part of this postcode to a current member, so this list may be incomplete. "
+    "Its postcode data can lag behind changes to electorate boundaries."
+)
 
 
 def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
@@ -54,16 +59,23 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         span more than one electorate, so there may be several members. Senators aren't covered yet.
         """
         try:
-            raw = await openaustralia.get_representatives(postcode)
+            representatives = await openaustralia.get_representatives(postcode)
         except ApiClientError as exc:
             raise ToolError(_describe(exc, postcode=postcode)) from None
-        result = members_from_representatives(raw)
-        if not result.members:
+
+        # A division OpenAustralia can't match to a current member comes back as `false`.
+        found = [member for member in representatives if isinstance(member, Representative)]
+        if not found:
             raise ToolError(
                 f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
                 "behind changes to electorate boundaries, so try a neighbouring postcode."
             )
-        return result
+        return MembersResult(
+            members=[Member.from_representative(member) for member in found],
+            note=PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None,
+            source_url=SITE_URL,
+            licence=MEMBERS_LICENCE,
+        )
 
     return server
 

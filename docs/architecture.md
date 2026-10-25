@@ -54,7 +54,7 @@ flowchart TB
 | **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
 | **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. |
 | **Cache** | Avoids repeat calls for data that rarely or never changes. |
-| **API clients** | One per API. They build requests, attach the key, and turn error responses into typed errors. They don't know anything about MCP. |
+| **API clients** | One per API. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
 
 ## Tools
 
