@@ -18,3 +18,11 @@ class KeyRejectedError(ApiClientError):
     def __init__(self, api: str, key_url: str) -> None:
         super().__init__(api)
         self.key_url = key_url
+
+
+class ApiError(ApiClientError):
+    """The API answered with an `{error: ...}` body that isn't about the key."""
+
+    def __init__(self, api: str, message: str) -> None:
+        super().__init__(api)
+        self.message = message

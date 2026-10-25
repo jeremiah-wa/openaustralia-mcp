@@ -5,7 +5,7 @@ from typing import Any
 import httpx2
 
 from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
-from openaustralia_mcp.errors import KeyRejectedError, MissingKeyError
+from openaustralia_mcp.errors import ApiError, KeyRejectedError, MissingKeyError
 
 API_NAME = "OpenAustralia"
 BASE_URL = "https://www.openaustralia.org.au/api"
@@ -36,4 +36,5 @@ class OpenAustraliaClient:
             message = str(data["error"])
             if "api key" in message.lower():
                 raise KeyRejectedError(API_NAME, KEY_URL)
+            raise ApiError(API_NAME, message)
         return data

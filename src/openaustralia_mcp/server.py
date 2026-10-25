@@ -8,7 +8,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from openaustralia_mcp.config import Config
-from openaustralia_mcp.errors import ApiClientError, KeyRejectedError, MissingKeyError
+from openaustralia_mcp.errors import ApiClientError, ApiError, KeyRejectedError, MissingKeyError
 from openaustralia_mcp.models import MembersResult, members_from_representatives
 from openaustralia_mcp.openaustralia import OpenAustraliaClient
 
@@ -39,18 +39,21 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         try:
             raw = await openaustralia.get_representatives(postcode)
         except ApiClientError as exc:
-            raise ToolError(_describe(exc)) from None
+            raise ToolError(_describe(exc, postcode=postcode)) from None
         return members_from_representatives(raw)
 
     return server
 
 
-def _describe(exc: ApiClientError) -> str:
+def _describe(exc: ApiClientError, **arguments: str) -> str:
     """A message Claude can relay to the user. Never includes the key or a request URL."""
     match exc:
         case MissingKeyError():
             return f"No {exc.api} key set. Get one at {exc.key_url}, then set {exc.env_var} in your MCP client config."
         case KeyRejectedError():
             return f"The {exc.api} key was rejected. Check it or get a new one at {exc.key_url}."
+        case ApiError():
+            args = ", ".join(f"{name}={value}" for name, value in arguments.items())
+            return f"{exc.api} returned an error for {args}: {exc.message}"
         case _:
             return f"{exc.api} request failed."
