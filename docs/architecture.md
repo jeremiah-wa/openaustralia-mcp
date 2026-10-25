@@ -51,7 +51,7 @@ flowchart TB
 |---|---|
 | **Entry points** | Read config, build the server, attach a transport. Stage 1 ships stdio only. The HTTP entry point is a later addition and doesn't change the core. |
 | **Server factory** | The single construction point. It takes an HTTP client, a clock and the config, so tests can swap in fakes (see [Testing](#testing)). |
-| **Tool layer** | Registers the tools with the `mcp` SDK (FastMCP) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
+| **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
 | **Result shaping** | Turns raw API responses into small, citable results. This is where most of the design work goes. |
 | **Cache** | Avoids repeat calls for data that rarely or never changes. |
 | **API clients** | One per API. They build requests, attach the key, and turn error responses into typed errors. They don't know anything about MCP. |
@@ -178,7 +178,8 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Language | Python, `uv`, the official `mcp` SDK | Less boilerplate. The focus is MCP, not the language. |
+| Language | Python, `uv`, the official `mcp` SDK (2.x) | Less boilerplate. The focus is MCP, not the language. |
+| HTTP client | `httpx2` | The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two |
 | Transport | stdio first, with a transport-agnostic core | Local use needs no hosting, and HTTP can be added later without a refactor |
 | Servers | One server, two API clients | Speech and votes join on the member, and one server can name things clearly |
 | Tool shape | One tool per API function, for now | Real usage should drive the redesign around tasks |
