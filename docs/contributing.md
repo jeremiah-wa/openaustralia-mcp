@@ -43,7 +43,7 @@ These protect users' keys and keep the project within the data licences. Don't b
 - Take expected values from an independent source, such as a recorded response or the API docs. Never work them out the same way the code does.
 - Group related tests in classes named after the behaviour, e.g. `TestMissingKey` and `TestKeyNeverLeaks`.
 - Every new tool gets a test for its normal result, for a missing key, for an API error and for never leaking the key (`TestKeyNeverLeaks`).
-- `uv run pytest` must pass before you commit. CI ([ci.yml](../.github/workflows/ci.yml)) also runs it, with ruff, on every pull request and every push to `main`. Live smoke tests run only when the key env vars are set, and they never run in CI.
+- `uv run pytest` must pass before you commit. CI ([ci.yml](../.github/workflows/ci.yml)) also runs it, with ruff, on every pull request and every push to `main`. Live smoke tests run only when the key env vars are set. In CI they run only in [live.yml](../.github/workflows/live.yml), weekly, by hand and on pull requests that change them, with the key from the `OPENAUSTRALIA_API_KEY` repository secret. Don't add a live call to any other workflow.
 
 ## Commits
 
