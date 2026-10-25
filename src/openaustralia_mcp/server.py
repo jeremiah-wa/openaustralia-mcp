@@ -124,13 +124,18 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     async def read_debate(
         gid: Annotated[
             str,
-            Field(description="A speech's gid, from search_hansard. Or, to read the whole debate, the id= in its url."),
+            Field(
+                pattern=r"^\d{4}-\d{2}-\d{2}\.\d+\.\d+$",
+                description="A speech's gid, from search_hansard. Or, to read the whole debate, the id= in its url.",
+            ),
         ],
         house: Annotated[
             Literal["representatives", "senate"],
             Field(description="The house the gid is from, as search_hansard gives it. gids repeat across houses."),
         ],
-        offset: Annotated[int, Field(description="Where to start reading. Pass next_offset from the last call.")] = 0,
+        offset: Annotated[
+            int, Field(ge=0, description="Where to start reading. Pass next_offset from the last call.")
+        ] = 0,
     ) -> DebateResult:
         """Read the full text of a speech or debate in federal Parliament (Hansard), by its gid and house.
 

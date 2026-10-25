@@ -189,3 +189,31 @@ class TestNotFound:
             "Error executing tool read_debate: OpenAustralia has no speech or debate with gid 1999-01-01.1.1 "
             "in the senate. Check that house matches the search_hansard hit the gid came from."
         )
+
+
+class TestArguments:
+    @pytest.mark.parametrize(
+        ("arguments", "name"),
+        [
+            ({"gid": "abc", "house": "representatives"}, "gid"),
+            ({"gid": "2026-06-23", "house": "representatives"}, "gid"),
+            ({"gid": " 2026-06-23.80.1", "house": "representatives"}, "gid"),
+            ({"gid": "", "house": "representatives"}, "gid"),
+            ({"gid": 2026, "house": "representatives"}, "gid"),
+            ({"gid": "2026-06-23.80.1", "house": "house"}, "house"),
+            ({"gid": "2026-06-23.80.1"}, "house"),
+            ({**KHALIL_ARGS, "offset": -1}, "offset"),
+        ],
+        ids=["word", "date-only", "leading-space", "empty", "number", "unknown-house", "no-house", "negative-offset"],
+    )
+    async def test_rejects_malformed_arguments_without_a_request(
+        self, connect: Connect, fake_api: FakeApi, arguments: dict[str, object], name: str
+    ) -> None:
+        fake_api.serve_fixture(KHALIL)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", arguments)
+
+        assert result.is_error
+        assert name in result_text(result)
+        assert fake_api.requests == []
