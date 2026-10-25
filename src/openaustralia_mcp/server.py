@@ -8,7 +8,13 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from openaustralia_mcp.config import Config
-from openaustralia_mcp.errors import ApiClientError, ApiError, KeyRejectedError, MissingKeyError
+from openaustralia_mcp.errors import (
+    ApiClientError,
+    ApiError,
+    ApiUnavailableError,
+    KeyRejectedError,
+    MissingKeyError,
+)
 from openaustralia_mcp.models import MembersResult, members_from_representatives
 from openaustralia_mcp.openaustralia import OpenAustraliaClient
 
@@ -55,5 +61,9 @@ def _describe(exc: ApiClientError, **arguments: str) -> str:
         case ApiError():
             args = ", ".join(f"{name}={value}" for name, value in arguments.items())
             return f"{exc.api} returned an error for {args}: {exc.message}"
+        case ApiUnavailableError(status=None):
+            return f"{exc.api} couldn't be reached. Try again later."
+        case ApiUnavailableError():
+            return f"{exc.api} didn't respond normally (HTTP {exc.status}). Try again later."
         case _:
             return f"{exc.api} request failed."

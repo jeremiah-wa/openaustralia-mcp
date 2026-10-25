@@ -1,8 +1,9 @@
+import httpx2
 import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import TEST_KEY, Connect, FakeApi, result_text
+from .conftest import TEST_KEY, Connect, FakeApi, Handler, result_text
 
 pytestmark = pytest.mark.anyio
 
@@ -92,3 +93,35 @@ class TestApiError:
         assert result_text(result) == (
             "Error executing tool get_members: OpenAustralia returned an error for postcode=0000: Unknown postcode"
         )
+
+
+def _connection_refused(request: httpx2.Request) -> httpx2.Response:
+    raise httpx2.ConnectError("connection refused", request=request)
+
+
+class TestApiUnavailable:
+    @pytest.mark.parametrize(
+        ("handler", "message"),
+        [
+            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
+            (
+                lambda request: httpx2.Response(502, text="Bad gateway"),
+                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
+            ),
+            (
+                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
+                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
+            ),
+        ],
+        ids=["connection-error", "server-error", "not-json"],
+    )
+    async def test_says_to_try_again_later(
+        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
+    ) -> None:
+        fake_api.serve(handler)
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3056"})
+
+        assert result.is_error
+        assert result_text(result) == f"Error executing tool get_members: {message}"

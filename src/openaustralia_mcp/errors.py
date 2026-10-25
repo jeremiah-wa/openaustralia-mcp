@@ -26,3 +26,14 @@ class ApiError(ApiClientError):
     def __init__(self, api: str, message: str) -> None:
         super().__init__(api)
         self.message = message
+
+
+class ApiUnavailableError(ApiClientError):
+    """Network failure, timeout, non-200 status or a body that isn't JSON.
+
+    Holds the status only: HTTP library errors include the request URL, which contains the key.
+    """
+
+    def __init__(self, api: str, status: int | None = None) -> None:
+        super().__init__(api)
+        self.status = status

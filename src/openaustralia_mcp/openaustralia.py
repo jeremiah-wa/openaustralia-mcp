@@ -5,7 +5,7 @@ from typing import Any
 import httpx2
 
 from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
-from openaustralia_mcp.errors import ApiError, KeyRejectedError, MissingKeyError
+from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError
 
 API_NAME = "OpenAustralia"
 BASE_URL = "https://www.openaustralia.org.au/api"
@@ -25,11 +25,20 @@ class OpenAustraliaClient:
         if not self._api_key:
             raise MissingKeyError(API_NAME, OPENAUSTRALIA_KEY_ENV, KEY_URL)
 
-        response = await self._http.get(
-            f"{BASE_URL}/{function}",
-            params={"key": self._api_key, "output": "js", **params},
-        )
-        data = response.json()
+        # `from None` throughout: the HTTP error's context holds the URL, and the URL holds the key.
+        try:
+            response = await self._http.get(
+                f"{BASE_URL}/{function}",
+                params={"key": self._api_key, "output": "js", **params},
+            )
+        except httpx2.HTTPError:
+            raise ApiUnavailableError(API_NAME) from None
+        if response.status_code != 200:
+            raise ApiUnavailableError(API_NAME, response.status_code)
+        try:
+            data = response.json()
+        except ValueError:
+            raise ApiUnavailableError(API_NAME, response.status_code) from None
 
         # Errors come back as HTTP 200 with a body like {"error": "Invalid API key."}.
         if isinstance(data, dict) and "error" in data:
