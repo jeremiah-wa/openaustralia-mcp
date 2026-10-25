@@ -57,7 +57,13 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             raw = await openaustralia.get_representatives(postcode)
         except ApiClientError as exc:
             raise ToolError(_describe(exc, postcode=postcode)) from None
-        return members_from_representatives(raw)
+        result = members_from_representatives(raw)
+        if not result.members:
+            raise ToolError(
+                f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
+                "behind changes to electorate boundaries, so try a neighbouring postcode."
+            )
+        return result
 
     return server
 

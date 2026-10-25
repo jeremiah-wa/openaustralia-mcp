@@ -212,3 +212,15 @@ class TestPostcodeWithoutCurrentMember:
             "OpenAustralia couldn't match part of this postcode to a current member, so this list may be "
             "incomplete. Its postcode data can lag behind changes to electorate boundaries."
         )
+
+    async def test_explains_when_no_current_member_is_on_record(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_3142.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3142"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia has no current member on record for postcode 3142. "
+            "Its postcode data can lag behind changes to electorate boundaries, so try a neighbouring postcode."
+        )
