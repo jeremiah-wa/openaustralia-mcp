@@ -222,6 +222,7 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 - What exact parameters does each OpenAustralia and They Vote For You function take? (`getRepresentatives` is done. See [Tools](#tools).)
 - Is `/mp/?p=<person_id>` the right member page URL?
 - How well do the result-size defaults hold up against real responses?
+- How should tools reject unknown arguments? The `mcp` SDK builds each tool's arguments model with pydantic's default `extra="ignore"` and has no setting to change it. So a misnamed argument is dropped silently: `search_hansard(query="housing", person="10887")` searches every member's speeches. A wrong type, such as a number for `person_id`, is already rejected before any request. A fix would mean setting `extra="forbid"` through the SDK's private `_tool_manager`, or a change upstream.
 
 ## Later stages
 
