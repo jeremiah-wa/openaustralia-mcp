@@ -3,7 +3,7 @@ import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import TEST_KEY, Connect, FakeApi, result_text
+from .conftest import TEST_KEY, Connect, FakeApi, Handler, result_text
 
 pytestmark = pytest.mark.anyio
 
@@ -240,3 +240,64 @@ class TestMissingKey:
             await client.call_tool("read_debate", KHALIL_ARGS)
 
         assert fake_api.requests == []
+
+
+class TestRejectedKey:
+    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getDebates_bad_key.json")
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool read_debate: The OpenAustralia key was rejected. "
+            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
+        )
+
+
+class TestApiError:
+    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Recorded from a call with type=nonsense, which the tool itself never makes.
+        fake_api.serve_fixture("openaustralia/getDebates_unknown_type.json")
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool read_debate: OpenAustralia returned an error for "
+            "gid=2026-06-23.80.1, house=representatives: Unknown type"
+        )
+
+
+def _connection_refused(request: httpx2.Request) -> httpx2.Response:
+    raise httpx2.ConnectError("connection refused", request=request)
+
+
+class TestApiUnavailable:
+    @pytest.mark.parametrize(
+        ("handler", "message"),
+        [
+            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
+            (
+                lambda request: httpx2.Response(502, text="Bad gateway"),
+                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
+            ),
+            (
+                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
+                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
+            ),
+        ],
+        ids=["connection-error", "server-error", "not-json"],
+    )
+    async def test_says_to_try_again_later(
+        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
+    ) -> None:
+        fake_api.serve(handler)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", KHALIL_ARGS)
+
+        assert result.is_error
+        assert result_text(result) == f"Error executing tool read_debate: {message}"
