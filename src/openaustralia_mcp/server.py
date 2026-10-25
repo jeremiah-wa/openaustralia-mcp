@@ -1,5 +1,6 @@
 """Builds the MCP server: tool registration, descriptions and error messages."""
 
+import logging
 from importlib.metadata import version
 from typing import Annotated
 
@@ -31,9 +32,15 @@ Every result includes a url and a licence line: cite the url when you use the da
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 
+# The HTTP library logs every request URL at INFO and below, and the URL contains the API key.
+HTTP_LOGGERS = ("httpx2", "httpcore2")
+
 
 def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     """The single construction point. Tests pass a fake HTTP client here."""
+    for name in HTTP_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
     openaustralia = OpenAustraliaClient(http_client, config.openaustralia_api_key)
     server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION)
 

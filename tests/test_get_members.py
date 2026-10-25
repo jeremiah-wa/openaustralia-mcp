@@ -1,3 +1,5 @@
+import logging
+
 import httpx2
 import pytest
 
@@ -140,3 +142,43 @@ class TestPostcodeValidation:
         assert result.is_error
         assert "postcode" in result_text(result)
         assert fake_api.requests == []
+
+
+def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
+    # Real HTTP errors mention the URL, and the URL contains the key.
+    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
+
+
+LEAK_CASES = {
+    "success": "openaustralia/getRepresentatives_postcode_3056.json",
+    "rejected-key": "openaustralia/getRepresentatives_bad_key.json",
+    "api-error": "openaustralia/getRepresentatives_postcode_0000.json",
+    "connection-error": _connection_refused_naming_the_url,
+    "server-error": lambda request: httpx2.Response(500),
+}
+
+
+class TestKeyNeverLeaks:
+    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
+    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
+        if isinstance(request.param, str):
+            fake_api.serve_fixture(request.param)
+        else:
+            fake_api.serve(request.param)
+
+    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None) -> None:
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3056"})
+
+        assert TEST_KEY not in result_text(result)
+
+    async def test_not_in_the_logs(
+        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.DEBUG)
+
+        async with connect() as client:
+            await client.call_tool("get_members", {"postcode": "3056"})
+
+        assert caplog.records, "expected some log output to check"
+        assert TEST_KEY not in caplog.text
