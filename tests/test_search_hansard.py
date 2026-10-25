@@ -31,6 +31,17 @@ class TestSearchRequest:
         [request] = fake_api.requests
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "search": "NDIS"}
 
+    async def test_searches_by_person_alone(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getHansard_person_10887.json")
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"person_id": "10887"})
+
+        assert not result.is_error
+        assert result.structured_content["total_results"] == 545
+        [request] = fake_api.requests
+        assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "person": "10887"}
+
 
 class TestSearchResult:
     async def test_returns_hits_with_attribution(self, connect: Connect, fake_api: FakeApi) -> None:

@@ -87,7 +87,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
-        query: Annotated[str, Field(description='Words to search for, e.g. "housing affordability".')],
+        query: Annotated[str | None, Field(description='Words to search for, e.g. "housing affordability".')] = None,
         person_id: Annotated[
             str | None, Field(description="Only speeches by this member. Get it from get_members.")
         ] = None,

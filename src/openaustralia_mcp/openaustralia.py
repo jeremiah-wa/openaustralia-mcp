@@ -87,8 +87,8 @@ class OpenAustraliaClient:
         """House of Representatives members whose electorate covers the postcode."""
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
 
-    async def search_hansard(self, search: str, person: str | None = None) -> HansardSearch:
-        """Speeches in either house that match the search, newest first, 20 to a page."""
+    async def search_hansard(self, search: str | None = None, person: str | None = None) -> HansardSearch:
+        """Speeches in either house that match the search and/or are by the person, newest first, 20 to a page."""
         params = {"search": search, "person": person}
         given = {name: value for name, value in params.items() if value is not None}
         return HansardSearch.model_validate(await self._call("getHansard", **given))
