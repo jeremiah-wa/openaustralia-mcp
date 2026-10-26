@@ -166,3 +166,52 @@ def scores(records: list[TrialRecord]) -> Scores:
             tags=score.tags, passes=score.passes, trials=score.trials
         )
     return Scores(models=models, cases=cases)
+
+
+def render_comparison(baseline: Scores, run: Scores) -> str:
+    """The markdown comparison of a run with the baseline, over the cases and models both have."""
+    lines = ["## Compared with the baseline", ""]
+    models = [model for model in run.models if model in baseline.models]
+    for model in models:
+        effort, baseline_effort = run.models[model].effort, baseline.models[model].effort
+        if effort != baseline_effort:
+            warning = f"{model} ran at effort {effort}, and the baseline at {baseline_effort}"
+            lines += [f"{warning}, so the scores aren't comparable.", ""]
+
+    lines += ["| Model | Tag | Cases | Baseline | This run | Change |", "|---|---|---|---|---|---|"]
+    for model in models:
+        shared = [case for case in run.cases if model in run.cases[case] and model in baseline.cases.get(case, {})]
+        for tag in HEADLINE_TAGS:
+            tagged = [case for case in shared if tag in run.cases[case][model].tags]
+            if not tagged:
+                continue
+            then = _mean_pass_rate(baseline, tagged, model)
+            now = _mean_pass_rate(run, tagged, model)
+            change = round((now - then) * 100)
+            points = f"{change:+d}" if change else "0"
+            lines.append(f"| {model} | {tag} | {len(tagged)} | {then:.0%} | {now:.0%} | {points} points |")
+
+    changed = [
+        (case, model)
+        for model in models
+        for case in run.cases
+        if model in run.cases[case]
+        and model in baseline.cases.get(case, {})
+        and run.cases[case][model].passes / run.cases[case][model].trials
+        != baseline.cases[case][model].passes / baseline.cases[case][model].trials
+    ]
+    if changed:
+        lines += ["", "| Case | Model | Baseline | This run |", "|---|---|---|---|"]
+        for case, model in changed:
+            then, now = baseline.cases[case][model], run.cases[case][model]
+            lines.append(f"| {case} | {model} | {then.passes}/{then.trials} | {now.passes}/{now.trials} |")
+
+    new = [case for case in run.cases if case not in baseline.cases]
+    if new:
+        lines += ["", f"Not in the baseline: {', '.join(f'`{case}`' for case in new)}."]
+    lines += ["", "With about 100 trials per model, differences under about 10 points are noise (docs/evals.md)."]
+    return "\n".join(lines) + "\n"
+
+
+def _mean_pass_rate(run: Scores, cases: list[str], model: str) -> float:
+    return sum(run.cases[case][model].passes / run.cases[case][model].trials for case in cases) / len(cases)

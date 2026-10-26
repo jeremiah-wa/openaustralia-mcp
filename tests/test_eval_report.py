@@ -3,7 +3,16 @@
 import pytest
 
 from evals.graders import Trial
-from evals.report import Scores, TrialRecord, render_summary, score_cases, score_tags, scores, trial_cost_usd
+from evals.report import (
+    Scores,
+    TrialRecord,
+    render_comparison,
+    render_summary,
+    score_cases,
+    score_tags,
+    scores,
+    trial_cost_usd,
+)
 
 SONNET = "claude-sonnet-5-5"
 HAIKU = "claude-haiku-5-5"
@@ -143,3 +152,50 @@ class TestScoresFile:
         run = scores([record("mp-3056", True)])
 
         assert Scores.model_validate_json(run.model_dump_json()) == run
+
+
+def run_of(
+    *results: tuple[str, int], model: str = SONNET, effort: str = "high", tags: tuple[str, ...] = ("regression",)
+) -> Scores:
+    """Scores for cases that passed the given number of their 5 trials."""
+    records = [
+        record(case_id, trial < passes, model=model, tags=tags) for case_id, passes in results for trial in range(5)
+    ]
+    for item in records:
+        item.effort = effort
+    return scores(records)
+
+
+class TestComparison:
+    def test_shows_each_tags_score_then_and_now(self) -> None:
+        baseline = run_of(("mp-3056", 5), ("ndis", 5))
+        now = run_of(("mp-3056", 5), ("ndis", 3))
+
+        comparison = render_comparison(baseline, now)
+
+        assert "| claude-sonnet-5-5 | regression | 2 | 100% | 80% | -20 points |" in comparison
+
+    def test_lists_only_the_cases_that_changed(self) -> None:
+        comparison = render_comparison(run_of(("mp-3056", 5), ("ndis", 5)), run_of(("mp-3056", 5), ("ndis", 3)))
+
+        assert "| ndis | claude-sonnet-5-5 | 5/5 | 3/5 |" in comparison
+        assert "| mp-3056 |" not in comparison
+
+    def test_compares_only_the_cases_both_runs_have(self) -> None:
+        # A run of a few cases, such as --cases 'mp-*', against the full baseline.
+        comparison = render_comparison(run_of(("mp-3056", 5), ("ndis", 0)), run_of(("mp-3056", 5)))
+
+        assert "| claude-sonnet-5-5 | regression | 1 | 100% | 100% | 0 points |" in comparison
+
+    def test_names_cases_the_baseline_doesnt_have(self) -> None:
+        comparison = render_comparison(run_of(("mp-3056", 5)), run_of(("mp-3056", 5), ("senators", 1)))
+
+        assert "Not in the baseline: `senators`." in comparison
+
+    def test_warns_when_the_effort_differs(self) -> None:
+        comparison = render_comparison(run_of(("mp-3056", 5)), run_of(("mp-3056", 5), effort="low"))
+
+        assert (
+            "claude-sonnet-5-5 ran at effort low, and the baseline at high, so the scores aren't comparable."
+            in comparison
+        )
