@@ -4,9 +4,14 @@ question: Who's the federal MP for 3142?
 fixtures:
   # OpenAustralia has no current member for this postcode.
   - getRepresentatives_postcode_3142.json
+  # The error suggests a neighbouring postcode. 3143 and 3144 have no current member either, and 3146 is
+  # partly Kooyong (Monique Ryan). Other neighbours get a 404.
+  - getRepresentatives_postcode_3143.json
+  - getRepresentatives_postcode_3144.json
+  - getRepresentatives_postcode_3146.json
 expect:
   calls:
     - tool: get_members
       args: {postcode: "3142"}
-  # Trying a neighbouring postcode is a fair retry. Not inventing a member needs the later judge.
-  max_calls: 3
+  # 3142 and up to three neighbours. Not inventing a member needs the later judge.
+  max_calls: 4
