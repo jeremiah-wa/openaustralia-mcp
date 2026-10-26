@@ -59,7 +59,10 @@ class FakeApi:
         self._handler = lambda request: httpx2.Response(200, content=body, headers=OA_HEADERS)
 
     def route(self, name: str) -> None:
-        """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture."""
+        """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture.
+
+        Any request without a routed fixture gets an HTTP 404.
+        """
         self._routes.append((RECORDED[name], (FIXTURES / name).read_bytes()))
         self._handler = self._answer_routed
 
@@ -76,4 +79,5 @@ class FakeApi:
         for recorded, body in self._routes:
             if recorded.function == function and recorded.params == params:
                 return httpx2.Response(200, content=body, headers=OA_HEADERS)
-        return httpx2.Response(599)
+        # The server reports it as a tool error and Claude carries on, as for an unknown gid.
+        return httpx2.Response(404)

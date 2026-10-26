@@ -1,6 +1,6 @@
 import pytest
 
-from .conftest import Connect
+from .conftest import Connect, result_text
 from .fake_api import FakeApi
 
 pytestmark = pytest.mark.anyio
@@ -26,3 +26,15 @@ class TestRoutedFixture:
 
         assert [member["name"] for member in khalil.structured_content["members"]] == ["Peter Khalil"]
         assert [member["name"] for member in burns.structured_content["members"]] == ["Josh Burns"]
+
+
+class TestUnroutedRequest:
+    async def test_gets_a_404_like_an_unknown_gid(self, connect: Connect, fake_api: FakeApi) -> None:
+        # The same gid is recorded for the House only, so the Senate request has no fixture.
+        fake_api.route("openaustralia/getDebates_representatives_2026-06-23.80.1.json")
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", {"gid": "2026-06-23.80.1", "house": "senate"})
+
+        assert result.is_error
+        assert "has no speech or debate with gid 2026-06-23.80.1 in the senate" in result_text(result)
