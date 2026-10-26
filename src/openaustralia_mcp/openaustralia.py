@@ -6,7 +6,7 @@ import httpx2
 from pydantic import BaseModel, TypeAdapter, field_validator
 
 from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
-from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError
+from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError, NotFoundError
 
 API_NAME = "OpenAustralia"
 BASE_URL = "https://www.openaustralia.org.au/api"
@@ -78,6 +78,30 @@ class HansardSearch(BaseModel):
         return [] if rows == {} else rows
 
 
+class DebateEntry(BaseModel):
+    """A heading or speech as getDebates returns it, with OpenAustralia's field names. Other fields are ignored."""
+
+    gid: str
+    htype: str  # "10" section heading, "11" subsection heading, "12" speech
+    hdate: str
+    body: str
+    listurl: str
+    speaker: HansardSpeaker | None = None
+
+    @field_validator("speaker", mode="before")
+    @classmethod
+    def _no_speaker(cls, speaker: Any) -> Any:
+        # Headings come with `{}` (an empty PHP array) or no speaker at all.
+        return None if speaker == {} else speaker
+
+    @property
+    def is_heading(self) -> bool:
+        return self.htype in ("10", "11")
+
+
+_debate_entries = TypeAdapter(list[DebateEntry])
+
+
 class OpenAustraliaClient:
     def __init__(self, http: httpx2.AsyncClient, api_key: str | None) -> None:
         self._http = http
@@ -93,6 +117,10 @@ class OpenAustraliaClient:
         given = {name: value for name, value in params.items() if value is not None}
         return HansardSearch.model_validate(await self._call("getHansard", **given))
 
+    async def get_debates(self, type: Literal["representatives", "senate"], gid: str) -> list[DebateEntry]:
+        """The headings and speech(es) for a gid. gids repeat across houses, so the type picks the house."""
+        return _debate_entries.validate_python(await self._call("getDebates", type=type, gid=gid))
+
     async def _call(self, function: str, **params: str) -> Any:
         if not self._api_key:
             raise MissingKeyError(API_NAME, OPENAUSTRALIA_KEY_ENV, KEY_URL)
@@ -105,6 +133,8 @@ class OpenAustraliaClient:
             )
         except httpx2.HTTPError:
             raise ApiUnavailableError(API_NAME) from None
+        if response.status_code == 404:
+            raise NotFoundError(API_NAME)
         if response.status_code != 200:
             raise ApiUnavailableError(API_NAME, response.status_code)
         try:

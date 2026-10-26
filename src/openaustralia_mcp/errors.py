@@ -28,6 +28,10 @@ class ApiError(ApiClientError):
         self.message = message
 
 
+class NotFoundError(ApiClientError):
+    """HTTP 404. OpenAustralia sends it, as an HTML page, for a gid it doesn't have."""
+
+
 class ApiUnavailableError(ApiClientError):
     """Network failure, timeout, non-200 status or a body that isn't JSON.
 

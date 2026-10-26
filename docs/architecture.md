@@ -65,7 +65,7 @@ At first the tools follow the API functions one to one, with three changes: resu
 | `get_members` | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate/state |
 | `get_electorates` | OA `getDivisions` | Electorates (electoral divisions) |
 | `search_hansard` | OA `getHansard` | 20 hits (one OpenAustralia page): speaker, `person_id`, date, house, debate title, excerpt, `gid`, URL. Plus the total number of hits |
-| `read_debate` | OA `getDebates` (by `gid`) | Up to ~4,000 characters per call, plus `offset` for the next page |
+| `read_debate` | OA `getDebates` (by `gid` and `type`) | Up to ~4,000 characters per call, plus `offset` for the next page |
 | `get_policies`, `get_policy` | TVFY `/policies` | Policy topics, with each member's agreement score |
 | `get_votes`, `get_vote` | TVFY `/divisions` | Individual votes and how each member voted |
 
@@ -89,6 +89,11 @@ What live calls have shown so far (OpenAustralia):
 - **`getHansard`** takes `search`, `person`, `order` and `page`, and needs at least one. With none, it returns `{"error": "No parameter provided…"}`. Passing `num` gives HTTP 500, so a page is always 20 rows. The default `order` is `d` (newest first). `r` sorts by relevance.
 - **`getHansard` response:** `{"info": {…, "total_results"}, "rows": […]}`. No hits gives `rows: {}` (an empty PHP array, not `[]`), also for a `person` that doesn't exist. Each row has `gid`, `hdate`, `major` (`"1"` House, `"101"` Senate), `body`, `listurl`, `speaker` (with `person_id`) and `parent.body` (the debate title). All 300 rows sampled had a speaker and a parent.
 - **Hansard excerpts:** `body` is already an excerpt of about 400 characters, made by OpenAustralia. It contains `<span class="hi">` around the search terms and HTML entities such as `&#8212;`. `listurl` is a relative, HTML-escaped link to the speech, under `/debates/` or `/senate/`.
+- **`getDebates`** takes `type` (`representatives` or `senate`) and `gid`. Without a `type` it returns `{"error": "You must supply a type"}`, and an unknown `type` gives `{"error": "Unknown type"}`.
+- **`gid`s repeat across houses.** `2026-06-23.80.1` is Peter Khalil in the House and Lidia Thorpe in the Senate. The wrong `type` silently returns the other house's speech, so the house has to come with the `gid`. `search_hansard` hits carry it.
+- **`getDebates` response:** a JSON array of entries, each with `gid`, `htype`, `hdate`, `body` and `listurl`. A speech `gid` gives three entries: the section heading (`htype` 10, e.g. "Matters of Public Importance"), the subsection heading (`htype` 11, e.g. "Budget") and the speech (`htype` 12, with `speaker`). The two headings together make `getHansard`'s `parent.body`. A heading `gid` (the `id=` in a speech's `listurl`) gives the whole debate: for `2026-06-23.78.2`, the 2 headings and 14 speeches. Headings have `speaker: {}` or no `speaker`.
+- **Debate text:** `body` is HTML with `<p>` and `<i>` tags and entities such as `&#8212;`. One speech by Peter Khalil is 8,715 characters as plain text, and its whole debate is about 51,000.
+- **Unknown `gid`:** HTTP 404 with an HTML page, not an `{"error": …}` body. A malformed `gid` gives the same.
 
 What live calls have shown so far (They Vote For You):
 
@@ -98,7 +103,7 @@ What live calls have shown so far (They Vote For You):
 - **Party labels differ for presiding officers:** OpenAustralia says `Speaker`, `President` and `Deputy-President`, and They Vote For You says `SPK`, `PRES` and `DPRES`.
 - **Policy scores:** `people/<id>.json` includes `policy_comparisons`, each with the policy, `agreement` (a percentage as a string, e.g. `"100"`) and `voted`.
 
-Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next. `search_hansard` searches by query, `person_id` or both, and returns the first page of 20. Paging and `order` come next.
+Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next. `search_hansard` searches by query, `person_id` or both, and returns the first page of 20. Paging and `order` come next. `read_debate` reads a speech gid, or a heading gid for the whole debate, 4,000 characters at a time. Its cache by `gid` comes next.
 
 ## A typical question
 
@@ -121,7 +126,7 @@ sequenceDiagram
     OA-->>S: raw hits
     S-->>C: 20 excerpts with gid + source URL
 
-    C->>S: read_debate(gid="2026-09-10.42.1")
+    C->>S: read_debate(gid="2026-09-10.42.1", house="representatives")
     S->>OA: getDebates?gid=...
     OA-->>S: full debate text
     S-->>C: first 4,000 chars + next offset (text cached by gid)
@@ -180,7 +185,7 @@ The cache is in memory only, and is lost when the process exits.
 |---|---|---|
 | Members, electorates | 24-hour TTL | Rarely change, and almost every question looks up a `person_id` |
 | TVFY policies | 24-hour TTL | Rarely change |
-| Debate text (by `gid`) | Bounded LRU (~50 items) | Published Hansard never changes, and paging with `offset` would otherwise download the whole debate again for every page |
+| Debate text (by `gid` and house) | Bounded LRU (~50 items). Not built yet | Published Hansard never changes, and paging with `offset` would otherwise download the whole debate again for every page. The key needs the house, because gids repeat across houses |
 | Searches | Not cached | New sitting days change the results, and a stale search could silently miss today's debate |
 
 ## Testing
@@ -215,6 +220,9 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | Key validation | On first call | Readable errors instead of an opaque startup crash |
 | Hansard search page size | 20 hits, one OpenAustralia page | `getHansard` can't return fewer (`num` gives HTTP 500), and paging can later map straight onto its `page` |
 | Hansard excerpt | OpenAustralia's own, markup stripped | It's already short. Cutting further would lose context for little saving. |
+| `read_debate` house | A required argument, with no default | gids repeat across houses, and the wrong house silently returns a different speech. `search_hansard` hits already carry the house. |
+| `read_debate` text | Each speech after its speaker's name, paragraphs kept, paged by character offset over the joined text | One shape for a single speech and a whole debate. Character offsets stay valid between calls because published Hansard doesn't change. |
+| HTTP 404 from OpenAustralia | "Not found", naming the gid and house | `getDebates` sends a 404 page for an unknown gid, and "try again later" would send Claude round in circles |
 | Distribution | `uvx --from git+…` | No release process needed. PyPI later. |
 | Live tests in CI | A separate weekly workflow, with the OpenAustralia key in a repository secret | Recorded responses can't show the API changing. Weekly keeps the load on a charity's free API small, and a separate workflow keeps the key out of the jobs that run on every push |
 | Committed-key check | gitleaks with a custom rule in `.gitleaks.toml`, run by a pre-commit hook and again in CI | GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You. The hook stops a key before it's committed. CI catches clones without the hook, and `--no-verify` |

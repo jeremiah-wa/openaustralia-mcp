@@ -41,3 +41,19 @@ class TestSearchHansardLive:
         hits = result.structured_content["hits"]
         assert hits
         assert all(hit["gid"] and hit["url"].startswith("https://www.openaustralia.org.au/") for hit in hits)
+
+
+class TestReadDebateLive:
+    async def test_reads_a_speech_found_by_search_hansard(self) -> None:
+        async with (
+            httpx2.AsyncClient(timeout=20) as http,
+            Client(build_server(http, Config.from_env())) as client,
+        ):
+            search = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
+            hit = search.structured_content["hits"][0]
+            result = await client.call_tool("read_debate", {"gid": hit["gid"], "house": hit["house"]})
+
+        assert not result.is_error
+        content = result.structured_content
+        assert content["text"].startswith(f"{hit['speaker']}:\n\n")
+        assert content["debate"] == hit["debate"]

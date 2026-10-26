@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from openaustralia_mcp.openaustralia import HansardRow, Representative
+from openaustralia_mcp.openaustralia import DebateEntry, HansardRow, Representative
 
 SITE_URL = "https://www.openaustralia.org.au"
 MEMBERS_LICENCE = (
@@ -15,6 +15,9 @@ MEMBERS_LICENCE = (
 HANSARD_LICENCE = (
     "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
 )
+
+# Characters of debate text per read_debate call.
+DEBATE_PAGE_SIZE = 4000
 
 
 class Member(BaseModel):
@@ -81,3 +84,48 @@ class HansardSearchResult(BaseModel):
     total_results: int = Field(description="How many speeches matched in all, including those not returned.")
     source_url: str
     licence: str
+
+
+class DebateResult(BaseModel):
+    gid: str
+    house: Literal["representatives", "senate"]
+    date: str
+    debate: str = Field(description="Title of the debate.")
+    url: str = Field(description="The speech or debate on OpenAustralia. Cite it.")
+    text: str = Field(description="One page of the speech(es) as Hansard records them, each after the speaker's name.")
+    offset: int = Field(description="Where this page starts in the full text.")
+    next_offset: int | None = Field(description="Pass as offset to read the next page. None on the last page.")
+    total_length: int = Field(description="Length of the full text in characters.")
+    source_url: str
+    licence: str
+
+    @classmethod
+    def from_entries(
+        cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"], offset: int
+    ) -> "DebateResult":
+        [requested] = [entry for entry in entries if entry.gid == gid]
+        # A speech gid brings just that speech. A heading gid brings every speech under it.
+        text = "\n\n".join(_speech_text(entry) for entry in entries if not entry.is_heading)
+        end = offset + DEBATE_PAGE_SIZE
+        return cls(
+            gid=gid,
+            house=house,
+            date=requested.hdate,
+            # Section and subsection headings, the same title getHansard gives as `parent.body`.
+            debate=": ".join(entry.body for entry in entries if entry.is_heading),
+            url=SITE_URL + html.unescape(requested.listurl),
+            text=text[offset:end],
+            offset=offset,
+            next_offset=end if len(text) > end else None,
+            total_length=len(text),
+            source_url=SITE_URL,
+            licence=HANSARD_LICENCE,
+        )
+
+
+def _speech_text(entry: DebateEntry) -> str:
+    """The speaker's name on its own line, then the speech, with a blank line between paragraphs."""
+    text = _plain_text(re.sub(r"</p>\s*<p[^>]*>", "\n\n", entry.body)).strip()
+    if entry.speaker is None:
+        return text
+    return f"{entry.speaker.first_name} {entry.speaker.last_name}:\n\n{text}"
