@@ -153,7 +153,7 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
         by_case.setdefault(score.case_id, {})[score.model] = score
     for case_id, by_model in by_case.items():
         tags = ", ".join(next(iter(by_model.values())).tags)
-        cells = [f"{by_model[m].passes}/{by_model[m].trials}" if m in by_model else "" for m in models]
+        cells = [_case_cell(by_model[m]) if m in by_model else "" for m in models]
         lines.append(f"| {case_id} | {tags} | {' | '.join(cells)} |")
 
     failures: dict[tuple[str, str, str], int] = {}
@@ -168,6 +168,11 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
             for (case_id, model, failure), count in failures.items()
         ]
     return "\n".join(lines) + "\n"
+
+
+def _case_cell(score: CaseScore) -> str:
+    """Passes, and calls per trial, so two runs can be compared case by case."""
+    return f"{score.passes}/{score.trials}, {score.calls / score.trials:.1f} calls"
 
 
 class ModelRun(BaseModel):
