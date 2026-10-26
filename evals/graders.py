@@ -21,11 +21,12 @@ class Call(BaseModel):
 class Trial(BaseModel):
     calls: list[Call]
     answer: str
+    hit_turn_cap: bool = False
 
 
 def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[str]:
     """The reasons the trial failed. An empty list means it passed."""
-    failures = []
+    failures = ["hit the turn cap without answering"] if trial.hit_turn_cap else []
     expected_calls = case.expect.calls
     # For each expected call, the positions in the trial where it was made.
     made = [[i for i, call in enumerate(trial.calls) if _matches(expected, call)] for expected in expected_calls]

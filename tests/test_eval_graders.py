@@ -189,3 +189,13 @@ class TestCitesUrl:
         hits = Call(tool="search_hansard", input={"query": "housing"}, result={"hits": [{"gid": "1", "url": url}]})
 
         assert grade(case(cites_url=True), trial(hits, answer=f"[speech]({url})"), SCHEMAS) == []
+
+
+class TestTurnCap:
+    def test_fail_a_trial_that_hit_it(self) -> None:
+        capped = Trial(calls=[MEMBER_3056], answer="", hit_turn_cap=True)
+
+        assert grade(case(), capped, SCHEMAS) == ["hit the turn cap without answering"]
+
+    def test_pass_a_trial_that_answered(self) -> None:
+        assert grade(case(), trial(MEMBER_3056, answer="Peter Khalil"), SCHEMAS) == []
