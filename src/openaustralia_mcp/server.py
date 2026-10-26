@@ -19,17 +19,14 @@ from openaustralia_mcp.errors import (
     MissingKeyError,
     NotFoundError,
 )
-from openaustralia_mcp.models import (
+from openaustralia_mcp.models import DebateResult, HansardHit, HansardSearchResult, Member, MembersResult
+from openaustralia_mcp.openaustralia import (
     HANSARD_LICENCE,
     MEMBERS_LICENCE,
     SITE_URL,
-    DebateResult,
-    HansardHit,
-    HansardSearchResult,
-    Member,
-    MembersResult,
+    OpenAustraliaClient,
+    Representative,
 )
-from openaustralia_mcp.openaustralia import OpenAustraliaClient, Representative
 
 VERSION = version("openaustralia-mcp")
 

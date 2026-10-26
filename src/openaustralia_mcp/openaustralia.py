@@ -9,8 +9,15 @@ from openaustralia_mcp.config import OPENAUSTRALIA_KEY_ENV
 from openaustralia_mcp.errors import ApiError, ApiUnavailableError, KeyRejectedError, MissingKeyError, NotFoundError
 
 API_NAME = "OpenAustralia"
-BASE_URL = "https://www.openaustralia.org.au/api"
-KEY_URL = "https://www.openaustralia.org.au/api/key"
+SITE_URL = "https://www.openaustralia.org.au"
+BASE_URL = f"{SITE_URL}/api"
+KEY_URL = f"{SITE_URL}/api/key"
+MEMBERS_LICENCE = (
+    "Members data: OpenAustralia Foundation, CC BY-SA 2.5 (https://creativecommons.org/licenses/by-sa/2.5/)"
+)
+HANSARD_LICENCE = (
+    "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
+)
 
 # OpenAustralia marks "still current" with this date, for members and for their offices.
 STILL_CURRENT = "9999-12-31"

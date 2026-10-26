@@ -6,15 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from openaustralia_mcp.openaustralia import DebateEntry, HansardRow, Representative
-
-SITE_URL = "https://www.openaustralia.org.au"
-MEMBERS_LICENCE = (
-    "Members data: OpenAustralia Foundation, CC BY-SA 2.5 (https://creativecommons.org/licenses/by-sa/2.5/)"
-)
-HANSARD_LICENCE = (
-    "Hansard: Commonwealth of Australia, CC BY-NC-ND 3.0 AU (https://creativecommons.org/licenses/by-nc-nd/3.0/au/)"
-)
+from openaustralia_mcp.openaustralia import HANSARD_LICENCE, SITE_URL, DebateEntry, HansardRow, Representative
 
 # Characters of debate text per read_debate call.
 DEBATE_PAGE_SIZE = 4000
