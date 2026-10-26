@@ -185,7 +185,7 @@ async def run(cases: list[Case], models: list[str], trials: int, max_cost_usd: f
     ]
     if stopped_at_cap:
         header += [f"Stopped starting trials at the ${max_cost_usd:.2f} cost cap, so some trials didn't run.", ""]
-    (out / "summary.md").write_text("\n".join(header) + render_summary(records, errors=errors), encoding="utf-8")
+    (out / "summary.md").write_text("\n".join([*header, render_summary(records, errors=errors)]), encoding="utf-8")
     return out
 
 
