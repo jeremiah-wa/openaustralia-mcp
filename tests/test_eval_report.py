@@ -1,7 +1,7 @@
 """The eval report: pass rates per case, model and tag (see docs/evals.md#trials-and-scores)."""
 
 from evals.graders import Trial
-from evals.report import TrialRecord, score_cases
+from evals.report import TrialRecord, score_cases, score_tags
 
 SONNET = "claude-sonnet-5-5"
 HAIKU = "claude-haiku-5-5"
@@ -45,3 +45,29 @@ class TestPerModel:
         scores = {score.model: score.pass_rate for score in score_cases(records)}
 
         assert scores == {SONNET: 1.0, HAIKU: 0.0}
+
+
+class TestByTag:
+    def test_keep_capability_cases_out_of_the_regression_score(self) -> None:
+        records = [
+            *(record("mp-3056", True) for _ in range(2)),
+            *(record("ndis", passed) for passed in (True, False)),
+            *(record("senators", False, tags=("capability",)) for _ in range(2)),
+        ]
+
+        regression, capability = score_tags(score_cases(records), SONNET)
+
+        assert (regression.tag, regression.cases, regression.mean_pass_rate, regression.share_passed_all) == (
+            "regression",
+            2,
+            0.75,
+            0.5,
+        )
+        assert (capability.tag, capability.cases, capability.mean_pass_rate) == ("capability", 1, 0.0)
+
+    def test_only_count_the_given_model(self) -> None:
+        records = [record("mp-3056", True, model=SONNET), record("mp-3056", False, model=HAIKU)]
+
+        [regression] = score_tags(score_cases(records), HAIKU)
+
+        assert regression.mean_pass_rate == 0.0

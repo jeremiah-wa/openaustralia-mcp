@@ -52,3 +52,32 @@ def score_cases(records: list[TrialRecord]) -> list[CaseScore]:
         CaseScore(case_id, group[0].tags, model, len(group), sum(record.passed for record in group))
         for (case_id, model), group in grouped.items()
     ]
+
+
+# Regression cases cover what the tools already do. Capability cases are expected to fail until a feature lands.
+HEADLINE_TAGS = ("regression", "capability")
+
+
+@dataclass(frozen=True)
+class TagScore:
+    tag: str
+    cases: int
+    mean_pass_rate: float
+    share_passed_all: float
+
+
+def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
+    """The regression and capability scores for one model, for the tags that have cases."""
+    tag_scores = []
+    for tag in HEADLINE_TAGS:
+        tagged = [score for score in scores if score.model == model and tag in score.tags]
+        if tagged:
+            tag_scores.append(
+                TagScore(
+                    tag,
+                    len(tagged),
+                    sum(score.pass_rate for score in tagged) / len(tagged),
+                    sum(score.passed_all for score in tagged) / len(tagged),
+                )
+            )
+    return tag_scores
