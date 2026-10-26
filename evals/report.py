@@ -32,6 +32,9 @@ class CaseScore:
     model: str
     trials: int
     passes: int
+    # Tool calls over all its trials. A failed call counts too: Claude spent a turn on it.
+    calls: int = 0
+    failed_calls: int = 0
 
     @property
     def pass_rate(self) -> float:
@@ -49,7 +52,15 @@ def score_cases(records: list[TrialRecord]) -> list[CaseScore]:
     for record in records:
         grouped.setdefault((record.case_id, record.model), []).append(record)
     return [
-        CaseScore(case_id, group[0].tags, model, len(group), sum(record.passed for record in group))
+        CaseScore(
+            case_id,
+            group[0].tags,
+            model,
+            len(group),
+            sum(record.passed for record in group),
+            calls=sum(len(record.trial.calls) for record in group),
+            failed_calls=sum(call.error is not None for record in group for call in record.trial.calls),
+        )
         for (case_id, model), group in grouped.items()
     ]
 
@@ -64,6 +75,8 @@ class TagScore:
     cases: int
     mean_pass_rate: float
     share_passed_all: float
+    calls_per_trial: float
+    failed_calls_per_trial: float
 
 
 def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
@@ -72,12 +85,15 @@ def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
     for tag in HEADLINE_TAGS:
         tagged = [score for score in scores if score.model == model and tag in score.tags]
         if tagged:
+            trials = sum(score.trials for score in tagged)
             tag_scores.append(
                 TagScore(
                     tag,
                     len(tagged),
                     sum(score.pass_rate for score in tagged) / len(tagged),
                     sum(score.passed_all for score in tagged) / len(tagged),
+                    sum(score.calls for score in tagged) / trials,
+                    sum(score.failed_calls for score in tagged) / trials,
                 )
             )
     return tag_scores
@@ -100,11 +116,19 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
     """The markdown summary of a run."""
     scores = score_cases(records)
     models = list(dict.fromkeys(score.model for score in scores))
-    lines = ["## Scores", "", "| Model | Tag | Cases | Mean pass rate | Passed every trial |", "|---|---|---|---|---|"]
+    lines = [
+        "## Scores",
+        "",
+        "| Model | Tag | Cases | Mean pass rate | Passed every trial | Calls per trial | Failed calls per trial |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for model in models:
         for tag in score_tags(scores, model):
             passed_all = round(tag.share_passed_all * tag.cases)
-            lines.append(f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} |")
+            lines.append(
+                f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} "
+                f"| {tag.calls_per_trial:.2f} | {tag.failed_calls_per_trial:.2f} |"
+            )
     if errors:
         lines += ["", f"{errors} trials ended in an error and were run again. They aren't scored."]
     if records:
