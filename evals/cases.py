@@ -50,6 +50,8 @@ class Fixture(BaseModel):
     file: str
     # A search fixture answers any search containing one of these, instead of only its recorded one.
     search_contains: list[str] | None = None
+    # The same for any parameter, e.g. {"party": ["Greens"]}.
+    contains: dict[str, list[str]] = {}
 
     @model_validator(mode="before")
     @classmethod

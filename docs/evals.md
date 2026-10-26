@@ -34,7 +34,7 @@ The evals use the same seam as the tests (see [Testing](architecture.md#testing)
 
 Recorded fixtures are **routed by request**. A request is matched on the API function and its parameters, with the key ignored, to a fixture under `tests/fixtures/`. A fixture holds only the response, so `RECORDED` in [tests/fake_api.py](../tests/fake_api.py) lists the request each one answers, and `FakeApi.route(name)` serves it for that request only. The tests route their recorded results the same way. `FakeApi.serve_fixture`, which answers every request with one fixture, is kept for error fixtures such as a rejected key.
 
-Search queries are free text, so one exact `search` value would fail a reasonable call such as "NDIS Senate" instead of "NDIS". A case can therefore give a fixture a list of keywords (`FakeApi.route(name, search_contains=[...])`). The fixture then answers any `getHansard` request whose `search` contains one of them, ignoring case, with the other parameters still matched exactly.
+Search queries are free text, so one exact `search` value would fail a reasonable call such as "NDIS Senate" instead of "NDIS". A case can therefore give a fixture a list of keywords (`FakeApi.route(name, search_contains=[...])`). The fixture then answers any request whose `search` contains one of them, ignoring case, with the other parameters still matched exactly. `contains` does the same for any parameter, such as `contains={"party": ["Greens"]}`: OpenAustralia matches part of a party name, so "Greens" and "Australian Greens" get the same answer.
 
 A request with no matching fixture gets an HTTP 404. The server returns it to Claude as a tool error, and the run carries on. The trial is scored on its expected calls as usual, so a wrong call shows up as a missing expected one, or as one call too many.
 
@@ -88,7 +88,7 @@ expect:
 | Field | Meaning |
 |---|---|
 | `question` | The user's message |
-| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords (see [The seam](#the-seam)) |
+| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords, and `contains` does the same for any parameter, e.g. `{party: [Greens]}` (see [The seam](#the-seam)) |
 | `expect.calls` | Calls that must appear. `args` must match exactly. `args_contain` must contain one of the listed texts, ignoring case, e.g. `[NDIS, National Disability Insurance Scheme]`. Other arguments are free |
 | `after` | This call needs the output of the named call, so it must come after it. Only for real dependencies, not for a preferred order |
 | `forbidden` | Calls that must not appear. Give the `tool` alone, `args` that must not have those values, or `args_missing`, arguments that must not all be missing |

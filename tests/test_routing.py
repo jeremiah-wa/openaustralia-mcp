@@ -1,9 +1,12 @@
+import httpx2
 import pytest
 
 from .conftest import Connect, result_text
 from .fake_api import FakeApi
 
 pytestmark = pytest.mark.anyio
+
+API = "https://www.openaustralia.org.au/api"
 
 
 class TestRoutedFixture:
@@ -67,3 +70,35 @@ class TestSearchKeywords:
             result = await client.call_tool("search_hansard", {"query": "immigration", "person_id": "10887"})
 
         assert result.is_error
+
+
+class TestParameterKeywords:
+    # No server tool takes a party yet, so these call the fake API directly.
+    GREENS_SENATORS = "openaustralia/getSenators_party_Greens.json"
+
+    def test_answer_any_value_containing_a_keyword(self, fake_api: FakeApi) -> None:
+        # OpenAustralia matches part of a party name, so both of these get the Greens.
+        fake_api.route(self.GREENS_SENATORS, contains={"party": ["Greens"]})
+
+        statuses = [
+            fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": party})).status_code
+            for party in ("Australian Greens", "greens")
+        ]
+
+        assert statuses == [200, 200]
+
+    def test_dont_answer_a_value_without_one(self, fake_api: FakeApi) -> None:
+        fake_api.route(self.GREENS_SENATORS, contains={"party": ["Greens"]})
+
+        response = fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": "Labor"}))
+
+        assert response.status_code == 404
+
+    def test_still_need_the_other_parameters_to_match(self, fake_api: FakeApi) -> None:
+        fake_api.route(self.GREENS_SENATORS, contains={"party": ["Greens"]})
+
+        response = fake_api(
+            httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": "Greens", "state": "Tasmania"})
+        )
+
+        assert response.status_code == 404

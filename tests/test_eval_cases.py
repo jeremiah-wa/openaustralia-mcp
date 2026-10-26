@@ -30,6 +30,13 @@ class TestFixtures:
             Fixture(file="getHansard_search_ndis.json", search_contains=["NDIS", "disability"])
         ]
 
+    def test_any_parameter_can_list_keywords(self) -> None:
+        listed = {"file": "getSenators_party_Greens.json", "contains": {"party": ["Greens"]}}
+
+        [fixture] = case(fixtures=[listed]).fixtures
+
+        assert fixture.contains == {"party": ["Greens"]}
+
     def test_names_are_under_the_openaustralia_fixtures(self) -> None:
         assert Fixture(file="getHansard_search_ndis.json").path == "openaustralia/getHansard_search_ndis.json"
 

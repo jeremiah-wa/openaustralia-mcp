@@ -76,7 +76,7 @@ def load_cases(pattern: str = "*") -> list[Case]:
 async def run_trial(claude: anthropic.AsyncAnthropic, case: Case, model: str) -> TrialRecord:
     fake_api = FakeApi()
     for fixture in case.fixtures:
-        fake_api.route(fixture.path, search_contains=fixture.search_contains)
+        fake_api.route(fixture.path, search_contains=fixture.search_contains, contains=fixture.contains)
 
     async with (
         httpx2.AsyncClient(transport=httpx2.MockTransport(fake_api)) as http,
