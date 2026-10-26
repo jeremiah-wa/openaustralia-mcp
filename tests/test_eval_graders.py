@@ -161,3 +161,31 @@ class TestAnswerContains:
         assert grade(case(answer_contains=["Peter Khalil", "Wills"]), trial(answer=answer), SCHEMAS) == [
             "answer is missing: Wills"
         ]
+
+
+class TestCitesUrl:
+    def test_pass_when_the_answer_has_a_url_from_a_result(self) -> None:
+        answer = "Peter Khalil (https://www.openaustralia.org.au/mp/?p=10887)"
+
+        assert grade(case(cites_url=True), trial(MEMBER_3056, answer=answer), SCHEMAS) == []
+
+    def test_fail_when_it_has_none(self) -> None:
+        answer = "Peter Khalil"
+
+        assert grade(case(cites_url=True), trial(MEMBER_3056, answer=answer), SCHEMAS) == [
+            "answer cites no url from a tool result"
+        ]
+
+    def test_dont_count_the_source_url(self) -> None:
+        # Every result has it, so citing it says nothing about the result.
+        with_source = Call(tool="get_members", input={"postcode": "3056"}, result={"source_url": "https://oa.example"})
+
+        assert grade(case(cites_url=True), trial(with_source, answer="See https://oa.example"), SCHEMAS) == [
+            "answer cites no url from a tool result"
+        ]
+
+    def test_find_urls_nested_in_hits(self) -> None:
+        url = "https://www.openaustralia.org.au/debates/?id=2026-06-23.78.1#g80.1"
+        hits = Call(tool="search_hansard", input={"query": "housing"}, result={"hits": [{"gid": "1", "url": url}]})
+
+        assert grade(case(cites_url=True), trial(hits, answer=f"[speech]({url})"), SCHEMAS) == []

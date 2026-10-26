@@ -33,6 +33,7 @@ class Expect(BaseModel):
     max_calls: int | None = None
     # Facts from the fixtures, such as a member's name. Not phrasing.
     answer_contains: list[str] = []
+    cites_url: bool = False
 
 
 class Case(BaseModel):

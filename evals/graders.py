@@ -51,6 +51,11 @@ def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[
 
     answer = trial.answer.lower()
     failures += [f"answer is missing: {text}" for text in case.expect.answer_contains if text.lower() not in answer]
+
+    if case.expect.cites_url:
+        urls = [url for call in trial.calls for url in _urls(call.result)]
+        if not any(url in trial.answer for url in urls):
+            failures.append("answer cites no url from a tool result")
     return failures
 
 
@@ -68,6 +73,16 @@ def _is_forbidden(forbidden: ForbiddenCall, call: Call) -> bool:
         and all(call.input.get(name) == value for name, value in forbidden.args.items())
         and all(call.input.get(name) is None for name in forbidden.args_missing)
     )
+
+
+def _urls(value: Any) -> list[str]:
+    """Every `url` in a result, at any depth. Not `source_url`, which every result has."""
+    if isinstance(value, dict):
+        own = [value["url"]] if isinstance(value.get("url"), str) else []
+        return own + [url for name, item in value.items() if name != "url" for url in _urls(item)]
+    if isinstance(value, list):
+        return [url for item in value for url in _urls(item)]
+    return []
 
 
 def _contains_one(value: Any, texts: list[str]) -> bool:
