@@ -323,3 +323,16 @@ class TestByName:
             "Searches find current members only. For a former member, find their person_id, for example on a "
             "search_hansard hit, and look them up by that."
         )
+
+
+class TestArgumentsThatDontGoTogether:
+    """The parameters variant's one tool takes any mix of arguments, so it explains the mixes that make no sense."""
+
+    async def test_none_at_all(self, fake_api: FakeApi) -> None:
+        result = await call(fake_api, "parameters", "get_members", {})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: Give a postcode, a person_id, or any of name, party, state and house."
+        )
+        assert fake_api.requests == []

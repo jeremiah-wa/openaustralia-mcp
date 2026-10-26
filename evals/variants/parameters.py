@@ -54,6 +54,6 @@ def build_parameters_server(http_client: httpx2.AsyncClient, config: Config) -> 
             return await by_postcode(openaustralia, postcode)
         if any(value is not None for value in (name, party, state, house)):
             return await search(openaustralia, name=name, party=party, state=state, house=house)
-        raise ToolError("Give a postcode, a person_id, a name, a party, a state or a house.")
+        raise ToolError("Give a postcode, a person_id, or any of name, party, state and house.")
 
     return server
