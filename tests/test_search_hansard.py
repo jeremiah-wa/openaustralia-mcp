@@ -6,7 +6,8 @@ import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import TEST_KEY, Connect, FakeApi, Handler, result_text
+from .conftest import TEST_KEY, Connect, result_text
+from .fake_api import FakeApi, Handler
 
 pytestmark = pytest.mark.anyio
 
