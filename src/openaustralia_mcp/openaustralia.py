@@ -36,7 +36,12 @@ class Representative(BaseModel):
     full_name: str
     party: str | None = None
     constituency: str | None = None
+    left_house: str = STILL_CURRENT
     office: list[Office] = []
+
+    @property
+    def is_current(self) -> bool:
+        return self.left_house == STILL_CURRENT
 
     @property
     def current_positions(self) -> list[str]:
