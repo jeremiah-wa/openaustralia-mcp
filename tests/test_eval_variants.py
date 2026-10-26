@@ -69,3 +69,16 @@ class TestByPostcode:
             "source_url": SOURCE_URL,
             "licence": MEMBERS_LICENCE,
         }
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_notes_a_division_with_no_current_member(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        # 3181 spans Higgins, abolished in 2025, and Macnamara: OpenAustralia sends [false, Josh Burns].
+        fake_api.route("openaustralia/getRepresentatives_postcode_3181.json")
+
+        result = await call(fake_api, variant, tool, {"postcode": "3181"})
+
+        assert [member["name"] for member in result.structured_content["members"]] == ["Josh Burns"]
+        assert result.structured_content["note"] == (
+            "OpenAustralia couldn't match part of this postcode to a current member, so this list may be "
+            "incomplete. Its postcode data can lag behind changes to electorate boundaries."
+        )

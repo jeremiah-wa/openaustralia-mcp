@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field
 from openaustralia_mcp.errors import ApiClientError
 from openaustralia_mcp.openaustralia import MEMBERS_LICENCE, SITE_URL, OpenAustraliaClient, Representative
 
-# The server's own wording for API errors, so the variants explain them as the server does.
-from openaustralia_mcp.server import _describe
+# The server's own wording, so the variants explain API errors and postcode gaps as the server does.
+from openaustralia_mcp.server import PARTIAL_MATCH_NOTE, _describe
 
 # Argument descriptions, used word for word by both variants.
 POSTCODE = 'Australian postcode, e.g. "3056".'
@@ -63,8 +63,10 @@ async def find_members(openaustralia: OpenAustraliaClient, *, postcode: str) -> 
         representatives = await openaustralia.get_representatives(postcode)
     except ApiClientError as exc:
         raise ToolError(_describe(exc, postcode=postcode)) from None
+    # A division OpenAustralia can't match to a current member comes back as `false`.
     found = [member for member in representatives if isinstance(member, Representative)]
-    return _result([MemberRecord.from_representative(member) for member in found])
+    note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
+    return _result([MemberRecord.from_representative(member) for member in found], note)
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
