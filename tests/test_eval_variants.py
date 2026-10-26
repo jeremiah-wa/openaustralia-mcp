@@ -4,6 +4,7 @@ Each test runs the same lookup on both variants and expects the same result: the
 Claude sees, never in what it gets back.
 """
 
+import logging
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -15,8 +16,9 @@ from mcp import Client
 from mcp.types import CallToolResult, Tool
 
 from evals.variants import VARIANTS
+from openaustralia_mcp.config import Config
 
-from .conftest import TEST_CONFIG, result_text
+from .conftest import TEST_CONFIG, TEST_KEY, result_text
 from .fake_api import FakeApi
 
 pytestmark = pytest.mark.anyio
@@ -28,16 +30,18 @@ MEMBERS_LICENCE = (
 
 
 @asynccontextmanager
-async def connect(variant: str, fake_api: FakeApi) -> AsyncGenerator[Client, None]:
+async def connect(variant: str, fake_api: FakeApi, config: Config = TEST_CONFIG) -> AsyncGenerator[Client, None]:
     async with (
         httpx2.AsyncClient(transport=httpx2.MockTransport(fake_api)) as http,
-        Client(VARIANTS[variant](http, TEST_CONFIG)) as client,
+        Client(VARIANTS[variant](http, config)) as client,
     ):
         yield client
 
 
-async def call(fake_api: FakeApi, variant: str, tool: str, args: dict[str, Any]) -> CallToolResult:
-    async with connect(variant, fake_api) as client:
+async def call(
+    fake_api: FakeApi, variant: str, tool: str, args: dict[str, Any], config: Config = TEST_CONFIG
+) -> CallToolResult:
+    async with connect(variant, fake_api, config) as client:
         return await client.call_tool(tool, args)
 
 
@@ -478,3 +482,99 @@ class TestWhatClaudeSees:
                     descriptions.setdefault(argument, set()).add(schema["description"])
 
         assert {argument for argument, seen in descriptions.items() if len(seen) > 1} == set()
+
+
+# Every member tool in both variants, with arguments that reach OpenAustralia.
+EVERY_LOOKUP = [
+    ("parameters", "get_members", {"postcode": "3056"}),
+    ("parameters", "get_members", {"person_id": "10942"}),
+    ("parameters", "get_members", {"name": "Pocock"}),
+    ("tools", "get_members", {"postcode": "3056"}),
+    ("tools", "get_member", {"person_id": "10942"}),
+    ("tools", "get_senators", {"state": "TAS"}),
+    ("tools", "search_members", {"name": "Pocock"}),
+]
+EVERY_LOOKUP_IDS = [f"{variant}-{tool}-{next(iter(args))}" for variant, tool, args in EVERY_LOOKUP]
+
+
+def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
+    # Real HTTP errors mention the URL, and the URL contains the key.
+    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
+
+
+LEAK_CASES = {
+    "rejected-key": "openaustralia/getRepresentatives_bad_key.json",
+    "api-error": "openaustralia/getRepresentatives_postcode_0000.json",
+    "connection-error": _connection_refused_naming_the_url,
+    "server-error": lambda request: httpx2.Response(500),
+}
+
+
+class TestApiProblems:
+    """Every lookup goes through the client's own key and error handling, so these guard it rather than drive it."""
+
+    @pytest.mark.parametrize(("variant", "tool", "args"), EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_explains_a_missing_key(
+        self, fake_api: FakeApi, variant: str, tool: str, args: dict[str, str]
+    ) -> None:
+        result = await call(fake_api, variant, tool, args, Config())
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool {tool}: No OpenAustralia key set. Get one at https://www.openaustralia.org.au/api/key, "
+            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
+        )
+        assert fake_api.requests == []
+
+    @pytest.mark.parametrize(("variant", "tool", "args"), EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_says_the_key_was_rejected(
+        self, fake_api: FakeApi, variant: str, tool: str, args: dict[str, str]
+    ) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_bad_key.json")
+
+        result = await call(fake_api, variant, tool, args)
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool {tool}: The OpenAustralia key was rejected. "
+            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
+        )
+
+    @pytest.mark.parametrize(("variant", "tool"), [("parameters", "get_members"), ("tools", "get_members")])
+    async def test_passes_on_an_api_error(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        fake_api.route("openaustralia/getRepresentatives_postcode_0000.json")
+
+        result = await call(fake_api, variant, tool, {"postcode": "0000"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool {tool}: OpenAustralia returned an error for postcode=0000: Unknown postcode"
+        )
+
+
+class TestKeyNeverLeaks:
+    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
+    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
+        if isinstance(request.param, str):
+            fake_api.serve_fixture(request.param)
+        else:
+            fake_api.serve(request.param)
+
+    @pytest.mark.parametrize(("variant", "tool", "args"), EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_not_in_the_result_or_the_logs(
+        self,
+        fake_api: FakeApi,
+        api_behaviour: None,
+        caplog: pytest.LogCaptureFixture,
+        variant: str,
+        tool: str,
+        args: dict[str, str],
+    ) -> None:
+        caplog.set_level(logging.DEBUG)
+
+        result = await call(fake_api, variant, tool, args)
+
+        assert result.is_error
+        assert TEST_KEY not in result_text(result)
+        assert caplog.records, "expected some log output to check"
+        assert TEST_KEY not in caplog.text
