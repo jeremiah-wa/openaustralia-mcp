@@ -181,6 +181,12 @@ class OpenAustraliaClient:
         """House of Representatives members whose electorate covers the postcode."""
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
 
+    async def get_senators(self, *, state: State | None = None) -> list[Senator]:
+        """Current Senators, for one state or territory if given."""
+        params = {"state": STATE_SPELLINGS[state] if state else None}
+        given = {name: value for name, value in params.items() if value is not None}
+        return _senator_records.validate_python(await self._call("getSenators", **given))
+
     async def get_representative(self, person_id: str) -> list[Representative]:
         """The person's records as a member of the House, current or former. Empty if they never sat in it."""
         return _representative_records.validate_python(await self._person("getRepresentative", person_id))

@@ -6,9 +6,17 @@ import httpx2
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
-from evals.variants.members import PERSON_ID, POSTCODE, MemberLookupResult, by_person_id, by_postcode
+from evals.variants.members import (
+    PERSON_ID,
+    POSTCODE,
+    STATE,
+    MemberLookupResult,
+    by_person_id,
+    by_postcode,
+    search,
+)
 from openaustralia_mcp.config import Config
-from openaustralia_mcp.openaustralia import OpenAustraliaClient
+from openaustralia_mcp.openaustralia import OpenAustraliaClient, State
 from openaustralia_mcp.server import READ_ONLY, build_server
 
 
@@ -39,5 +47,16 @@ def build_tools_server(http_client: httpx2.AsyncClient, config: Config) -> MCPSe
         current positions and url. Someone who moved between houses has a record for each.
         """
         return await by_person_id(openaustralia, person_id)
+
+    @server.tool(annotations=READ_ONLY)
+    async def get_senators(
+        state: Annotated[State | None, Field(description=STATE)] = None,
+    ) -> MemberLookupResult:
+        """List current Senators, for one state or territory if given.
+
+        Returns each Senator's person_id, name, party, house, state, whether they're a current member, current
+        positions and url.
+        """
+        return await search(openaustralia, state=state)
 
     return server

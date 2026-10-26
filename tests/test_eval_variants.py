@@ -188,3 +188,47 @@ class TestByPersonId:
 
         asked = {(request.url.path.rsplit("/", 1)[-1], request.url.params["id"]) for request in fake_api.requests}
         assert asked == {("getRepresentative", "10990"), ("getSenator", "10990")}
+
+
+# The current Senators for Tasmania, in the order OpenAustralia sends them.
+TASMANIA = [
+    "Carol Brown",
+    "Helen Polley",
+    "Nick McKim",
+    "Jonathon Duniam",
+    "Richard Colbeck",
+    "Claire Chandler",
+    "Jacqui Lambie",
+    "Josh Dolega",
+    "Richard Dowling",
+    "Tammy Tyrrell",
+    "Chris Gatenby",
+    "Vanessa Bleyer",
+]
+
+
+class TestSenatorsByState:
+    LOOKUPS = (("parameters", "get_members"), ("tools", "get_senators"))
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_lists_the_states_senators(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        # OpenAustralia takes TAS or Tasmania. The tools send Tasmania, the only fixture recorded.
+        fake_api.route("openaustralia/getSenators_state_Tasmania.json")
+
+        result = await call(fake_api, variant, tool, {"state": "TAS"})
+
+        assert not result.is_error
+        members = result.structured_content["members"]
+        assert [member["name"] for member in members] == TASMANIA
+        assert members[-1] == {
+            "person_id": "11065",
+            "name": "Vanessa Bleyer",
+            "party": "Australian Greens",
+            "house": "senate",
+            "electorate": None,
+            "state": "TAS",
+            "current": True,
+            "left": None,
+            "positions": [],
+            "url": "https://www.openaustralia.org.au/senator/?p=11065",
+        }

@@ -10,7 +10,14 @@ from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
 from openaustralia_mcp.errors import ApiClientError
-from openaustralia_mcp.openaustralia import MEMBERS_LICENCE, SITE_URL, OpenAustraliaClient, Representative, Senator
+from openaustralia_mcp.openaustralia import (
+    MEMBERS_LICENCE,
+    SITE_URL,
+    OpenAustraliaClient,
+    Representative,
+    Senator,
+    State,
+)
 
 # The server's own wording, so the variants explain API errors and postcode gaps as the server does.
 from openaustralia_mcp.server import PARTIAL_MATCH_NOTE, _describe
@@ -18,6 +25,7 @@ from openaustralia_mcp.server import PARTIAL_MATCH_NOTE, _describe
 # Argument descriptions, used word for word by both variants.
 POSTCODE = 'Australian postcode, e.g. "3056".'
 PERSON_ID = "A member's person_id, current or former, e.g. from a search_hansard hit."
+STATE = "A state or territory, e.g. TAS. Senators represent a whole state or territory."
 
 
 class MemberRecord(BaseModel):
@@ -104,6 +112,15 @@ async def by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> Me
         [MemberRecord.from_representative(record) for record in representative]
         + [MemberRecord.from_senator(record) for record in senator]
     )
+
+
+async def search(openaustralia: OpenAustraliaClient, *, state: State | None = None) -> MemberLookupResult:
+    """Current members who match every filter given."""
+    try:
+        senators = await openaustralia.get_senators(state=state)
+    except ApiClientError as exc:
+        raise ToolError(_describe(exc, **({"state": state} if state else {}))) from None
+    return _result([MemberRecord.from_senator(senator) for senator in senators])
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
