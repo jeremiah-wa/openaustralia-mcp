@@ -39,6 +39,17 @@ RECORDED = {
         "getRepresentatives", {"search": "Wolahan"}
     ),
     "openaustralia/getSenators_search_Wolahan.json": RecordedRequest("getSenators", {"search": "Wolahan"}),
+    # Greens MPs who lost their seats in 2025. Claude sometimes checks for them when told there's only one Greens MP.
+    "openaustralia/getRepresentatives_search_Bandt.json": RecordedRequest("getRepresentatives", {"search": "Bandt"}),
+    "openaustralia/getSenators_search_Bandt.json": RecordedRequest("getSenators", {"search": "Bandt"}),
+    "openaustralia/getRepresentatives_search_Chandler-Mather.json": RecordedRequest(
+        "getRepresentatives", {"search": "Chandler-Mather"}
+    ),
+    "openaustralia/getSenators_search_Chandler-Mather.json": RecordedRequest(
+        "getSenators", {"search": "Chandler-Mather"}
+    ),
+    "openaustralia/getRepresentatives_search_Bates.json": RecordedRequest("getRepresentatives", {"search": "Bates"}),
+    "openaustralia/getSenators_search_Bates.json": RecordedRequest("getSenators", {"search": "Bates"}),
     "openaustralia/getRepresentative_id_10990.json": RecordedRequest("getRepresentative", {"id": "10990"}),
     # The wrong house gets {"error": "Unknown person ID"}.
     "openaustralia/getSenator_id_10990.json": RecordedRequest("getSenator", {"id": "10990"}),
