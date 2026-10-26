@@ -31,7 +31,7 @@ The smoke runs found one gap, searches for former Greens MPs, which was recorded
 - `parameters`: `search_hansard(query=housing)` without a `person_id`, twice, before searching with his.
 - Both: `read_debate` on his speech of 2 July 2026, two calls in one trial each.
 
-Each variant lost two calls to its own gap, and two to `read_debate`. Taking each variant's own gap out, Haiku's calls per trial would be about 1.49 with `parameters` and 1.63 with `tools`, so the decision stands. Sonnet hit none. The responses were recorded after these runs, for future ones.
+Each variant lost two calls to its own gap, and two to `read_debate`. Taking each variant's own gap out, Haiku's calls per trial would be about 1.49 with `parameters` and 1.63 with `tools`, so the decision stands. Sonnet hit none. The ACT's Senators and the `read_debate` responses were recorded after these runs, for future ones. The housing search without a `person_id` wasn't recorded on purpose: its hits include other Senators' speeches, whose URLs would pass the case without Claude finding Pocock.
 
 ## Cost
 
