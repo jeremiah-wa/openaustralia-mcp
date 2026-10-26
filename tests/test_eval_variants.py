@@ -378,3 +378,13 @@ class TestArgumentsThatDontGoTogether:
             "MPs represent electorates, so for MPs give a postcode or a name instead."
         )
         assert fake_api.requests == []
+
+
+class TestSearchMembersNeedsAFilter:
+    async def test_with_neither_name_nor_party(self, fake_api: FakeApi) -> None:
+        # Otherwise it would list every current member of both houses.
+        result = await call(fake_api, "tools", "search_members", {})
+
+        assert result.is_error
+        assert result_text(result) == "Error executing tool search_members: Give a name, a party, or both."
+        assert fake_api.requests == []

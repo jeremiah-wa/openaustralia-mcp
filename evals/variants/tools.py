@@ -4,6 +4,7 @@ from typing import Annotated
 
 import httpx2
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
 from evals.variants.members import (
@@ -72,6 +73,8 @@ def build_tools_server(http_client: httpx2.AsyncClient, config: Config) -> MCPSe
         Returns each member's person_id, name, party, house, electorate or state, whether they're a current
         member, current positions and url.
         """
+        if name is None and party is None:
+            raise ToolError("Give a name, a party, or both.")
         return await search(openaustralia, name=name, party=party)
 
     return server
