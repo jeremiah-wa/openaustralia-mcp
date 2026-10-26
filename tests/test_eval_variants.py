@@ -350,3 +350,21 @@ class TestArgumentsThatDontGoTogether:
             "Give it on its own."
         )
         assert fake_api.requests == []
+
+    @pytest.mark.parametrize("other", [{"name": "Khalil"}, {"party": "Labor"}, {"state": "VIC"}, {"house": "senate"}])
+    async def test_postcode_with_a_search(self, fake_api: FakeApi, other: dict[str, str]) -> None:
+        result = await call(fake_api, "parameters", "get_members", {"postcode": "3056", **other})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: A postcode finds the MPs for that area by itself. Give it on its own, "
+            "or search by name, party, state and house instead."
+        )
+        assert fake_api.requests == []
+
+    async def test_postcode_with_its_own_house(self, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentatives_postcode_3056.json")
+
+        result = await call(fake_api, "parameters", "get_members", {"postcode": "3056", "house": "representatives"})
+
+        assert not result.is_error
