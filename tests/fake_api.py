@@ -56,6 +56,7 @@ RECORDED = {
     # OpenAustralia takes TAS or Tasmania, but QLD fails where Queensland works, and NSW works where New South Wales
     # fails. The member tools send one spelling that works for each state.
     "openaustralia/getSenators_state_Tasmania.json": RecordedRequest("getSenators", {"state": "Tasmania"}),
+    "openaustralia/getSenators_state_ACT.json": RecordedRequest("getSenators", {"state": "ACT"}),
     "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
     "openaustralia/getSenators_search_Pocock.json": RecordedRequest("getSenators", {"search": "Pocock"}),
     "openaustralia/getSenators_search_David_Pocock.json": RecordedRequest("getSenators", {"search": "David Pocock"}),
@@ -85,6 +86,13 @@ RECORDED = {
     ),
     "openaustralia/getDebates_senate_2026-10-15.118.1.json": RecordedRequest(
         "getDebates", {"type": "senate", "gid": "2026-10-15.118.1"}
+    ),
+    # David Pocock on the Commonwealth Land (Affordable Housing) Bill 2026.
+    "openaustralia/getDebates_senate_2026-07-02.63.1.json": RecordedRequest(
+        "getDebates", {"type": "senate", "gid": "2026-07-02.63.1"}
+    ),
+    "openaustralia/getDebates_senate_2026-07-02.63.2.json": RecordedRequest(
+        "getDebates", {"type": "senate", "gid": "2026-07-02.63.2"}
     ),
 }
 
