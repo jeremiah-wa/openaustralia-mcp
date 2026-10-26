@@ -149,7 +149,7 @@ uv run --group evals --env-file .env python -m evals --models claude-haiku-5-5 -
 uv run --group evals --env-file .env python -m evals --models claude-sonnet-5-5 claude-haiku-5-5 --trials 5 --max-cost-usd 5
 ```
 
-`--max-cost-usd` is required. The runner refuses a run estimated above it, and stops starting trials once that much is spent. Results go to `evals/results/runs/<timestamp>/` (gitignored). A pull request that changes a tool's name, description or arguments compares its scores with [baseline.md](evals/results/baseline.md): add the `run-evals` label to run them in CI, or run [evals.yml](.github/workflows/evals.yml) by hand. See [evals.md](docs/evals.md).
+`--max-cost-usd` is required. The runner refuses a run estimated above it, and stops starting trials once that much is spent. `--cases` takes several names or globs, e.g. `--cases "mp-*" ndis-search`. `--variant` picks the set of tools Claude gets: the server's own (`current`, the default) or an eval-only variant (see [evals.md](docs/evals.md#variants)). Results go to `evals/results/runs/<timestamp>/` (gitignored). A pull request that changes a tool's name, description or arguments compares its scores with [baseline.md](evals/results/baseline.md): add the `run-evals` label to run them in CI, or run [evals.yml](.github/workflows/evals.yml) by hand. See [evals.md](docs/evals.md).
 
 ## Docs
 
