@@ -13,3 +13,6 @@ dist/
 
 # Local API keys (never commit)
 .env
+
+# Eval runs (the baseline summary in evals/results/ is committed)
+evals/results/runs/
