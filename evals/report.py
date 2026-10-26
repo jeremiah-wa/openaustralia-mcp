@@ -81,3 +81,38 @@ def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
                 )
             )
     return tag_scores
+
+
+def render_summary(records: list[TrialRecord], *, errors: int) -> str:
+    """The markdown summary of a run."""
+    scores = score_cases(records)
+    models = list(dict.fromkeys(score.model for score in scores))
+    lines = ["## Scores", "", "| Model | Tag | Cases | Mean pass rate | Passed every trial |", "|---|---|---|---|---|"]
+    for model in models:
+        for tag in score_tags(scores, model):
+            passed_all = round(tag.share_passed_all * tag.cases)
+            lines.append(f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} |")
+    if errors:
+        lines += ["", f"{errors} trials ended in an error and were run again. They aren't scored."]
+
+    lines += ["", "## Cases", "", f"| Case | Tags | {' | '.join(models)} |", f"|---|---|{'---|' * len(models)}"]
+    by_case: dict[str, dict[str, CaseScore]] = {}
+    for score in scores:
+        by_case.setdefault(score.case_id, {})[score.model] = score
+    for case_id, by_model in by_case.items():
+        tags = ", ".join(next(iter(by_model.values())).tags)
+        cells = [f"{by_model[m].passes}/{by_model[m].trials}" if m in by_model else "" for m in models]
+        lines.append(f"| {case_id} | {tags} | {' | '.join(cells)} |")
+
+    failures: dict[tuple[str, str, str], int] = {}
+    for record in records:
+        for failure in record.failures:
+            key = (record.case_id, record.model, failure)
+            failures[key] = failures.get(key, 0) + 1
+    if failures:
+        lines += ["", "## Failures", ""]
+        lines += [
+            f"- `{case_id}` on {model}, {count} trial{'s' if count > 1 else ''}: {failure}"
+            for (case_id, model, failure), count in failures.items()
+        ]
+    return "\n".join(lines) + "\n"

@@ -1,7 +1,7 @@
 """The eval report: pass rates per case, model and tag (see docs/evals.md#trials-and-scores)."""
 
 from evals.graders import Trial
-from evals.report import TrialRecord, score_cases, score_tags
+from evals.report import TrialRecord, render_summary, score_cases, score_tags
 
 SONNET = "claude-sonnet-5-5"
 HAIKU = "claude-haiku-5-5"
@@ -71,3 +71,37 @@ class TestByTag:
         [regression] = score_tags(score_cases(records), HAIKU)
 
         assert regression.mean_pass_rate == 0.0
+
+
+RUN = [
+    *(record("mp-3056", True, model=SONNET) for _ in range(2)),
+    record("mp-3056", True, model=HAIKU),
+    record("mp-3056", False, model=HAIKU),
+    *(record("senators", False, tags=("capability",)) for _ in range(2)),
+]
+
+
+class TestSummary:
+    def test_scores_each_model_by_tag(self) -> None:
+        summary = render_summary(RUN, errors=0)
+
+        assert "| claude-sonnet-5-5 | regression | 1 | 100% | 1/1 |" in summary
+        assert "| claude-sonnet-5-5 | capability | 1 | 0% | 0/1 |" in summary
+        assert "| claude-haiku-5-5 | regression | 1 | 50% | 0/1 |" in summary
+
+    def test_lists_each_case_for_each_model(self) -> None:
+        summary = render_summary(RUN, errors=0)
+
+        assert "| Case | Tags | claude-sonnet-5-5 | claude-haiku-5-5 |" in summary
+        assert "| mp-3056 | regression | 2/2 | 1/2 |" in summary
+        assert "| senators | capability | 0/2 |  |" in summary
+
+    def test_counts_each_failure_reason(self) -> None:
+        summary = render_summary(RUN, errors=0)
+
+        assert "- `senators` on claude-sonnet-5-5, 2 trials: missing call: get_members(postcode='3056')" in summary
+
+    def test_reports_errors_apart_from_the_scores(self) -> None:
+        summary = render_summary(RUN, errors=3)
+
+        assert "3 trials ended in an error and were run again. They aren't scored." in summary
