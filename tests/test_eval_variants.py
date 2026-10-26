@@ -306,3 +306,20 @@ class TestByName:
             ("Barbara Pocock", "Australian Greens", "SA"),
             ("David Pocock", "Independent", "ACT"),
         ]
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_explains_that_former_members_need_a_person_id(
+        self, fake_api: FakeApi, variant: str, tool: str
+    ) -> None:
+        # Keith Wolahan left the House in 2025, so neither house finds him by name.
+        fake_api.route("openaustralia/getRepresentatives_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
+        fake_api.route("openaustralia/getSenators_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
+
+        result = await call(fake_api, variant, tool, {"name": "Wolahan"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool {tool}: OpenAustralia has no current member matching name=Wolahan. "
+            "Searches find current members only. For a former member, find their person_id, for example on a "
+            "search_hansard hit, and look them up by that."
+        )

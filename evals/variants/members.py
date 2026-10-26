@@ -128,8 +128,8 @@ async def search(
     house: House | None = None,
 ) -> MemberLookupResult:
     """Current members who match every filter given, in both houses unless a house or a state limits it."""
-    filters = {"name": name, "party": party, "state": state}
-    given = {filter: value for filter, value in filters.items() if value is not None}
+    filters = {"name": name, "party": party, "state": state, "house": house}
+    given = {key: value for key, value in filters.items() if value is not None}
     # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
     house = "senate" if state else house
     try:
@@ -141,10 +141,16 @@ async def search(
         )
     except ApiClientError as exc:
         raise ToolError(_describe(exc, **given)) from None
-    return _result(
-        [MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)]
-        + [MemberRecord.from_senator(senator) for senator in senators]
-    )
+    members = [
+        MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)
+    ] + [MemberRecord.from_senator(senator) for senator in senators]
+    if not members:
+        matching = ", ".join(f"{key}={value}" for key, value in given.items())
+        raise ToolError(
+            f"OpenAustralia has no current member matching {matching}. Searches find current members only. "
+            "For a former member, find their person_id, for example on a search_hansard hit, and look them up by that."
+        )
+    return _result(members)
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
