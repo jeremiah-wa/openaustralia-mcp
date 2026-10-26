@@ -1,11 +1,16 @@
 """The eval case format, as written in evals/cases/*.yaml (see docs/evals.md#cases)."""
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
 from evals.cases import Case, Fixture
+
+from .fake_api import RECORDED
+
+CASES = sorted((Path(__file__).parent.parent / "evals" / "cases").glob("*.yaml"))
 
 
 def case(**fields: Any) -> Case:
@@ -35,3 +40,16 @@ class TestDependencies:
 
         with pytest.raises(ValidationError, match="after: no expected call has id 'member'"):
             case(expect={"calls": calls})
+
+
+class TestCommittedCases:
+    """The case files themselves. A fixture missing from RECORDED would otherwise only show up as a run error."""
+
+    @pytest.mark.parametrize("path", CASES, ids=[path.stem for path in CASES])
+    def test_loads_and_names_only_recorded_fixtures(self, path: Path) -> None:
+        yaml = pytest.importorskip("yaml")
+
+        committed = Case.model_validate(yaml.safe_load(path.read_text("utf-8")))
+
+        assert committed.id == path.stem
+        assert [fixture.path for fixture in committed.fixtures if fixture.path not in RECORDED] == []
