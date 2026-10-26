@@ -41,6 +41,9 @@ def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[
     for call in trial.calls:
         if any(_is_forbidden(forbidden, call) for forbidden in case.expect.forbidden):
             failures.append(f"forbidden call: {call.describe()}")
+        # The server drops arguments it doesn't know, so only the raw input shows them.
+        known = schemas.get(call.tool, {}).get("properties", {})
+        failures += [f"unknown argument: {name} in {call.describe()}" for name in call.input if name not in known]
     return failures
 
 

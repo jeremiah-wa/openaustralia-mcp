@@ -118,3 +118,20 @@ class TestForbiddenCalls:
 
         assert grade(expected, trial(neither), SCHEMAS) == ["forbidden call: search_hansard()"]
         assert grade(expected, trial(HOUSING_BY_10887), SCHEMAS) == []
+
+
+class TestUnknownArguments:
+    def test_fail_on_an_argument_the_tool_doesnt_have(self) -> None:
+        # The server drops it silently, so this searches every member's speeches.
+        misnamed = Call(tool="search_hansard", input={"query": "housing", "person": "10887"})
+
+        assert grade(case(), trial(misnamed), SCHEMAS) == [
+            "unknown argument: person in search_hansard(query='housing', person='10887')"
+        ]
+
+    def test_pass_when_every_argument_is_in_the_schema(self) -> None:
+        page_two = Call(
+            tool="read_debate", input={"gid": "2026-06-23.78.2", "house": "representatives", "offset": 4000}
+        )
+
+        assert grade(case(), trial(page_two), SCHEMAS) == []
