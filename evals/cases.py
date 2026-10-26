@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class ExpectedCall(BaseModel):
@@ -36,8 +36,28 @@ class Expect(BaseModel):
     cites_url: bool = False
 
 
+class Fixture(BaseModel):
+    """A recorded response the case can use, by file name under tests/fixtures/openaustralia/."""
+
+    file: str
+    # A search fixture answers any search containing one of these, instead of only its recorded one.
+    search_contains: list[str] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _bare_name(cls, value: Any) -> Any:
+        return {"file": value} if isinstance(value, str) else value
+
+    @property
+    def path(self) -> str:
+        """The name `FakeApi.route` takes."""
+        return f"openaustralia/{self.file}"
+
+
 class Case(BaseModel):
     id: str
     tags: list[str]
     question: str
+    # Any request these don't answer gets a 404.
+    fixtures: list[Fixture] = []
     expect: Expect
