@@ -35,6 +35,14 @@ class Expect(BaseModel):
     answer_contains: list[str] = []
     cites_url: bool = False
 
+    @model_validator(mode="after")
+    def _after_names_a_call(self) -> "Expect":
+        ids = {call.id for call in self.calls}
+        for call in self.calls:
+            if call.after is not None and call.after not in ids:
+                raise ValueError(f"after: no expected call has id {call.after!r}")
+        return self
+
 
 class Fixture(BaseModel):
     """A recorded response the case can use, by file name under tests/fixtures/openaustralia/."""

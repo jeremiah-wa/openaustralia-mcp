@@ -2,6 +2,9 @@
 
 from typing import Any
 
+import pytest
+from pydantic import ValidationError
+
 from evals.cases import Case, Fixture
 
 
@@ -24,3 +27,11 @@ class TestFixtures:
 
     def test_names_are_under_the_openaustralia_fixtures(self) -> None:
         assert Fixture(file="getHansard_search_ndis.json").path == "openaustralia/getHansard_search_ndis.json"
+
+
+class TestDependencies:
+    def test_after_must_name_an_expected_call(self) -> None:
+        calls = [{"tool": "search_hansard", "after": "member"}]
+
+        with pytest.raises(ValidationError, match="after: no expected call has id 'member'"):
+            case(expect={"calls": calls})
