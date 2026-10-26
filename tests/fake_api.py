@@ -51,19 +51,21 @@ class FakeApi:
     def __init__(self) -> None:
         self.requests: list[httpx2.Request] = []
         self._handler: Handler = lambda request: httpx2.Response(599)
-        self._routes: list[tuple[RecordedRequest, bytes]] = []
+        self._routes: list[tuple[RecordedRequest, list[str] | None, bytes]] = []
 
     def serve_fixture(self, name: str) -> None:
         """Answers every request with this recorded response."""
         body = (FIXTURES / name).read_bytes()
         self._handler = lambda request: httpx2.Response(200, content=body, headers=OA_HEADERS)
 
-    def route(self, name: str) -> None:
+    def route(self, name: str, *, search_contains: list[str] | None = None) -> None:
         """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture.
 
+        With `search_contains`, it answers any `search` that contains one of the keywords, ignoring case,
+        instead of only the recorded one. The other parameters must still match exactly.
         Any request without a routed fixture gets an HTTP 404.
         """
-        self._routes.append((RECORDED[name], (FIXTURES / name).read_bytes()))
+        self._routes.append((RECORDED[name], search_contains, (FIXTURES / name).read_bytes()))
         self._handler = self._answer_routed
 
     def serve(self, handler: Handler) -> None:
@@ -76,8 +78,21 @@ class FakeApi:
     def _answer_routed(self, request: httpx2.Request) -> httpx2.Response:
         function = request.url.path.rsplit("/", 1)[-1]
         params = {name: value for name, value in request.url.params.items() if name not in ("key", "output")}
-        for recorded, body in self._routes:
-            if recorded.function == function and recorded.params == params:
+        for recorded, search_contains, body in self._routes:
+            if recorded.function == function and _matches(recorded.params, params, search_contains):
                 return httpx2.Response(200, content=body, headers=OA_HEADERS)
         # The server reports it as a tool error and Claude carries on, as for an unknown gid.
         return httpx2.Response(404)
+
+
+def _matches(recorded: dict[str, str], params: dict[str, str], search_contains: list[str] | None) -> bool:
+    if search_contains is None:
+        return recorded == params
+    search = params.get("search", "").lower()
+    return _without_search(recorded) == _without_search(params) and any(
+        keyword.lower() in search for keyword in search_contains
+    )
+
+
+def _without_search(params: dict[str, str]) -> dict[str, str]:
+    return {name: value for name, value in params.items() if name != "search"}

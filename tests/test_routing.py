@@ -38,3 +38,32 @@ class TestUnroutedRequest:
 
         assert result.is_error
         assert "has no speech or debate with gid 2026-06-23.80.1 in the senate" in result_text(result)
+
+
+class TestSearchKeywords:
+    HOUSING_BY_10887 = "openaustralia/getHansard_search_housing_person_10887.json"
+
+    async def test_answer_any_search_containing_a_keyword(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route(self.HOUSING_BY_10887, search_contains=["housing", "rent"])
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "HOUSING affordability", "person_id": "10887"})
+
+        assert not result.is_error
+        assert result.structured_content["total_results"] == 69
+
+    async def test_still_need_the_other_parameters_to_match(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route(self.HOUSING_BY_10887, search_contains=["housing"])
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "housing"})
+
+        assert result.is_error
+
+    async def test_dont_answer_a_search_without_one(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route(self.HOUSING_BY_10887, search_contains=["housing"])
+
+        async with connect() as client:
+            result = await client.call_tool("search_hansard", {"query": "immigration", "person_id": "10887"})
+
+        assert result.is_error
