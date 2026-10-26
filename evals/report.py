@@ -15,6 +15,8 @@ class TrialRecord(BaseModel):
     tags: list[str]
     model: str
     effort: str
+    # Which set of tools Claude had: the server's own, or a variant built for an experiment such as #8.
+    variant: str = "current"
     trial: Trial
     failures: list[str]
     stop_reason: str | None = None
@@ -190,12 +192,15 @@ class CaseResult(BaseModel):
 class Scores(BaseModel):
     """A run's scores, saved as scores.json. The committed evals/results/baseline.json is one of these."""
 
+    # Files written before variants existed are the current tools.
+    variant: str = "current"
     models: dict[str, ModelRun]
     # By case id, then by model.
     cases: dict[str, dict[str, CaseResult]]
 
 
 def scores(records: list[TrialRecord]) -> Scores:
+    """A run's scores. Every trial in a run has the same variant."""
     models: dict[str, ModelRun] = {}
     for model in dict.fromkeys(record.model for record in records):
         mine = [record for record in records if record.model == model]
@@ -206,12 +211,19 @@ def scores(records: list[TrialRecord]) -> Scores:
         cases.setdefault(score.case_id, {})[score.model] = CaseResult(
             tags=score.tags, passes=score.passes, trials=score.trials
         )
-    return Scores(models=models, cases=cases)
+    variant = records[0].variant if records else "current"
+    return Scores(variant=variant, models=models, cases=cases)
 
 
 def render_comparison(baseline: Scores, run: Scores) -> str:
     """The markdown comparison of a run with the baseline, over the cases and models both have."""
     lines = ["## Compared with the baseline", ""]
+    if run.variant != baseline.variant:
+        # Still comparable: on the cases both have, this shows whether the variant broke what already worked.
+        lines += [
+            f"This run used the `{run.variant}` variant of the tools, and the baseline the `{baseline.variant}` one.",
+            "",
+        ]
     models = [model for model in run.models if model in baseline.models]
     for model in models:
         effort, baseline_effort = run.models[model].effort, baseline.models[model].effort
