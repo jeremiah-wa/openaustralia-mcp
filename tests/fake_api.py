@@ -59,7 +59,7 @@ class FakeApi:
     def __init__(self) -> None:
         self.requests: list[httpx2.Request] = []
         self._handler: Handler = lambda request: httpx2.Response(599)
-        self._routes: list[tuple[RecordedRequest, dict[str, list[str]], bytes]] = []
+        self._routes: list[tuple[RecordedRequest, list[str] | None, dict[str, list[str]], bytes]] = []
 
     def serve_fixture(self, name: str) -> None:
         """Answers every request with this recorded response."""
@@ -71,16 +71,16 @@ class FakeApi:
         name: str,
         *,
         search_contains: list[str] | None = None,
-        contains: dict[str, list[str]] | None = None,
+        part_of: dict[str, list[str]] | None = None,
     ) -> None:
         """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture.
 
-        With `contains`, it answers any value of each listed parameter that contains one of its keywords,
-        ignoring case, instead of only the recorded one. `search_contains` is short for `contains={"search": …}`.
-        The other parameters must still match exactly. Any request without a routed fixture gets an HTTP 404.
+        With `search_contains`, it answers any `search` that contains one of the keywords, ignoring case.
+        With `part_of`, it answers any value of each listed parameter that is part of one of its texts, ignoring
+        case, as OpenAustralia matches a party. Either way, the other parameters must still match exactly.
+        Any request without a routed fixture gets an HTTP 404.
         """
-        keywords = (contains or {}) | ({"search": search_contains} if search_contains is not None else {})
-        self._routes.append((RECORDED[name], keywords, (FIXTURES / name).read_bytes()))
+        self._routes.append((RECORDED[name], search_contains, part_of or {}, (FIXTURES / name).read_bytes()))
         self._handler = self._answer_routed
 
     def serve(self, handler: Handler) -> None:
@@ -93,20 +93,28 @@ class FakeApi:
     def _answer_routed(self, request: httpx2.Request) -> httpx2.Response:
         function = request.url.path.rsplit("/", 1)[-1]
         params = {name: value for name, value in request.url.params.items() if name not in ("key", "output")}
-        for recorded, keywords, body in self._routes:
-            if recorded.function == function and _matches(recorded.params, params, keywords):
+        for recorded, search_contains, part_of, body in self._routes:
+            if recorded.function == function and _matches(recorded.params, params, search_contains, part_of):
                 return httpx2.Response(200, content=body, headers=OA_HEADERS)
         # The server reports it as a tool error and Claude carries on, as for an unknown gid.
         return httpx2.Response(404)
 
 
-def _matches(recorded: dict[str, str], params: dict[str, str], keywords: dict[str, list[str]]) -> bool:
-    if _without(recorded, keywords) != _without(params, keywords):
+def _matches(
+    recorded: dict[str, str], params: dict[str, str], search_contains: list[str] | None, part_of: dict[str, list[str]]
+) -> bool:
+    loose = set(part_of) | ({"search"} if search_contains is not None else set())
+    if _without(recorded, loose) != _without(params, loose):
         return False
+    if search_contains is not None:
+        search = params.get("search", "").lower()
+        if not any(keyword.lower() in search for keyword in search_contains):
+            return False
     return all(
-        any(keyword.lower() in params.get(name, "").lower() for keyword in listed) for name, listed in keywords.items()
+        (value := params.get(name, "").lower()) and any(value in text.lower() for text in texts)
+        for name, texts in part_of.items()
     )
 
 
-def _without(params: dict[str, str], keywords: dict[str, list[str]]) -> dict[str, str]:
-    return {name: value for name, value in params.items() if name not in keywords}
+def _without(params: dict[str, str], names: set[str]) -> dict[str, str]:
+    return {name: value for name, value in params.items() if name not in names}
