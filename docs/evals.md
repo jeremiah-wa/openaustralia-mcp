@@ -40,20 +40,22 @@ A request with no matching fixture gets an HTTP 404. The server returns it to Cl
 
 ## The runner
 
-The runner is Python, using the Anthropic SDK's tool runner (beta). `async_mcp_tool` from `anthropic.lib.tools.mcp` turns each MCP tool into a Claude tool definition and calls it through the MCP session. The in-memory `Client` gives that session as `client.session`.
+The runner ([evals/runner.py](../evals/runner.py)) is Python, using the Anthropic SDK's tool runner (beta). `async_mcp_tool` from `anthropic.lib.tools.mcp` turns each MCP tool into a Claude tool definition and calls it through the MCP session. The in-memory `Client` gives that session as `client.session`. The runner wraps it in a `RecordingSession`, which records each call's arguments and full result before passing the result on.
 
 | Setting | Choice | Why |
 |---|---|---|
 | Loop | The SDK's tool runner. A hand-written loop is the fallback if the runner gets in the way of recording calls | Less code, and the SDK maintains the conversion of MCP tools and results |
 | System prompt | The server's `instructions` (`client.instructions`), and nothing else | Claude Code puts server instructions in its system prompt. Leaving them out would leave them untested |
-| Turn cap | 8 model turns | The longest chain today is 3 or 4 calls. Hitting the cap is recorded and fails the trial |
+| Turn cap | 8 model turns, as the tool runner's `max_iterations` | The longest chain today is 3 or 4 calls. A trial whose last reply still asks for a tool hit the cap, and fails |
 | Recorded per trial | Each tool call's name and input exactly as Claude sent it, each result, the final answer, `stop_reason`, token usage, the model and the effort level | The raw input shows misnamed arguments, which the server drops silently (see [Open questions](architecture.md#open-questions)) |
 
-Not yet checked:
+Checked while building it (anthropic 2.3, mcp 2.3):
 
-- **unverified**: that `async_mcp_tool` works with the in-memory `Client`. It takes a `ClientSession` and calls `call_tool(name=..., arguments=...)`, and `Client.session` returns one with that signature, but it hasn't been run.
-- **unverified**: whether the tool runner has a built-in turn limit. If it doesn't, the runner counts turns itself and stops at the cap.
-- **unverified**: what Claude sees from a tool result. The tools return structured content and a text block. The runner should pass on the same parts that Claude Code passes to the model, or the evals measure a result format no real client sends.
+- `async_mcp_tool` works with the in-memory `Client`'s session. The smoke runs on Sonnet 5.5 and Haiku 5.5 called `get_members` through it.
+- It passes Claude's input on as it is, so a misnamed argument reaches the server and is recorded.
+- The tool runner has a turn limit, `max_iterations`, with no limit by default.
+- What Claude sees from a tool result: `async_mcp_tool` sends the result's `content` blocks, and the `structured_content` only when there are none. This server's tools return one text block that holds the same JSON as the structured content, so Claude gets the same data either way. **unverified**: whether Claude Code sends the text block, the structured content, or both. For this server's tools, that changes the format but not the data.
+- Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner fails a trial whose `model` isn't the one it asked for.
 
 ## Cases
 
@@ -139,14 +141,15 @@ The runner checks that the `model` in each response is the one it asked for, and
 
 ## Errors
 
-API errors that remain after the SDK's retries, timeouts, and runner crashes go to `errors.jsonl`, not into the scores. A trial that ends in an error is run again, not scored as a failure, because a failure has to mean something about the tools. The summary shows the number of errors next to the number of trials.
+API errors that remain after the SDK's retries, timeouts, and runner crashes go to `errors.jsonl`, not into the scores. A trial that ends in an error is run again, up to 3 attempts in all, not scored as a failure, because a failure has to mean something about the tools. The summary shows the number of errors. An error line holds the exception's type and HTTP status only, never its message, which could include request details.
 
 ## Results
 
 | What | Where | Committed |
 |---|---|---|
-| One JSON line per trial: case, model, effort, calls, results, answer, grades, token usage | `evals/results/runs/<timestamp>/` | No, gitignored |
-| A markdown summary per run | Same folder | No |
+| One JSON line per trial: case, model, effort, calls, results, answer, grades, token usage | `evals/results/runs/<timestamp>/trials.jsonl` | No, gitignored |
+| Trials that ended in an error | Same folder, `errors.jsonl` | No |
+| A markdown summary per run: scores by model and tag, cases by model, failure reasons, cost | Same folder, `summary.md` | No |
 | The baseline summary | `evals/results/baseline.md` | Yes. A pull request that changes a tool compares against it, and updates it when it merges |
 
 ## Where it lives
@@ -165,7 +168,9 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 
 A run costs cases × trials × models × the cost of one trial. The cost of a trial is measured from the token usage in the results and priced per model. In October 2026, Sonnet 5.5 costs $2 per million input tokens and $10 per million output tokens, and Haiku 5.5 costs $0.10 and $0.50.
 
-Before starting, the runner prints an estimate from the last measured cost per trial. It stops starting new trials once the `--max-cost-usd` cap is reached. The first baseline in #6 gives the first measured figure.
+Before starting, the runner prints an estimate from the mean cost per trial in the latest run that used each model. `--max-cost-usd` is required, and the runner stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
+
+The smoke runs on case `mp-3056` (one `get_members` call) cost $0.0085 a trial on Sonnet 5.5 and $0.0004 on Haiku 5.5. Cases with longer chains cost more. The baseline in #6 gives the measured figure across all the cases.
 
 ## Later
 
