@@ -172,7 +172,7 @@ A run costs cases × trials × models × the cost of one trial. The cost of a tr
 
 Before starting, the runner prints an estimate from the mean cost per trial in the latest run that used each model. `--max-cost-usd` is required, and the runner stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
-The smoke runs on case `mp-3056` (one `get_members` call) cost $0.0085 a trial on Sonnet 5.5 and $0.0004 on Haiku 5.5. Cases with longer chains cost more. The baseline in #6 gives the measured figure across all the cases.
+Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average.
 
 ## Later
 
