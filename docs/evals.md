@@ -100,6 +100,8 @@ expect:
 
 **Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as Senators or a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
 
+The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. The cases for member lookup by name and Senators (17 to 19 in that list) belong to [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8), because their expected calls depend on the tool shape it picks.
+
 ## Graders
 
 All graders are deterministic. A trial passes when every check passes.
