@@ -34,6 +34,8 @@ The evals use the same seam as the tests (see [Testing](architecture.md#testing)
 
 Recorded fixtures are **routed by request**. A request is matched on the API function and its parameters, with the key ignored, to a fixture under `tests/fixtures/`. Today's `FakeApi` serves one fixture for every request, which works for a test that makes one known call, but not for a run where Claude decides the calls. The router replaces `FakeApi.serve_fixture` in the tests too (#6).
 
+Search queries are free text, so one exact `search` value would fail a reasonable call such as "NDIS Senate" instead of "NDIS". A case can therefore give a fixture a list of keywords. The fixture then answers any `getHansard` request whose `search` contains one of them, ignoring case, with the other parameters still matched exactly.
+
 A request with no matching fixture gets an HTTP 404. The server returns it to Claude as a tool error, and the run carries on. The trial is scored on its expected calls as usual, so a wrong call shows up as a missing expected one, or as one call too many.
 
 ## The runner
@@ -63,7 +65,8 @@ tags: [regression]
 question: What has my federal MP for postcode 3056 said about housing?
 fixtures:
   - getRepresentatives_postcode_3056.json
-  - getHansard_search_housing_person_10887.json
+  - file: getHansard_search_housing_person_10887.json
+    search_contains: [housing]
 expect:
   calls:
     - id: member
@@ -71,23 +74,25 @@ expect:
       args: {postcode: "3056"}
     - tool: search_hansard
       args: {person_id: "10887"}
-      args_contain: {query: housing}
+      args_contain: {query: [housing]}
       after: member
   forbidden:
     - tool: search_hansard
       args_missing: [person_id]
   max_calls: 4
+  answer_contains: [Peter Khalil]
   cites_url: true
 ```
 
 | Field | Meaning |
 |---|---|
 | `question` | The user's message |
-| `fixtures` | The recorded responses this case can use. Any other request gets a 404 |
-| `expect.calls` | Calls that must appear. `args` must match exactly. `args_contain` must contain the text, ignoring case. Other arguments are free |
+| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords (see [The seam](#the-seam)) |
+| `expect.calls` | Calls that must appear. `args` must match exactly. `args_contain` must contain one of the listed texts, ignoring case, e.g. `[NDIS, National Disability Insurance Scheme]`. Other arguments are free |
 | `after` | This call needs the output of the named call, so it must come after it. Only for real dependencies, not for a preferred order |
 | `forbidden` | Calls that must not appear |
 | `max_calls` | Optional cap on the number of tool calls |
+| `answer_contains` | Text the final answer must contain, ignoring case. Use it for facts from the fixtures, such as a member's name, not for phrasing |
 | `cites_url` | The final answer must include a `url` from a tool result |
 | `tags` | `regression` or `capability`, plus any free labels |
 
@@ -104,6 +109,7 @@ All graders are deterministic. A trial passes when every check passes.
 | Forbidden calls | A forbidden call appears |
 | Unknown arguments | A call has an argument that isn't in the tool's schema, such as `person=` instead of `person_id=` |
 | Number of calls | There are more tool calls than `max_calls` |
+| Answer content | The answer is missing any of the `answer_contains` texts |
 | Citation | `cites_url` is set and the answer has no `url` from a tool result |
 
 The graders check dependencies, not an exact sequence. Requiring one fixed order rejects other valid paths ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)), and an extra harmless call, such as a second search, is fine unless the case sets `max_calls`.
