@@ -193,6 +193,18 @@ class TestScoresFile:
 
         assert Scores.model_validate_json(run.model_dump_json()) == run
 
+    def test_holds_the_variant_of_the_tools(self) -> None:
+        item = record("mp-3056", True)
+        item.variant = "tools"
+
+        assert scores([item]).variant == "tools"
+
+    def test_a_file_without_a_variant_is_the_current_tools(self) -> None:
+        # baseline.json was written before variants existed.
+        saved = scores([record("mp-3056", True)]).model_dump(exclude={"variant"})
+
+        assert Scores.model_validate(saved).variant == "current"
+
 
 def run_of(
     *results: tuple[str, int], model: str = SONNET, effort: str = "high", tags: tuple[str, ...] = ("regression",)
@@ -239,6 +251,14 @@ class TestComparison:
             "claude-sonnet-5-5 ran at effort low, and the baseline at high, so the scores aren't comparable."
             in comparison
         )
+
+    def test_names_the_variants_when_they_differ(self) -> None:
+        now = run_of(("mp-3056", 5))
+        now.variant = "parameters"
+
+        comparison = render_comparison(run_of(("mp-3056", 5)), now)
+
+        assert "This run used the `parameters` variant of the tools, and the baseline the `current` one." in comparison
 
 
 class TestEstimate:
