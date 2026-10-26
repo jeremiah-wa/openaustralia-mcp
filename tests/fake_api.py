@@ -34,6 +34,14 @@ RECORDED = {
     "openaustralia/getSenators_search_Khalil.json": RecordedRequest("getSenators", {"search": "Khalil"}),
     "openaustralia/getRepresentatives_search_Pocock.json": RecordedRequest("getRepresentatives", {"search": "Pocock"}),
     "openaustralia/getRepresentatives_party_Greens.json": RecordedRequest("getRepresentatives", {"party": "Greens"}),
+    # Name searches find current members only, so these get `{}` for Keith Wolahan, a former MP.
+    "openaustralia/getRepresentatives_search_Wolahan.json": RecordedRequest(
+        "getRepresentatives", {"search": "Wolahan"}
+    ),
+    "openaustralia/getSenators_search_Wolahan.json": RecordedRequest("getSenators", {"search": "Wolahan"}),
+    "openaustralia/getRepresentative_id_10990.json": RecordedRequest("getRepresentative", {"id": "10990"}),
+    # The wrong house gets {"error": "Unknown person ID"}.
+    "openaustralia/getSenator_id_10990.json": RecordedRequest("getSenator", {"id": "10990"}),
     # OpenAustralia takes TAS or Tasmania, but QLD fails where Queensland works, and NSW works where New South Wales
     # fails. The member tools send one spelling that works for each state.
     "openaustralia/getSenators_state_Tasmania.json": RecordedRequest("getSenators", {"state": "Tasmania"}),
@@ -51,6 +59,7 @@ RECORDED = {
         "getHansard", {"search": "housing", "person": "11009"}
     ),
     "openaustralia/getHansard_search_ndis.json": RecordedRequest("getHansard", {"search": "NDIS"}),
+    "openaustralia/getHansard_search_ruby_princess.json": RecordedRequest("getHansard", {"search": "Ruby Princess"}),
     "openaustralia/getHansard_search_no_results.json": RecordedRequest(
         "getHansard", {"search": "xyzzyplughnonsenseword"}
     ),
