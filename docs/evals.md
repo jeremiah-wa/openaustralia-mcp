@@ -34,7 +34,7 @@ The evals use the same seam as the tests (see [Testing](architecture.md#testing)
 
 Recorded fixtures are **routed by request**. A request is matched on the API function and its parameters, with the key ignored, to a fixture under `tests/fixtures/`. Today's `FakeApi` serves one fixture for every request, which works for a test that makes one known call, but not for a run where Claude decides the calls. The router replaces `FakeApi.serve_fixture` in the tests too (#6).
 
-A request with no matching fixture gets an HTTP 404. The server returns it to Claude as a tool error, the run carries on, and the call fails its case because no expected call matches it.
+A request with no matching fixture gets an HTTP 404. The server returns it to Claude as a tool error, and the run carries on. The trial is scored on its expected calls as usual, so a wrong call shows up as a missing expected one, or as one call too many.
 
 ## The runner
 
