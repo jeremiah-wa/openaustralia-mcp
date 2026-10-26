@@ -29,6 +29,7 @@ RECORDED = {
     "openaustralia/getRepresentatives_postcode_3143.json": RecordedRequest("getRepresentatives", {"postcode": "3143"}),
     "openaustralia/getRepresentatives_postcode_3144.json": RecordedRequest("getRepresentatives", {"postcode": "3144"}),
     "openaustralia/getRepresentatives_postcode_3146.json": RecordedRequest("getRepresentatives", {"postcode": "3146"}),
+    "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
     "openaustralia/getHansard_person_10887.json": RecordedRequest("getHansard", {"person": "10887"}),
     "openaustralia/getHansard_search_housing_person_10887.json": RecordedRequest(
         "getHansard", {"search": "housing", "person": "10887"}
@@ -58,21 +59,28 @@ class FakeApi:
     def __init__(self) -> None:
         self.requests: list[httpx2.Request] = []
         self._handler: Handler = lambda request: httpx2.Response(599)
-        self._routes: list[tuple[RecordedRequest, list[str] | None, bytes]] = []
+        self._routes: list[tuple[RecordedRequest, dict[str, list[str]], bytes]] = []
 
     def serve_fixture(self, name: str) -> None:
         """Answers every request with this recorded response."""
         body = (FIXTURES / name).read_bytes()
         self._handler = lambda request: httpx2.Response(200, content=body, headers=OA_HEADERS)
 
-    def route(self, name: str, *, search_contains: list[str] | None = None) -> None:
+    def route(
+        self,
+        name: str,
+        *,
+        search_contains: list[str] | None = None,
+        contains: dict[str, list[str]] | None = None,
+    ) -> None:
         """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture.
 
-        With `search_contains`, it answers any `search` that contains one of the keywords, ignoring case,
-        instead of only the recorded one. The other parameters must still match exactly.
-        Any request without a routed fixture gets an HTTP 404.
+        With `contains`, it answers any value of each listed parameter that contains one of its keywords,
+        ignoring case, instead of only the recorded one. `search_contains` is short for `contains={"search": …}`.
+        The other parameters must still match exactly. Any request without a routed fixture gets an HTTP 404.
         """
-        self._routes.append((RECORDED[name], search_contains, (FIXTURES / name).read_bytes()))
+        keywords = (contains or {}) | ({"search": search_contains} if search_contains is not None else {})
+        self._routes.append((RECORDED[name], keywords, (FIXTURES / name).read_bytes()))
         self._handler = self._answer_routed
 
     def serve(self, handler: Handler) -> None:
@@ -85,21 +93,20 @@ class FakeApi:
     def _answer_routed(self, request: httpx2.Request) -> httpx2.Response:
         function = request.url.path.rsplit("/", 1)[-1]
         params = {name: value for name, value in request.url.params.items() if name not in ("key", "output")}
-        for recorded, search_contains, body in self._routes:
-            if recorded.function == function and _matches(recorded.params, params, search_contains):
+        for recorded, keywords, body in self._routes:
+            if recorded.function == function and _matches(recorded.params, params, keywords):
                 return httpx2.Response(200, content=body, headers=OA_HEADERS)
         # The server reports it as a tool error and Claude carries on, as for an unknown gid.
         return httpx2.Response(404)
 
 
-def _matches(recorded: dict[str, str], params: dict[str, str], search_contains: list[str] | None) -> bool:
-    if search_contains is None:
-        return recorded == params
-    search = params.get("search", "").lower()
-    return _without_search(recorded) == _without_search(params) and any(
-        keyword.lower() in search for keyword in search_contains
+def _matches(recorded: dict[str, str], params: dict[str, str], keywords: dict[str, list[str]]) -> bool:
+    if _without(recorded, keywords) != _without(params, keywords):
+        return False
+    return all(
+        any(keyword.lower() in params.get(name, "").lower() for keyword in listed) for name, listed in keywords.items()
     )
 
 
-def _without_search(params: dict[str, str]) -> dict[str, str]:
-    return {name: value for name, value in params.items() if name != "search"}
+def _without(params: dict[str, str], keywords: dict[str, list[str]]) -> dict[str, str]:
+    return {name: value for name, value in params.items() if name not in keywords}
