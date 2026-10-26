@@ -1,0 +1,18 @@
+id: ndis-senate-read
+tags: [regression, read]
+question: Find the latest Senate speech on the NDIS and show me the full text.
+fixtures:
+  - file: getHansard_search_ndis.json
+    search_contains: [NDIS, National Disability Insurance Scheme]
+  - getDebates_senate_2026-10-15.118.1.json
+expect:
+  calls:
+    - id: search
+      tool: search_hansard
+      args_contain: {query: [NDIS, National Disability Insurance Scheme]}
+    # The newest Senate hit, read in its own house.
+    - tool: read_debate
+      args: {gid: "2026-10-15.118.1", house: senate}
+      after: search
+  answer_contains: [Jenny McAllister]
+  cites_url: true
