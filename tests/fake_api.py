@@ -29,6 +29,9 @@ RECORDED = {
     "openaustralia/getRepresentatives_postcode_3143.json": RecordedRequest("getRepresentatives", {"postcode": "3143"}),
     "openaustralia/getRepresentatives_postcode_3144.json": RecordedRequest("getRepresentatives", {"postcode": "3144"}),
     "openaustralia/getRepresentatives_postcode_3146.json": RecordedRequest("getRepresentatives", {"postcode": "3146"}),
+    "openaustralia/getRepresentatives_search_Khalil.json": RecordedRequest("getRepresentatives", {"search": "Khalil"}),
+    # Name searches that find no one get `{}`.
+    "openaustralia/getSenators_search_Khalil.json": RecordedRequest("getSenators", {"search": "Khalil"}),
     "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
     "openaustralia/getSenators_search_Pocock.json": RecordedRequest("getSenators", {"search": "Pocock"}),
     "openaustralia/getSenators_search_David_Pocock.json": RecordedRequest("getSenators", {"search": "David Pocock"}),
