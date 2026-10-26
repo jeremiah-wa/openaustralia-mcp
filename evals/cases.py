@@ -50,8 +50,8 @@ class Fixture(BaseModel):
     file: str
     # A search fixture answers any search containing one of these, instead of only its recorded one.
     search_contains: list[str] | None = None
-    # A fixture answers any value of these parameters that is part of one of the texts, e.g.
-    # {"party": ["Australian Greens"]}, as OpenAustralia matches a party.
+    # A fixture answers any value of these parameters that is part of every one of the texts, as OpenAustralia
+    # matches a party or a name, e.g. {"party": ["Australian Greens"]} or {"search": ["Barbara Pocock", "David Pocock"]}.
     part_of: dict[str, list[str]] = {}
 
     @model_validator(mode="before")
