@@ -30,6 +30,7 @@ class ForbiddenCall(BaseModel):
 class Expect(BaseModel):
     calls: list[ExpectedCall] = []
     forbidden: list[ForbiddenCall] = []
+    max_calls: int | None = None
 
 
 class Case(BaseModel):

@@ -135,3 +135,15 @@ class TestUnknownArguments:
         )
 
         assert grade(case(), trial(page_two), SCHEMAS) == []
+
+
+class TestMaxCalls:
+    def test_fail_when_there_are_more_calls_than_the_cap(self) -> None:
+        assert grade(case(max_calls=1), trial(MEMBER_3056, HOUSING_BY_10887), SCHEMAS) == ["2 calls, more than 1"]
+
+    def test_pass_at_the_cap(self) -> None:
+        assert grade(case(max_calls=2), trial(MEMBER_3056, HOUSING_BY_10887), SCHEMAS) == []
+
+    def test_zero_means_no_calls(self) -> None:
+        assert grade(case(max_calls=0), trial(), SCHEMAS) == []
+        assert grade(case(max_calls=0), trial(MEMBER_3056), SCHEMAS) == ["1 calls, more than 0"]
