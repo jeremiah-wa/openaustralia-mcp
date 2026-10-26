@@ -154,6 +154,17 @@ class TestCost:
 
         assert "Cost: $0.0060 for 4 trials, $0.0015 per trial." in summary
 
+    def test_summary_shows_input_tokens_per_trial(self) -> None:
+        # Input tokens include the tool definitions, which each turn sends again.
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(2)]
+        records[0].usage = {"input_tokens": 10_000, "output_tokens": 500}
+        records[1].usage = {"input_tokens": 20_000, "output_tokens": 500}
+
+        summary = render_summary(records, errors=0)
+
+        assert "| Passed every trial | Calls per trial | Failed calls per trial | Input tokens per trial |" in summary
+        assert "| claude-haiku-5-5 | regression | 1 | 100% | 1/1 | 0.00 | 0.00 | 15,000 |" in summary
+
 
 class TestScoresFile:
     def test_holds_passes_per_case_and_model_and_the_cost_per_trial(self) -> None:

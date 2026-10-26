@@ -35,6 +35,7 @@ class CaseScore:
     # Tool calls over all its trials. A failed call counts too: Claude spent a turn on it.
     calls: int = 0
     failed_calls: int = 0
+    input_tokens: int = 0
 
     @property
     def pass_rate(self) -> float:
@@ -60,6 +61,7 @@ def score_cases(records: list[TrialRecord]) -> list[CaseScore]:
             sum(record.passed for record in group),
             calls=sum(len(record.trial.calls) for record in group),
             failed_calls=sum(call.error is not None for record in group for call in record.trial.calls),
+            input_tokens=sum(record.usage.get("input_tokens", 0) for record in group),
         )
         for (case_id, model), group in grouped.items()
     ]
@@ -77,6 +79,8 @@ class TagScore:
     share_passed_all: float
     calls_per_trial: float
     failed_calls_per_trial: float
+    # Includes the tool definitions, which every turn sends again.
+    input_tokens_per_trial: float
 
 
 def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
@@ -94,6 +98,7 @@ def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
                     sum(score.passed_all for score in tagged) / len(tagged),
                     sum(score.calls for score in tagged) / trials,
                     sum(score.failed_calls for score in tagged) / trials,
+                    sum(score.input_tokens for score in tagged) / trials,
                 )
             )
     return tag_scores
@@ -112,22 +117,29 @@ def trial_cost_usd(model: str, usage: dict[str, Any]) -> float:
     return (usage.get("input_tokens", 0) * input_price + usage.get("output_tokens", 0) * output_price) / 1_000_000
 
 
+SCORE_COLUMNS = (
+    "Model",
+    "Tag",
+    "Cases",
+    "Mean pass rate",
+    "Passed every trial",
+    "Calls per trial",
+    "Failed calls per trial",
+    "Input tokens per trial",
+)
+
+
 def render_summary(records: list[TrialRecord], *, errors: int) -> str:
     """The markdown summary of a run."""
     scores = score_cases(records)
     models = list(dict.fromkeys(score.model for score in scores))
-    lines = [
-        "## Scores",
-        "",
-        "| Model | Tag | Cases | Mean pass rate | Passed every trial | Calls per trial | Failed calls per trial |",
-        "|---|---|---|---|---|---|---|",
-    ]
+    lines = ["## Scores", "", f"| {' | '.join(SCORE_COLUMNS)} |", "|" + "---|" * len(SCORE_COLUMNS)]
     for model in models:
         for tag in score_tags(scores, model):
             passed_all = round(tag.share_passed_all * tag.cases)
             lines.append(
                 f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} "
-                f"| {tag.calls_per_trial:.2f} | {tag.failed_calls_per_trial:.2f} |"
+                f"| {tag.calls_per_trial:.2f} | {tag.failed_calls_per_trial:.2f} | {tag.input_tokens_per_trial:,.0f} |"
             )
     if errors:
         lines += ["", f"{errors} trials ended in an error and were run again. They aren't scored."]
