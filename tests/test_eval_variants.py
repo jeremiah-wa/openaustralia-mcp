@@ -368,3 +368,13 @@ class TestArgumentsThatDontGoTogether:
         result = await call(fake_api, "parameters", "get_members", {"postcode": "3056", "house": "representatives"})
 
         assert not result.is_error
+
+    async def test_state_with_the_house_of_representatives(self, fake_api: FakeApi) -> None:
+        result = await call(fake_api, "parameters", "get_members", {"state": "TAS", "house": "representatives"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: A state means Senators: they represent a whole state or territory. "
+            "MPs represent electorates, so for MPs give a postcode or a name instead."
+        )
+        assert fake_api.requests == []
