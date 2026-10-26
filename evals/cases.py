@@ -31,6 +31,8 @@ class Expect(BaseModel):
     calls: list[ExpectedCall] = []
     forbidden: list[ForbiddenCall] = []
     max_calls: int | None = None
+    # Facts from the fixtures, such as a member's name. Not phrasing.
+    answer_contains: list[str] = []
 
 
 class Case(BaseModel):

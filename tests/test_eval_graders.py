@@ -147,3 +147,17 @@ class TestMaxCalls:
     def test_zero_means_no_calls(self) -> None:
         assert grade(case(max_calls=0), trial(), SCHEMAS) == []
         assert grade(case(max_calls=0), trial(MEMBER_3056), SCHEMAS) == ["1 calls, more than 0"]
+
+
+class TestAnswerContains:
+    def test_pass_when_the_answer_has_each_text_ignoring_case(self) -> None:
+        answer = "Your MP is PETER KHALIL, the member for Wills."
+
+        assert grade(case(answer_contains=["Peter Khalil", "Wills"]), trial(answer=answer), SCHEMAS) == []
+
+    def test_fail_for_each_missing_text(self) -> None:
+        answer = "Your MP is Peter Khalil."
+
+        assert grade(case(answer_contains=["Peter Khalil", "Wills"]), trial(answer=answer), SCHEMAS) == [
+            "answer is missing: Wills"
+        ]

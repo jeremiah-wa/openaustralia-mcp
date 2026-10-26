@@ -48,6 +48,9 @@ def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[
     max_calls = case.expect.max_calls
     if max_calls is not None and len(trial.calls) > max_calls:
         failures.append(f"{len(trial.calls)} calls, more than {max_calls}")
+
+    answer = trial.answer.lower()
+    failures += [f"answer is missing: {text}" for text in case.expect.answer_contains if text.lower() not in answer]
     return failures
 
 
