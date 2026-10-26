@@ -105,8 +105,8 @@ class TestSummary:
         summary = render_summary(RUN, errors=0)
 
         assert "| Case | Tags | claude-sonnet-5-5 | claude-haiku-5-5 |" in summary
-        assert "| mp-3056 | regression | 2/2 | 1/2 |" in summary
-        assert "| senators | capability | 0/2 |  |" in summary
+        assert "| mp-3056 | regression | 2/2, 0.0 calls | 1/2, 0.0 calls |" in summary
+        assert "| senators | capability | 0/2, 0.0 calls |  |" in summary
 
     def test_counts_each_failure_reason(self) -> None:
         summary = render_summary(RUN, errors=0)
@@ -136,6 +136,15 @@ class TestCalls:
         )
         assert header in summary
         assert "| claude-haiku-5-5 | regression | 1 | 100% | 1/1 | 1.50 | 0.50 |" in summary
+
+    def test_summary_shows_calls_per_trial_for_each_case(self) -> None:
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(2)]
+        records[0].trial.calls = [Call(tool="get_members", input={"postcode": "3056"}) for _ in range(2)]
+        records[1].trial.calls = [Call(tool="get_members", input={"postcode": "3056"})]
+
+        summary = render_summary(records, errors=0)
+
+        assert "| mp-3056 | regression | 2/2, 1.5 calls |" in summary
 
 
 class TestCost:
