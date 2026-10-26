@@ -1,0 +1,79 @@
+name: Evals
+
+# Tool-use evals against the Anthropic API (see docs/evals.md), with the key from the repository secret. They cost
+# money, so they run only by hand and when a pull request is given the run-evals label. To run them again on a pull
+# request, remove the label and add it back.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: Models to run
+        type: choice
+        options: [both, claude-sonnet-5-5, claude-haiku-5-5]
+        default: both
+      trials:
+        description: Trials per case
+        type: number
+        default: 5
+      max_cost_usd:
+        description: Refuse a run estimated above this, and stop starting trials once it's spent (US dollars)
+        type: number
+        default: 5
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+# One run at a time per pull request or branch. A second waits, rather than cancelling one that's already paid for.
+concurrency:
+  group: evals-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  evals:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-evals'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The key is set only on the steps that need it, so the action and package installs never see it.
+    steps:
+      # Pull requests from forks get no secrets, so they stop here.
+      - name: Check the key is set
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::The ANTHROPIC_API_KEY repository secret isn't set."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          # The job holding the key shouldn't restore cached packages.
+          enable-cache: false
+      - run: uv sync --locked --group evals
+      # Report only: failing cases don't fail the job. A run whose estimate is over the cap does.
+      - name: Run the evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Inputs go through the environment, not into the script. A labelled pull request gets the defaults.
+          MODELS: ${{ inputs.models || 'both' }}
+          TRIALS: ${{ inputs.trials || 5 }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd || 5 }}
+        run: |
+          if [ "$MODELS" = both ]; then
+            MODELS="claude-sonnet-5-5 claude-haiku-5-5"
+          fi
+          # $MODELS is unquoted on purpose: one argument per model.
+          uv run python -m evals --models $MODELS --trials "$TRIALS" --max-cost-usd "$MAX_COST_USD"
+      - name: Write the summary, with the comparison with the baseline
+        if: always()
+        run: |
+          for summary in evals/results/runs/*/summary.md; do
+            [ -f "$summary" ] && cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results/runs/
+          if-no-files-found: ignore
