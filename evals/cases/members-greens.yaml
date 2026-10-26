@@ -8,6 +8,19 @@ fixtures:
     part_of: {party: [Australian Greens]}
   - file: getSenators_party_Greens.json
     part_of: {party: [Australian Greens]}
+  # Greens MPs who lost their seats in 2025, whom Claude sometimes looks for. Name searches find no former member.
+  - file: getRepresentatives_search_Bandt.json
+    part_of: {search: [Adam Bandt]}
+  - file: getSenators_search_Bandt.json
+    part_of: {search: [Adam Bandt]}
+  - file: getRepresentatives_search_Chandler-Mather.json
+    part_of: {search: [Max Chandler-Mather]}
+  - file: getSenators_search_Chandler-Mather.json
+    part_of: {search: [Max Chandler-Mather]}
+  - file: getRepresentatives_search_Bates.json
+    part_of: {search: [Stephen Bates]}
+  - file: getSenators_search_Bates.json
+    part_of: {search: [Stephen Bates]}
 expect:
   answer_contains: [Elizabeth Watson-Brown, Vanessa Bleyer]
   cites_url: true
