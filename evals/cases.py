@@ -19,8 +19,17 @@ class ExpectedCall(BaseModel):
         return f"{self.tool}({', '.join(parts)})"
 
 
+class ForbiddenCall(BaseModel):
+    """Matches a call to the tool whose `args` match exactly and which has none of the `args_missing`."""
+
+    tool: str
+    args: dict[str, Any] = {}
+    args_missing: list[str] = []
+
+
 class Expect(BaseModel):
     calls: list[ExpectedCall] = []
+    forbidden: list[ForbiddenCall] = []
 
 
 class Case(BaseModel):

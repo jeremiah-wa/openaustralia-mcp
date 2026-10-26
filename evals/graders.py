@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from evals.cases import Case, ExpectedCall
+from evals.cases import Case, ExpectedCall, ForbiddenCall
 
 
 class Call(BaseModel):
@@ -13,6 +13,9 @@ class Call(BaseModel):
     tool: str
     input: dict[str, Any]
     result: dict[str, Any] | None = None
+
+    def describe(self) -> str:
+        return f"{self.tool}({', '.join(f'{name}={value!r}' for name, value in self.input.items())})"
 
 
 class Trial(BaseModel):
@@ -34,6 +37,10 @@ def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[
             needed = made_by_id[expected.after]
             if needed and max(positions) <= min(needed):
                 failures.append(f"out of order: {expected.describe()} came before {expected.after}")
+
+    for call in trial.calls:
+        if any(_is_forbidden(forbidden, call) for forbidden in case.expect.forbidden):
+            failures.append(f"forbidden call: {call.describe()}")
     return failures
 
 
@@ -43,6 +50,14 @@ def _matches(expected: ExpectedCall, call: Call) -> bool:
     if any(call.input.get(name) != value for name, value in expected.args.items()):
         return False
     return all(_contains_one(call.input.get(name), texts) for name, texts in expected.args_contain.items())
+
+
+def _is_forbidden(forbidden: ForbiddenCall, call: Call) -> bool:
+    return (
+        call.tool == forbidden.tool
+        and all(call.input.get(name) == value for name, value in forbidden.args.items())
+        and all(call.input.get(name) is None for name in forbidden.args_missing)
+    )
 
 
 def _contains_one(value: Any, texts: list[str]) -> bool:

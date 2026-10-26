@@ -94,3 +94,27 @@ class TestDependencies:
         assert grade(case(calls=[first_page, second_page]), trial(only_page_two), SCHEMAS) == [
             "out of order: read_debate(offset=4000) came before first"
         ]
+
+
+class TestForbiddenCalls:
+    def test_fail_on_any_call_to_a_forbidden_tool(self) -> None:
+        expected = case(forbidden=[{"tool": "get_members"}])
+
+        assert grade(expected, trial(MEMBER_3056), SCHEMAS) == ["forbidden call: get_members(postcode='3056')"]
+
+    def test_fail_only_when_the_forbidden_arguments_match(self) -> None:
+        expected = case(forbidden=[{"tool": "read_debate", "args": {"house": "representatives"}}])
+        senate = Call(tool="read_debate", input={"gid": "2026-06-23.80.1", "house": "senate"})
+        house = Call(tool="read_debate", input={"gid": "2026-06-23.80.1", "house": "representatives"})
+
+        assert grade(expected, trial(senate), SCHEMAS) == []
+        assert grade(expected, trial(house), SCHEMAS) == [
+            "forbidden call: read_debate(gid='2026-06-23.80.1', house='representatives')"
+        ]
+
+    def test_fail_when_the_listed_arguments_are_all_missing(self) -> None:
+        expected = case(forbidden=[{"tool": "search_hansard", "args_missing": ["query", "person_id"]}])
+        neither = Call(tool="search_hansard", input={})
+
+        assert grade(expected, trial(neither), SCHEMAS) == ["forbidden call: search_hansard()"]
+        assert grade(expected, trial(HOUSING_BY_10887), SCHEMAS) == []
