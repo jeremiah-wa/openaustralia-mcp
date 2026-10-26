@@ -1,7 +1,9 @@
 """The eval report: pass rates per case, model and tag (see docs/evals.md#trials-and-scores)."""
 
+import pytest
+
 from evals.graders import Trial
-from evals.report import TrialRecord, render_summary, score_cases, score_tags
+from evals.report import TrialRecord, render_summary, score_cases, score_tags, trial_cost_usd
 
 SONNET = "claude-sonnet-5-5"
 HAIKU = "claude-haiku-5-5"
@@ -105,3 +107,20 @@ class TestSummary:
         summary = render_summary(RUN, errors=3)
 
         assert "3 trials ended in an error and were run again. They aren't scored." in summary
+
+
+class TestCost:
+    def test_prices_input_and_output_tokens_per_model(self) -> None:
+        usage = {"input_tokens": 1_000_000, "output_tokens": 100_000}
+
+        assert trial_cost_usd(SONNET, usage) == pytest.approx(2.0 + 1.0)
+        assert trial_cost_usd(HAIKU, usage) == pytest.approx(0.10 + 0.05)
+
+    def test_summary_shows_the_total_and_the_cost_per_trial(self) -> None:
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(4)]
+        for item in records:
+            item.usage = {"input_tokens": 10_000, "output_tokens": 1_000}
+
+        summary = render_summary(records, errors=0)
+
+        assert "Cost: $0.0060 for 4 trials, $0.0015 per trial." in summary

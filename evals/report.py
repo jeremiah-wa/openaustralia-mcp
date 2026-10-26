@@ -83,6 +83,19 @@ def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
     return tag_scores
 
 
+# US dollars per million input and output tokens, October 2026. Haiku's rate is for prompts up to 100K tokens.
+PRICES = {
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-haiku-5-5": (0.10, 0.50),
+}
+
+
+def trial_cost_usd(model: str, usage: dict[str, Any]) -> float:
+    """What a trial cost, from the token usage summed over its turns. The runner doesn't use prompt caching."""
+    input_price, output_price = PRICES[model]
+    return (usage.get("input_tokens", 0) * input_price + usage.get("output_tokens", 0) * output_price) / 1_000_000
+
+
 def render_summary(records: list[TrialRecord], *, errors: int) -> str:
     """The markdown summary of a run."""
     scores = score_cases(records)
@@ -94,6 +107,9 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
             lines.append(f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} |")
     if errors:
         lines += ["", f"{errors} trials ended in an error and were run again. They aren't scored."]
+    if records:
+        cost = sum(trial_cost_usd(record.model, record.usage) for record in records)
+        lines += ["", f"Cost: ${cost:.4f} for {len(records)} trials, ${cost / len(records):.4f} per trial."]
 
     lines += ["", "## Cases", "", f"| Case | Tags | {' | '.join(models)} |", f"|---|---|{'---|' * len(models)}"]
     by_case: dict[str, dict[str, CaseScore]] = {}
