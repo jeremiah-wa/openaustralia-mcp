@@ -72,7 +72,14 @@ At first the tools follow the API functions one to one, with three changes: resu
 Notes on naming:
 
 - **"Divisions" means two different things.** OpenAustralia's `getDivisions` returns electorates, while They Vote For You's `/divisions` returns votes. The tools are named `get_electorates` and `get_votes` so the model can't mix them up.
-- **Only one tool looks up members.** They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
+- **Only one tool looks up members,** with more parameters rather than more tools. `get_members` takes a postcode, a `person_id`, or any of name, party, state and house, and explains combinations that make no sense. [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8) measured it against four tools (`get_members` by postcode, `get_member`, `get_senators`, `search_members`) on Sonnet 5.5 and Haiku 5.5:
+  - Both passed every trial on 5 of 7 member cases on Sonnet, and 4 of 7 on Haiku.
+  - One tool took fewer calls per trial: 1.43 against 1.57 on Sonnet, and 1.54 against 1.69 on Haiku.
+  - It also took 11 to 13% fewer input tokens.
+  - With four tools, Claude often fetched a party's Senators twice, from `search_members` and again from `get_senators`.
+  - Claude filled the extra parameters without a wrong or unknown argument.
+  
+  See [member-lookup.md](../evals/results/member-lookup.md). They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
 - **`getComments` is left out.**
 
 Exact parameters per tool are taken from the `openaustralia` Python package docs and from live calls, because both API docs sites are behind a Cloudflare challenge. Recorded responses are in `tests/fixtures/`.
@@ -108,7 +115,7 @@ What live calls have shown so far (They Vote For You):
 - **Party labels differ for presiding officers:** OpenAustralia says `Speaker`, `President` and `Deputy-President`, and They Vote For You says `SPK`, `PRES` and `DPRES`.
 - **Policy scores:** `people/<id>.json` includes `policy_comparisons`, each with the policy, `agreement` (a percentage as a string, e.g. `"100"`) and `voted`.
 
-Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next. `search_hansard` searches by query, `person_id` or both, and returns the first page of 20. Paging and `order` come next. `read_debate` reads a speech gid, or a heading gid for the whole debate, 4,000 characters at a time. Its cache by `gid` comes next.
+Status: `get_members` covers postcode lookup of Representatives only. Lookup by `person_id`, name, party and state, and Senators, come next, in the shape #8 chose: more parameters on `get_members`. `search_hansard` searches by query, `person_id` or both, and returns the first page of 20. Paging and `order` come next. `read_debate` reads a speech gid, or a heading gid for the whole debate, 4,000 characters at a time. Its cache by `gid` comes next.
 
 ## A typical question
 
@@ -222,7 +229,7 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | HTTP client | `httpx2` | The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two |
 | Transport | stdio first, with a transport-agnostic core | Local use needs no hosting, and HTTP can be added later without a refactor |
 | Servers | One server, two API clients | Speech and votes join on the member, both APIs use the same `person_id`, and one server can name things clearly |
-| Tool shape | One tool per API function, for now | Real usage should drive the redesign around tasks |
+| Tool shape | One tool per API function, for now, except member lookup: one `get_members` for all four member functions, with more parameters | Real usage should drive the redesign around tasks. For member lookup, #8 measured one tool against four: they were equally reliable, and one tool took fewer calls and tokens on both models. See [member-lookup.md](../evals/results/member-lookup.md) |
 | Workflow guidance | Server `instructions` and tool descriptions | The model always sees these. Prompts and resources are chosen by the user, not the model. |
 | Key validation | On first call | Readable errors instead of an opaque startup crash |
 | Hansard search page size | 20 hits, one OpenAustralia page | `getHansard` can't return fewer (`num` gives HTTP 500), and paging can later map straight onto its `page` |

@@ -86,6 +86,7 @@ Both are built from `build_server`, with `get_members` removed and their own mem
   2. Otherwise, the variant with fewer calls per trial on the member cases, on both models, wins.
   3. Otherwise `parameters` wins: it has fewer tools, which is what the guidance in #8 favours, and it's what architecture.md already says.
 - The runs: both variants, Sonnet and Haiku, 5 trials, over the 7 member cases (`members-*`) and the regression cases that use `get_members` or chain from it (`mp-0000`, `mp-3056`, `mp-3181`, `mp-housing-3056`, `mp-housing-read-3056`, `mp-recent-3056`) plus `ndis-search`. `mp-3142` is left out, because its baseline failures come from the harness (no recorded response for 3141), not the tools.
+- The result: `parameters`, by rule 2. Both variants passed every trial on 5 of 7 member cases on Sonnet and 4 of 7 on Haiku, and `parameters` took fewer calls per trial on both models. See [evals/results/member-lookup.md](../evals/results/member-lookup.md).
 
 ## Cases
 
