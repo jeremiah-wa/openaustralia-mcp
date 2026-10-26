@@ -17,7 +17,7 @@ NDIS = "openaustralia/getHansard_search_ndis.json"
 
 class TestSearchRequest:
     async def test_asks_openaustralia_for_the_query_and_person(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect() as client:
             await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
@@ -27,7 +27,7 @@ class TestSearchRequest:
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "search": "housing", "person": "10887"}
 
     async def test_sends_no_person_for_a_query_alone(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(NDIS)
+        fake_api.route(NDIS)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"query": "NDIS"})
@@ -37,7 +37,7 @@ class TestSearchRequest:
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "search": "NDIS"}
 
     async def test_searches_by_person_alone(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getHansard_person_10887.json")
+        fake_api.route("openaustralia/getHansard_person_10887.json")
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"person_id": "10887"})
@@ -50,7 +50,7 @@ class TestSearchRequest:
 
 class TestSearchResult:
     async def test_returns_hits_with_attribution(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
@@ -75,7 +75,7 @@ class TestSearchResult:
         )
 
     async def test_labels_senate_and_house_hits(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(NDIS)
+        fake_api.route(NDIS)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"query": "NDIS"})
@@ -91,7 +91,7 @@ class TestSearchResult:
         )
 
     async def test_returns_no_hits_without_error(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getHansard_search_no_results.json")
+        fake_api.route("openaustralia/getHansard_search_no_results.json")
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"query": "xyzzyplughnonsenseword"})
@@ -103,7 +103,7 @@ class TestSearchResult:
 
 class TestArguments:
     async def test_needs_a_query_or_person_id(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {})
@@ -124,7 +124,7 @@ class TestArguments:
     async def test_rejects_malformed_arguments_without_a_request(
         self, connect: Connect, fake_api: FakeApi, arguments: dict[str, str], name: str
     ) -> None:
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", arguments)
@@ -137,7 +137,7 @@ class TestArguments:
         self, connect: Connect, fake_api: FakeApi
     ) -> None:
         # get_members returns person_id as a string. A number isn't converted, so Claude learns to send the string.
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"query": "housing", "person_id": 10887})
@@ -161,7 +161,7 @@ class TestMissingKey:
         )
 
     async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect(Config()) as client:
             await client.call_tool("search_hansard", {"query": "housing"})
@@ -232,7 +232,7 @@ class TestApiUnavailable:
 
 class TestExcerpt:
     async def test_strips_highlighting_and_entities(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(HOUSING_BY_10887)
+        fake_api.route(HOUSING_BY_10887)
 
         async with connect() as client:
             result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
