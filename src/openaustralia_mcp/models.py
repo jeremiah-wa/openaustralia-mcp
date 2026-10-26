@@ -30,7 +30,7 @@ class Member(BaseModel):
             electorate=representative.constituency or "",
             house="representatives",
             positions=representative.current_positions,
-            url=f"{SITE_URL}/mp/?p={representative.person_id}",
+            url=representative.url,
         )
 
 
@@ -61,8 +61,7 @@ class HansardHit(BaseModel):
             person_id=row.speaker.person_id,
             debate=row.parent.body,
             excerpt=_plain_text(row.body),
-            # listurl is relative and HTML-escaped (`&amp;`).
-            url=SITE_URL + html.unescape(row.listurl),
+            url=row.url,
         )
 
 
@@ -105,7 +104,7 @@ class DebateResult(BaseModel):
             date=requested.hdate,
             # Section and subsection headings, the same title getHansard gives as `parent.body`.
             debate=": ".join(entry.body for entry in entries if entry.is_heading),
-            url=SITE_URL + html.unescape(requested.listurl),
+            url=requested.url,
             text=text[offset:end],
             offset=offset,
             next_offset=end if len(text) > end else None,

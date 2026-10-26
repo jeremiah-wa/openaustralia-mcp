@@ -1,5 +1,6 @@
 """Client for the OpenAustralia API (https://www.openaustralia.org.au/api/)."""
 
+import html
 from typing import Any, Literal
 
 import httpx2
@@ -41,6 +42,11 @@ class Representative(BaseModel):
     def current_positions(self) -> list[str]:
         return [office.position for office in self.office if office.position and office.to_date == STILL_CURRENT]
 
+    @property
+    def url(self) -> str:
+        """The member's page on OpenAustralia."""
+        return f"{SITE_URL}/mp/?p={self.person_id}"
+
 
 # The list holds `false` for a division OpenAustralia has no current member for,
 # such as an electorate abolished in a redistribution that its postcode data still includes.
@@ -68,6 +74,11 @@ class HansardRow(BaseModel):
     listurl: str
     speaker: HansardSpeaker
     parent: HansardParent
+
+    @property
+    def url(self) -> str:
+        """The speech on OpenAustralia."""
+        return _site_url(self.listurl)
 
 
 class HansardInfo(BaseModel):
@@ -105,8 +116,18 @@ class DebateEntry(BaseModel):
     def is_heading(self) -> bool:
         return self.htype in ("10", "11")
 
+    @property
+    def url(self) -> str:
+        """The speech or debate on OpenAustralia."""
+        return _site_url(self.listurl)
+
 
 _debate_entries = TypeAdapter(list[DebateEntry])
+
+
+def _site_url(listurl: str) -> str:
+    # listurl is relative and HTML-escaped (`&amp;`).
+    return SITE_URL + html.unescape(listurl)
 
 
 class OpenAustraliaClient:
