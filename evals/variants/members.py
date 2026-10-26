@@ -75,7 +75,7 @@ class MemberRecord(BaseModel):
             state=senator.state,
             current=current,
             left=None if current else senator.left_house,
-            # Senators' records carry no offices, so a minister in the Senate shows none.
+            # getSenators includes offices. getSenator gave Dave Sharma none: his are on his former House record.
             positions=senator.current_positions if current else [],
             url=senator.url,
         )
