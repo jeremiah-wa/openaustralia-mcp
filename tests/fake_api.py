@@ -40,6 +40,9 @@ RECORDED = {
     "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
     "openaustralia/getSenators_search_Pocock.json": RecordedRequest("getSenators", {"search": "Pocock"}),
     "openaustralia/getSenators_search_David_Pocock.json": RecordedRequest("getSenators", {"search": "David Pocock"}),
+    # Dave Sharma was the MP for Wentworth, and is now a Senator for NSW: each house has its own record.
+    "openaustralia/getRepresentative_id_10942.json": RecordedRequest("getRepresentative", {"id": "10942"}),
+    "openaustralia/getSenator_id_10942.json": RecordedRequest("getSenator", {"id": "10942"}),
     "openaustralia/getHansard_person_10887.json": RecordedRequest("getHansard", {"person": "10887"}),
     "openaustralia/getHansard_search_housing_person_10887.json": RecordedRequest(
         "getHansard", {"search": "housing", "person": "10887"}
