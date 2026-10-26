@@ -194,7 +194,7 @@ async def run(
     header = [
         f"# Eval run {out.name}",
         "",
-        f"{len(cases)} cases, {trials} trials each, on {on}, with the `{variant}` tools.",
+        f"{len(cases)} cases, {trials} trials each, on {on}, with the `{variant}` variant of the tools.",
         "",
     ]
     if stopped_at_cap:
@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None) -> None:
     cases = load_cases(args.cases)
     if not cases:
         sys.exit(f"No cases match {', '.join(f'evals/cases/{pattern}.yaml' for pattern in args.cases)}")
-    print(f"{len(cases)} cases, with the {args.variant} tools.")
+    print(f"{len(cases)} cases, with the {args.variant} variant of the tools.")
     expected = estimate(cases, args.models, args.trials)
     if expected is not None and expected > args.max_cost_usd:
         sys.exit(f"Not running: the estimate, ${expected:.2f}, is over --max-cost-usd ${args.max_cost_usd:.2f}.")
