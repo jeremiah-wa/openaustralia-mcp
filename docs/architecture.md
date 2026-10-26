@@ -80,6 +80,7 @@ Exact parameters per tool are taken from the `openaustralia` Python package docs
 What live calls have shown so far (OpenAustralia):
 
 - **Request:** `GET https://www.openaustralia.org.au/api/<function>?key=…&output=js&…`. `getRepresentatives` takes `postcode`, `date`, `party` and `search`.
+- **`party`** (on `getRepresentatives` and `getSenators`) matches any party whose name it's part of, ignoring case: "Greens" and "green" get the Australian Greens, but "The Greens" gets no one.
 - **Response:** a JSON array. IDs come back as strings (`"person_id": "10887"`). Name, party and electorate are `full_name`, `party` and `constituency`. `office` lists positions, where `to_date: "9999-12-31"` means current.
 - **Errors:** HTTP 200 with `{"error": "…"}`. A bad key gives `"Invalid API key."` and an unknown postcode gives `"Unknown postcode"`.
 - **Postcodes in abolished electorates:** OpenAustralia's postcode data still includes electorates abolished in the 2025 redistribution, such as Higgins. `getRepresentatives` puts `false` in the list where a division has no current member. 3142 gives `[false]`, and 3181 gives `[false, Josh Burns]`. `get_members` skips the `false` entries. If some were skipped, it adds a `note` saying the list may be incomplete. If none are left, it says no current member is on record.

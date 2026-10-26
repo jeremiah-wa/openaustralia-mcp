@@ -167,6 +167,11 @@ class DebateEntry(BaseModel):
 _debate_entries = TypeAdapter(list[DebateEntry])
 
 
+def _given(**params: str | None) -> dict[str, str]:
+    """The parameters that have a value. OpenAustralia treats an empty parameter differently from a missing one."""
+    return {name: value for name, value in params.items() if value is not None}
+
+
 def _site_url(listurl: str) -> str:
     # listurl is relative and HTML-escaped (`&amp;`).
     return SITE_URL + html.unescape(listurl)
@@ -177,14 +182,17 @@ class OpenAustraliaClient:
         self._http = http
         self._api_key = api_key
 
-    async def get_representatives(self, postcode: str) -> Representatives:
-        """House of Representatives members whose electorate covers the postcode."""
-        return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
+    async def get_representatives(self, postcode: str | None = None, *, party: str | None = None) -> Representatives:
+        """Current House of Representatives members whose electorate covers the postcode, or of the party.
 
-    async def get_senators(self, *, state: State | None = None) -> list[Senator]:
-        """Current Senators, for one state or territory if given."""
-        params = {"state": STATE_SPELLINGS[state] if state else None}
-        given = {name: value for name, value in params.items() if value is not None}
+        OpenAustralia matches part of a party's name, ignoring case: "greens" gets the Australian Greens.
+        """
+        given = _given(postcode=postcode, party=party)
+        return _representatives.validate_python(await self._call("getRepresentatives", **given))
+
+    async def get_senators(self, *, state: State | None = None, party: str | None = None) -> list[Senator]:
+        """Current Senators, for one state or territory and of one party, if given."""
+        given = _given(state=STATE_SPELLINGS[state] if state else None, party=party)
         return _senator_records.validate_python(await self._call("getSenators", **given))
 
     async def get_representative(self, person_id: str) -> list[Representative]:

@@ -26,6 +26,7 @@ from openaustralia_mcp.server import PARTIAL_MATCH_NOTE, _describe
 POSTCODE = 'Australian postcode, e.g. "3056".'
 PERSON_ID = "A member's person_id, current or former, e.g. from a search_hansard hit."
 STATE = "A state or territory, e.g. TAS. Senators represent a whole state or territory."
+PARTY = 'Part of a party\'s name, e.g. "Greens" or "Labor".'
 
 
 class MemberRecord(BaseModel):
@@ -114,13 +115,20 @@ async def by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> Me
     )
 
 
-async def search(openaustralia: OpenAustraliaClient, *, state: State | None = None) -> MemberLookupResult:
-    """Current members who match every filter given."""
+async def search(
+    openaustralia: OpenAustraliaClient, *, party: str | None = None, state: State | None = None
+) -> MemberLookupResult:
+    """Current members who match every filter given, in both houses unless a state limits it to the Senate."""
+    given = {name: value for name, value in {"party": party, "state": state}.items() if value is not None}
     try:
-        senators = await openaustralia.get_senators(state=state)
+        representatives = [] if state else await openaustralia.get_representatives(party=party)
+        senators = await openaustralia.get_senators(state=state, party=party)
     except ApiClientError as exc:
-        raise ToolError(_describe(exc, **({"state": state} if state else {}))) from None
-    return _result([MemberRecord.from_senator(senator) for senator in senators])
+        raise ToolError(_describe(exc, **given)) from None
+    return _result(
+        [MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)]
+        + [MemberRecord.from_senator(senator) for senator in senators]
+    )
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
