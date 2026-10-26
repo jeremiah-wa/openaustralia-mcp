@@ -49,6 +49,8 @@ def build_parameters_server(http_client: httpx2.AsyncClient, config: Config) -> 
         party, house, electorate or state, whether they're a current member, current positions and url.
         """
         if person_id is not None:
+            if any(value is not None for value in (postcode, name, party, state, house)):
+                raise ToolError("A person_id finds one person in both houses by itself. Give it on its own.")
             return await by_person_id(openaustralia, person_id)
         if postcode is not None:
             return await by_postcode(openaustralia, postcode)

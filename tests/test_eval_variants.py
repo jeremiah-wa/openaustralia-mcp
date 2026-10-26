@@ -336,3 +336,17 @@ class TestArgumentsThatDontGoTogether:
             "Error executing tool get_members: Give a postcode, a person_id, or any of name, party, state and house."
         )
         assert fake_api.requests == []
+
+    @pytest.mark.parametrize(
+        "other",
+        [{"postcode": "3056"}, {"name": "Sharma"}, {"party": "Liberal"}, {"state": "NSW"}, {"house": "senate"}],
+    )
+    async def test_person_id_with_anything_else(self, fake_api: FakeApi, other: dict[str, str]) -> None:
+        result = await call(fake_api, "parameters", "get_members", {"person_id": "10942", **other})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: A person_id finds one person in both houses by itself. "
+            "Give it on its own."
+        )
+        assert fake_api.requests == []
