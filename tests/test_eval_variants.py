@@ -15,7 +15,7 @@ from mcp.types import CallToolResult
 
 from evals.variants import VARIANTS
 
-from .conftest import TEST_CONFIG
+from .conftest import TEST_CONFIG, result_text
 from .fake_api import FakeApi
 
 pytestmark = pytest.mark.anyio
@@ -81,4 +81,19 @@ class TestByPostcode:
         assert result.structured_content["note"] == (
             "OpenAustralia couldn't match part of this postcode to a current member, so this list may be "
             "incomplete. Its postcode data can lag behind changes to electorate boundaries."
+        )
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_suggests_a_neighbour_when_no_member_is_current(
+        self, fake_api: FakeApi, variant: str, tool: str
+    ) -> None:
+        # 3142 is all Higgins: OpenAustralia sends [false].
+        fake_api.route("openaustralia/getRepresentatives_postcode_3142.json")
+
+        result = await call(fake_api, variant, tool, {"postcode": "3142"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia has no current member on record for postcode 3142. "
+            "Its postcode data can lag behind changes to electorate boundaries, so try a neighbouring postcode."
         )

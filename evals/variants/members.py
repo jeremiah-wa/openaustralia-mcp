@@ -65,6 +65,11 @@ async def find_members(openaustralia: OpenAustraliaClient, *, postcode: str) -> 
         raise ToolError(_describe(exc, postcode=postcode)) from None
     # A division OpenAustralia can't match to a current member comes back as `false`.
     found = [member for member in representatives if isinstance(member, Representative)]
+    if not found:
+        raise ToolError(
+            f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
+            "behind changes to electorate boundaries, so try a neighbouring postcode."
+        )
     note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
     return _result([MemberRecord.from_representative(member) for member in found], note)
 
