@@ -72,30 +72,34 @@ class TestSearchKeywords:
         assert result.is_error
 
 
-class TestParameterKeywords:
+class TestPartOfAValue:
     # No server tool takes a party yet, so these call the fake API directly.
     GREENS_SENATORS = "openaustralia/getSenators_party_Greens.json"
 
-    def test_answer_any_value_containing_a_keyword(self, fake_api: FakeApi) -> None:
-        # OpenAustralia matches part of a party name, so both of these get the Greens.
-        fake_api.route(self.GREENS_SENATORS, contains={"party": ["Greens"]})
+    def test_answer_any_value_that_is_part_of_the_text(self, fake_api: FakeApi) -> None:
+        # OpenAustralia answers a party that is part of the party's name, ignoring case.
+        fake_api.route(self.GREENS_SENATORS, part_of={"party": ["Australian Greens"]})
 
         statuses = [
             fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": party})).status_code
-            for party in ("Australian Greens", "greens")
+            for party in ("Australian Greens", "Greens", "green")
         ]
 
-        assert statuses == [200, 200]
+        assert statuses == [200, 200, 200]
 
-    def test_dont_answer_a_value_without_one(self, fake_api: FakeApi) -> None:
-        fake_api.route(self.GREENS_SENATORS, contains={"party": ["Greens"]})
+    def test_dont_answer_a_value_that_isnt(self, fake_api: FakeApi) -> None:
+        # OpenAustralia returns no one for "The Greens", so the fixture mustn't answer it either.
+        fake_api.route(self.GREENS_SENATORS, part_of={"party": ["Australian Greens"]})
 
-        response = fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": "Labor"}))
+        statuses = [
+            fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": party})).status_code
+            for party in ("The Greens", "Labor")
+        ]
 
-        assert response.status_code == 404
+        assert statuses == [404, 404]
 
     def test_still_need_the_other_parameters_to_match(self, fake_api: FakeApi) -> None:
-        fake_api.route(self.GREENS_SENATORS, contains={"party": ["Greens"]})
+        fake_api.route(self.GREENS_SENATORS, part_of={"party": ["Australian Greens"]})
 
         response = fake_api(
             httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "party": "Greens", "state": "Tasmania"})
