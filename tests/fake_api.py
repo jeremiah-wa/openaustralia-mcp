@@ -30,6 +30,8 @@ RECORDED = {
     "openaustralia/getRepresentatives_postcode_3144.json": RecordedRequest("getRepresentatives", {"postcode": "3144"}),
     "openaustralia/getRepresentatives_postcode_3146.json": RecordedRequest("getRepresentatives", {"postcode": "3146"}),
     "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
+    "openaustralia/getSenators_search_Pocock.json": RecordedRequest("getSenators", {"search": "Pocock"}),
+    "openaustralia/getSenators_search_David_Pocock.json": RecordedRequest("getSenators", {"search": "David Pocock"}),
     "openaustralia/getHansard_person_10887.json": RecordedRequest("getHansard", {"person": "10887"}),
     "openaustralia/getHansard_search_housing_person_10887.json": RecordedRequest(
         "getHansard", {"search": "housing", "person": "10887"}
@@ -76,8 +78,9 @@ class FakeApi:
         """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture.
 
         With `search_contains`, it answers any `search` that contains one of the keywords, ignoring case.
-        With `part_of`, it answers any value of each listed parameter that is part of one of its texts, ignoring
-        case, as OpenAustralia matches a party. Either way, the other parameters must still match exactly.
+        With `part_of`, it answers any value of each listed parameter that is part of every one of its texts,
+        ignoring case, as OpenAustralia matches a party or a member's name: list the names the response holds.
+        Either way, the other parameters must still match exactly.
         Any request without a routed fixture gets an HTTP 404.
         """
         self._routes.append((RECORDED[name], search_contains, part_of or {}, (FIXTURES / name).read_bytes()))
@@ -111,7 +114,7 @@ def _matches(
         if not any(keyword.lower() in search for keyword in search_contains):
             return False
     return all(
-        (value := params.get(name, "").lower()) and any(value in text.lower() for text in texts)
+        (value := params.get(name, "").lower()) and all(value in text.lower() for text in texts)
         for name, texts in part_of.items()
     )
 

@@ -106,3 +106,18 @@ class TestPartOfAValue:
         )
 
         assert response.status_code == 404
+
+    def test_a_value_must_be_part_of_every_text(self, fake_api: FakeApi) -> None:
+        # A name search returns the members whose name the value is part of: "Pocock" gets both Senators,
+        # and "David Pocock" only one. So each fixture lists the names it holds, and the first that fits answers.
+        fake_api.route(
+            "openaustralia/getSenators_search_Pocock.json", part_of={"search": ["Barbara Pocock", "David Pocock"]}
+        )
+        fake_api.route("openaustralia/getSenators_search_David_Pocock.json", part_of={"search": ["David Pocock"]})
+
+        def senators(search: str) -> list[str]:
+            response = fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "search": search}))
+            return [senator["full_name"] for senator in response.json()]
+
+        assert senators("pocock") == ["Barbara Pocock", "David Pocock"]
+        assert senators("David Pocock") == ["David Pocock"]

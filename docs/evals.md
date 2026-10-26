@@ -38,6 +38,8 @@ Search queries are free text, so one exact `search` value would fail a reasonabl
 
 A party works the other way round. OpenAustralia answers any `party` that is part of the party's name, ignoring case: "Greens" and "green" get the Australian Greens, but "The Greens" gets no one. `part_of={"party": ["Australian Greens"]}` makes a fixture answer the same values, and no others.
 
+A member's name works the same way: `getSenators?search=Pocock` gets Barbara and David Pocock, and `search=David Pocock` gets only David. A name fixture lists the names it holds, `part_of={"search": ["Barbara Pocock", "David Pocock"]}`, and answers a value that is part of every one of them. Fixtures are tried in the case's order, so "David Pocock" falls through to a fixture listing only David.
+
 A request with no matching fixture gets an HTTP 404. The server returns it to Claude as a tool error, and the run carries on. The trial is scored on its expected calls as usual, so a wrong call shows up as a missing expected one, or as one call too many.
 
 ## The runner
@@ -96,7 +98,7 @@ expect:
 | Field | Meaning |
 |---|---|
 | `question` | The user's message |
-| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords. `part_of`, e.g. `{party: [Australian Greens]}`, makes a fixture answer any value that is part of one of the texts (see [The seam](#the-seam)) |
+| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords. `part_of`, e.g. `{party: [Australian Greens]}`, makes a fixture answer any value that is part of every one of the texts (see [The seam](#the-seam)) |
 | `expect.calls` | Calls that must appear. `args` must match exactly. `args_contain` must contain one of the listed texts, ignoring case, e.g. `[NDIS, National Disability Insurance Scheme]`. Other arguments are free |
 | `after` | This call needs the output of the named call, so it must come after it. Only for real dependencies, not for a preferred order |
 | `forbidden` | Calls that must not appear. Give the `tool` alone, `args` that must not have those values, or `args_missing`, arguments that must not all be missing |
