@@ -215,3 +215,10 @@ def render_comparison(baseline: Scores, run: Scores) -> str:
 
 def _mean_pass_rate(run: Scores, cases: list[str], model: str) -> float:
     return sum(run.cases[case][model].passes / run.cases[case][model].trials for case in cases) / len(cases)
+
+
+def estimate_usd(*, cases: int, trials: int, cost_per_trial: dict[str, float | None]) -> float | None:
+    """What a run will cost, from each model's measured cost per trial. None if a model has no measured cost."""
+    if any(cost is None for cost in cost_per_trial.values()):
+        return None
+    return sum(cases * trials * cost for cost in cost_per_trial.values() if cost is not None)

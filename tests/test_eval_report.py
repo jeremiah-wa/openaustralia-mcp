@@ -6,6 +6,7 @@ from evals.graders import Trial
 from evals.report import (
     Scores,
     TrialRecord,
+    estimate_usd,
     render_comparison,
     render_summary,
     score_cases,
@@ -199,3 +200,13 @@ class TestComparison:
             "claude-sonnet-5-5 ran at effort low, and the baseline at high, so the scores aren't comparable."
             in comparison
         )
+
+
+class TestEstimate:
+    def test_is_cases_times_trials_times_each_models_cost_per_trial(self) -> None:
+        estimate = estimate_usd(cases=16, trials=5, cost_per_trial={SONNET: 0.03, HAIKU: 0.002})
+
+        assert estimate == pytest.approx(16 * 5 * (0.03 + 0.002))
+
+    def test_is_none_when_a_model_has_no_measured_cost(self) -> None:
+        assert estimate_usd(cases=16, trials=5, cost_per_trial={SONNET: 0.03, HAIKU: None}) is None
