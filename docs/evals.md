@@ -57,6 +57,12 @@ Checked while building it (anthropic 2.3, mcp 2.3):
 - What Claude sees from a tool result: `async_mcp_tool` sends the result's `content` blocks, and the `structured_content` only when there are none. This server's tools return one text block that holds the same JSON as the structured content, so Claude gets the same data either way. **unverified**: whether Claude Code sends the text block, the structured content, or both. For this server's tools, that changes the format but not the data.
 - Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner fails a trial whose `model` isn't the one it asked for.
 
+## Variants
+
+A variant is a set of tools to give Claude. `--variant current`, the default, is the server's own tools, built by `build_server`. Other variants are eval-only shapes, built to compare designs before one goes into the server. They're registered in `VARIANTS` in [evals/variants/__init__.py](../evals/variants/__init__.py), and each run's results record which variant it used.
+
+To compare two variants, run the same cases, trials and models on each, and compare the two summaries case by case. A run on a variant also compares with the baseline over the cases both have, which shows whether the variant broke what already worked.
+
 ## Cases
 
 Each case is a YAML file under `evals/cases/`. This example shows the intended shape. #6 may change the field names.
