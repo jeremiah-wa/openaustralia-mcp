@@ -6,6 +6,7 @@ difference in their scores comes from the shape of the tools, not from what the 
 
 from typing import Literal
 
+from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
@@ -151,6 +152,31 @@ async def search(
             "For a former member, find their person_id, for example on a search_hansard hit, and look them up by that."
         )
     return _result(members)
+
+
+# The server's line about finding members, which each variant replaces with its own.
+MEMBERS_LINE = (
+    "Start with get_members to find a member and their person_id; later calls about that member use the person_id."
+)
+
+
+def reword_instructions(server: MCPServer, members_line: str) -> None:
+    """Replaces the server's members line. Fails loudly if the server's instructions no longer have it."""
+    # The SDK has no public way to change the instructions once a server is built.
+    instructions = server._lowlevel_server.instructions or ""
+    if MEMBERS_LINE not in instructions:
+        raise RuntimeError("The server's instructions no longer have the members line the variants replace.")
+    server._lowlevel_server.instructions = instructions.replace(MEMBERS_LINE, members_line)
+
+
+def reword_argument(server: MCPServer, tool: str, argument: str, description: str) -> None:
+    """Replaces the description of one of the server's own tools' arguments, as Claude sees it."""
+    # The SDK has no public way to change a registered tool's schema. Each build_server call registers its own
+    # tools, so this changes only this server.
+    registered = server._tool_manager.get_tool(tool)
+    if registered is None:
+        raise RuntimeError(f"The server no longer has {tool}.")
+    registered.parameters["properties"][argument]["description"] = description
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:

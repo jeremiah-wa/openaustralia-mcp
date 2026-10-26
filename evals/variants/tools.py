@@ -16,6 +16,8 @@ from evals.variants.members import (
     MemberLookupResult,
     by_person_id,
     by_postcode,
+    reword_argument,
+    reword_instructions,
     search,
 )
 from openaustralia_mcp.config import Config
@@ -27,6 +29,19 @@ def build_tools_server(http_client: httpx2.AsyncClient, config: Config) -> MCPSe
     """The server's own tools, with get_members replaced."""
     server = build_server(http_client, config)
     server.remove_tool("get_members")
+    reword_instructions(
+        server,
+        "Start with get_members (by postcode), search_members (by name or party) or get_senators (by state) "
+        "to find a member and their person_id, and get_member to look up a person_id; later calls about that "
+        "member use the person_id.",
+    )
+    # The server's own wording names get_members only, which here finds MPs by postcode and nothing else.
+    reword_argument(
+        server,
+        "search_hansard",
+        "person_id",
+        "Only speeches by this member. Get it from get_members, search_members or get_senators.",
+    )
     openaustralia = OpenAustraliaClient(http_client, config.openaustralia_api_key)
 
     @server.tool(annotations=READ_ONLY)

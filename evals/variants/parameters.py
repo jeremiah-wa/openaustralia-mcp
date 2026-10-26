@@ -18,6 +18,7 @@ from evals.variants.members import (
     MemberLookupResult,
     by_person_id,
     by_postcode,
+    reword_instructions,
     search,
 )
 from openaustralia_mcp.config import Config
@@ -29,16 +30,21 @@ def build_parameters_server(http_client: httpx2.AsyncClient, config: Config) -> 
     """The server's own tools, with get_members replaced."""
     server = build_server(http_client, config)
     server.remove_tool("get_members")
+    reword_instructions(
+        server,
+        "Start with get_members to find a member and their person_id, by postcode, name, party or state, "
+        "or to look up a person_id; later calls about that member use the person_id.",
+    )
     openaustralia = OpenAustraliaClient(http_client, config.openaustralia_api_key)
 
     @server.tool(annotations=READ_ONLY)
     async def get_members(
         postcode: Annotated[str | None, Field(pattern=r"^\d{4}$", description=POSTCODE)] = None,
         person_id: Annotated[str | None, Field(pattern=r"^\d+$", description=PERSON_ID)] = None,
-        state: Annotated[State | None, Field(description=STATE)] = None,
-        party: Annotated[str | None, Field(min_length=2, description=PARTY)] = None,
-        house: Annotated[House | None, Field(description=HOUSE)] = None,
         name: Annotated[str | None, Field(min_length=2, description=NAME)] = None,
+        party: Annotated[str | None, Field(min_length=2, description=PARTY)] = None,
+        state: Annotated[State | None, Field(description=STATE)] = None,
+        house: Annotated[House | None, Field(description=HOUSE)] = None,
     ) -> MemberLookupResult:
         """Find federal members of Parliament.
 

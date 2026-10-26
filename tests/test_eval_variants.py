@@ -4,6 +4,7 @@ Each test runs the same lookup on both variants and expects the same result: the
 Claude sees, never in what it gets back.
 """
 
+import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -11,7 +12,7 @@ from typing import Any
 import httpx2
 import pytest
 from mcp import Client
-from mcp.types import CallToolResult
+from mcp.types import CallToolResult, Tool
 
 from evals.variants import VARIANTS
 
@@ -388,3 +389,92 @@ class TestSearchMembersNeedsAFilter:
         assert result.is_error
         assert result_text(result) == "Error executing tool search_members: Give a name, a party, or both."
         assert fake_api.requests == []
+
+
+async def what_claude_sees(variant: str, fake_api: FakeApi) -> tuple[str, dict[str, Tool]]:
+    async with connect(variant, fake_api) as client:
+        return client.instructions or "", {tool.name: tool for tool in (await client.list_tools()).tools}
+
+
+def texts(instructions: str, tools: dict[str, Tool]) -> list[str]:
+    """Everything written for Claude: the instructions, and each tool's and argument's description."""
+    arguments = [
+        argument.get("description", "")
+        for tool in tools.values()
+        for argument in tool.input_schema.get("properties", {}).values()
+    ]
+    return [instructions, *(tool.description or "" for tool in tools.values()), *arguments]
+
+
+# What each variant's instructions say in place of the server's line about finding members.
+PARAMETERS_MEMBERS_LINE = (
+    "Start with get_members to find a member and their person_id, by postcode, name, party or state, "
+    "or to look up a person_id; later calls about that member use the person_id."
+)
+TOOLS_MEMBERS_LINE = (
+    "Start with get_members (by postcode), search_members (by name or party) or get_senators (by state) "
+    "to find a member and their person_id, and get_member to look up a person_id; later calls about that "
+    "member use the person_id."
+)
+MEMBER_TOOLS = {"parameters": {"get_members"}, "tools": {"get_members", "get_member", "get_senators", "search_members"}}
+
+
+class TestWhatClaudeSees:
+    """The variants differ only in their member tools, and in the text that names them."""
+
+    @pytest.mark.parametrize("variant", ["parameters", "tools"])
+    async def test_only_the_member_tools_change(self, fake_api: FakeApi, variant: str) -> None:
+        _, current = await what_claude_sees("current", fake_api)
+        _, tools = await what_claude_sees(variant, fake_api)
+
+        assert set(tools) - MEMBER_TOOLS[variant] == set(current) - {"get_members"}
+
+    @pytest.mark.parametrize(
+        ("variant", "line"),
+        [("parameters", PARAMETERS_MEMBERS_LINE), ("tools", TOOLS_MEMBERS_LINE)],
+    )
+    async def test_instructions_change_only_in_the_members_line(
+        self, fake_api: FakeApi, variant: str, line: str
+    ) -> None:
+        current, _ = await what_claude_sees("current", fake_api)
+        instructions, _ = await what_claude_sees(variant, fake_api)
+
+        members_line = next(text for text in current.splitlines() if text.startswith("Start with get_members"))
+        assert instructions.splitlines() == [line if text == members_line else text for text in current.splitlines()]
+
+    @pytest.mark.parametrize(
+        ("variant", "description"),
+        [
+            ("current", "Only speeches by this member. Get it from get_members."),
+            ("parameters", "Only speeches by this member. Get it from get_members."),
+            ("tools", "Only speeches by this member. Get it from get_members, search_members or get_senators."),
+        ],
+    )
+    async def test_search_hansard_says_where_a_person_id_comes_from(
+        self, fake_api: FakeApi, variant: str, description: str
+    ) -> None:
+        # Building the variants first checks that rewording one doesn't change the server's own tools.
+        for other in VARIANTS:
+            await what_claude_sees(other, fake_api)
+        _, tools = await what_claude_sees(variant, fake_api)
+
+        assert tools["search_hansard"].input_schema["properties"]["person_id"]["description"] == description
+
+    @pytest.mark.parametrize("variant", ["parameters", "tools"])
+    async def test_names_no_tool_the_variant_lacks(self, fake_api: FakeApi, variant: str) -> None:
+        instructions, tools = await what_claude_sees(variant, fake_api)
+        every_tool = set().union(*MEMBER_TOOLS.values(), tools)
+
+        named = {name for text in texts(instructions, tools) for name in every_tool if re.search(rf"\b{name}\b", text)}
+
+        assert named <= set(tools)
+
+    async def test_shared_arguments_are_described_alike(self, fake_api: FakeApi) -> None:
+        descriptions: dict[str, set[str]] = {}
+        for variant, names in MEMBER_TOOLS.items():
+            _, tools = await what_claude_sees(variant, fake_api)
+            for name in names:
+                for argument, schema in tools[name].input_schema["properties"].items():
+                    descriptions.setdefault(argument, set()).add(schema["description"])
+
+        assert {argument for argument, seen in descriptions.items() if len(seen) > 1} == set()
