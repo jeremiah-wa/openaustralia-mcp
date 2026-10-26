@@ -168,6 +168,18 @@ class TestByPersonId:
         ]
 
     @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_says_when_neither_house_knows_the_person(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        fake_api.route("openaustralia/getRepresentative_id_99999.json")
+        fake_api.route("openaustralia/getSenator_id_99999.json")
+
+        result = await call(fake_api, variant, tool, {"person_id": "99999"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool {tool}: OpenAustralia has no member of either house with person_id 99999."
+        )
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
     async def test_asks_both_houses(self, fake_api: FakeApi, variant: str, tool: str) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
         fake_api.route("openaustralia/getSenator_id_10990.json")
