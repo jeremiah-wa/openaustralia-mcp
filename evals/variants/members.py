@@ -17,6 +17,7 @@ from openaustralia_mcp.server import PARTIAL_MATCH_NOTE, _describe
 
 # Argument descriptions, used word for word by both variants.
 POSTCODE = 'Australian postcode, e.g. "3056".'
+PERSON_ID = "A member's person_id, current or former, e.g. from a search_hansard hit."
 
 
 class MemberRecord(BaseModel):
@@ -57,8 +58,8 @@ class MemberLookupResult(BaseModel):
     licence: str
 
 
-async def find_members(openaustralia: OpenAustraliaClient, *, postcode: str) -> MemberLookupResult:
-    """The lookup behind every member tool in both variants."""
+async def by_postcode(openaustralia: OpenAustraliaClient, postcode: str) -> MemberLookupResult:
+    """The MPs whose electorates cover the postcode."""
     try:
         representatives = await openaustralia.get_representatives(postcode)
     except ApiClientError as exc:
@@ -72,6 +73,16 @@ async def find_members(openaustralia: OpenAustraliaClient, *, postcode: str) -> 
         )
     note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
     return _result([MemberRecord.from_representative(member) for member in found], note)
+
+
+async def by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> MemberLookupResult:
+    """Every record the person has, in both houses: someone can move from one house to the other."""
+    try:
+        representative = await openaustralia.get_representative(person_id)
+        await openaustralia.get_senator(person_id)
+    except ApiClientError as exc:
+        raise ToolError(_describe(exc, person_id=person_id)) from None
+    return _result([MemberRecord.from_representative(record) for record in representative])
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:

@@ -97,3 +97,46 @@ class TestByPostcode:
             "Error executing tool get_members: OpenAustralia has no current member on record for postcode 3142. "
             "Its postcode data can lag behind changes to electorate boundaries, so try a neighbouring postcode."
         )
+
+
+class TestByPersonId:
+    LOOKUPS = (("parameters", "get_members"), ("tools", "get_member"))
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_finds_a_former_member(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        # Keith Wolahan was the MP for Menzies until 2025, and was never a Senator.
+        fake_api.route("openaustralia/getRepresentative_id_10990.json")
+        fake_api.route("openaustralia/getSenator_id_10990.json")
+
+        result = await call(fake_api, variant, tool, {"person_id": "10990"})
+
+        assert not result.is_error
+        assert result.structured_content == {
+            "members": [
+                {
+                    "person_id": "10990",
+                    "name": "Keith Wolahan",
+                    "party": "Liberal Party",
+                    "house": "representatives",
+                    "electorate": "Menzies",
+                    "state": None,
+                    "current": False,
+                    "left": "2025-05-03",
+                    "positions": [],
+                    "url": "https://www.openaustralia.org.au/mp/?p=10990",
+                }
+            ],
+            "note": None,
+            "source_url": SOURCE_URL,
+            "licence": MEMBERS_LICENCE,
+        }
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_asks_both_houses(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        fake_api.route("openaustralia/getRepresentative_id_10990.json")
+        fake_api.route("openaustralia/getSenator_id_10990.json")
+
+        await call(fake_api, variant, tool, {"person_id": "10990"})
+
+        asked = {(request.url.path.rsplit("/", 1)[-1], request.url.params["id"]) for request in fake_api.requests}
+        assert asked == {("getRepresentative", "10990"), ("getSenator", "10990")}
