@@ -2,7 +2,7 @@
 
 import pytest
 
-from evals.graders import Trial
+from evals.graders import Call, Trial
 from evals.report import (
     Scores,
     TrialRecord,
@@ -117,6 +117,25 @@ class TestSummary:
         summary = render_summary(RUN, errors=3)
 
         assert "3 trials ended in an error and were run again. They aren't scored." in summary
+
+
+class TestCalls:
+    def test_summary_shows_calls_and_failed_calls_per_trial(self) -> None:
+        # A failed call counts as a call: Claude spent a turn on it.
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(2)]
+        records[0].trial.calls = [
+            Call(tool="get_members", input={"postcode": "3141"}, error="Error executing tool get_members: …"),
+            Call(tool="get_members", input={"postcode": "3142"}),
+        ]
+        records[1].trial.calls = [Call(tool="get_members", input={"postcode": "3142"})]
+
+        summary = render_summary(records, errors=0)
+
+        header = (
+            "| Model | Tag | Cases | Mean pass rate | Passed every trial | Calls per trial | Failed calls per trial |"
+        )
+        assert header in summary
+        assert "| claude-haiku-5-5 | regression | 1 | 100% | 1/1 | 1.50 | 0.50 |" in summary
 
 
 class TestCost:
