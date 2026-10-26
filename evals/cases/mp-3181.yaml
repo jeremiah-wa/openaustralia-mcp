@@ -1,0 +1,12 @@
+id: mp-3181
+tags: [regression, members]
+question: Who represents postcode 3181 in federal Parliament?
+fixtures:
+  # A partial match: one of its electorates has no current member.
+  - getRepresentatives_postcode_3181.json
+expect:
+  calls:
+    - tool: get_members
+      args: {postcode: "3181"}
+  answer_contains: [Josh Burns]
+  cites_url: true

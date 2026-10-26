@@ -1,0 +1,12 @@
+id: mp-3142
+tags: [regression, members]
+question: Who's the federal MP for 3142?
+fixtures:
+  # OpenAustralia has no current member for this postcode.
+  - getRepresentatives_postcode_3142.json
+expect:
+  calls:
+    - tool: get_members
+      args: {postcode: "3142"}
+  # Trying a neighbouring postcode is a fair retry. Not inventing a member needs the later judge.
+  max_calls: 3
