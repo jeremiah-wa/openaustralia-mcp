@@ -23,9 +23,17 @@ class Trial(BaseModel):
 def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[str]:
     """The reasons the trial failed. An empty list means it passed."""
     failures = []
-    for expected in case.expect.calls:
-        if not any(_matches(expected, call) for call in trial.calls):
+    expected_calls = case.expect.calls
+    # For each expected call, the positions in the trial where it was made.
+    made = [[i for i, call in enumerate(trial.calls) if _matches(expected, call)] for expected in expected_calls]
+    made_by_id = {expected.id: made[n] for n, expected in enumerate(expected_calls) if expected.id}
+    for expected, positions in zip(expected_calls, made, strict=True):
+        if not positions:
             failures.append(f"missing call: {expected.describe()}")
+        elif expected.after:
+            needed = made_by_id[expected.after]
+            if needed and max(positions) <= min(needed):
+                failures.append(f"out of order: {expected.describe()} came before {expected.after}")
     return failures
 
 

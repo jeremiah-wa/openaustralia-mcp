@@ -6,9 +6,12 @@ from pydantic import BaseModel
 
 
 class ExpectedCall(BaseModel):
+    id: str | None = None
     tool: str
     args: dict[str, Any] = {}
     args_contain: dict[str, list[str]] = {}
+    # The id of a call whose output this one needs, so it must come after it. Only for real dependencies.
+    after: str | None = None
 
     def describe(self) -> str:
         parts = [f"{name}={value!r}" for name, value in self.args.items()]

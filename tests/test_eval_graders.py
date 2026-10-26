@@ -60,3 +60,37 @@ class TestExpectedCalls:
         assert grade(expected, trial(HOUSING_BY_10887), SCHEMAS) == [
             "missing call: search_hansard(query contains one of ['NDIS'])"
         ]
+
+
+MEMBER_THEN_SEARCH = [
+    {"id": "member", "tool": "get_members", "args": {"postcode": "3056"}},
+    {"tool": "search_hansard", "args": {"person_id": "10887"}, "after": "member"},
+]
+
+
+class TestDependencies:
+    def test_pass_when_the_call_comes_after_the_one_it_needs(self) -> None:
+        expected = case(calls=MEMBER_THEN_SEARCH)
+
+        assert grade(expected, trial(MEMBER_3056, HOUSING_BY_10887), SCHEMAS) == []
+
+    def test_fail_when_it_comes_before(self) -> None:
+        expected = case(calls=MEMBER_THEN_SEARCH)
+
+        assert grade(expected, trial(HOUSING_BY_10887, MEMBER_3056), SCHEMAS) == [
+            "out of order: search_hansard(person_id='10887') came before member"
+        ]
+
+    def test_pass_when_a_matching_call_also_comes_later(self) -> None:
+        expected = case(calls=MEMBER_THEN_SEARCH)
+
+        assert grade(expected, trial(HOUSING_BY_10887, MEMBER_3056, HOUSING_BY_10887), SCHEMAS) == []
+
+    def test_fail_when_one_call_matches_both(self) -> None:
+        first_page = {"tool": "read_debate", "args": {"gid": "2026-06-23.78.2"}, "id": "first"}
+        second_page = {"tool": "read_debate", "args": {"offset": 4000}, "after": "first"}
+        only_page_two = Call(tool="read_debate", input={"gid": "2026-06-23.78.2", "offset": 4000})
+
+        assert grade(case(calls=[first_page, second_page]), trial(only_page_two), SCHEMAS) == [
+            "out of order: read_debate(offset=4000) came before first"
+        ]
