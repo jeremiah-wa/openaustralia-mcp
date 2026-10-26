@@ -1,0 +1,14 @@
+id: ndis-search
+tags: [regression, search]
+question: Find recent speeches in Parliament about the NDIS.
+fixtures:
+  - file: getHansard_search_ndis.json
+    search_contains: [NDIS, National Disability Insurance Scheme]
+expect:
+  calls:
+    - tool: search_hansard
+      args_contain: {query: [NDIS, National Disability Insurance Scheme]}
+  forbidden:
+    # No member was asked about.
+    - tool: get_members
+  cites_url: true
