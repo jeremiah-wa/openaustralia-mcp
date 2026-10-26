@@ -132,6 +132,42 @@ class TestByPersonId:
         }
 
     @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_finds_someone_who_moved_houses(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        # Dave Sharma was the MP for Wentworth until 2022, and has been a Senator for NSW since 2023.
+        fake_api.route("openaustralia/getRepresentative_id_10942.json")
+        fake_api.route("openaustralia/getSenator_id_10942.json")
+
+        result = await call(fake_api, variant, tool, {"person_id": "10942"})
+
+        assert not result.is_error
+        assert result.structured_content["members"] == [
+            {
+                "person_id": "10942",
+                "name": "Dave Sharma",
+                "party": "Liberal Party",
+                "house": "representatives",
+                "electorate": "Wentworth",
+                "state": None,
+                "current": False,
+                "left": "2022-05-21",
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/mp/?p=10942",
+            },
+            {
+                "person_id": "10942",
+                "name": "Dave Sharma",
+                "party": "Liberal Party",
+                "house": "senate",
+                "electorate": None,
+                "state": "NSW",
+                "current": True,
+                "left": None,
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/senator/?p=10942",
+            },
+        ]
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
     async def test_asks_both_houses(self, fake_api: FakeApi, variant: str, tool: str) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
         fake_api.route("openaustralia/getSenator_id_10990.json")

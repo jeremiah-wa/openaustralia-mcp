@@ -10,7 +10,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
 from openaustralia_mcp.errors import ApiClientError
-from openaustralia_mcp.openaustralia import MEMBERS_LICENCE, SITE_URL, OpenAustraliaClient, Representative
+from openaustralia_mcp.openaustralia import MEMBERS_LICENCE, SITE_URL, OpenAustraliaClient, Representative, Senator
 
 # The server's own wording, so the variants explain API errors and postcode gaps as the server does.
 from openaustralia_mcp.server import PARTIAL_MATCH_NOTE, _describe
@@ -50,6 +50,22 @@ class MemberRecord(BaseModel):
             url=representative.url,
         )
 
+    @classmethod
+    def from_senator(cls, senator: Senator) -> "MemberRecord":
+        current = senator.is_current
+        return cls(
+            person_id=senator.person_id,
+            name=senator.full_name,
+            party=senator.party or "",
+            house="senate",
+            state=senator.state,
+            current=current,
+            left=None if current else senator.left_house,
+            # Senators' records carry no offices, so a minister in the Senate shows none.
+            positions=senator.current_positions if current else [],
+            url=senator.url,
+        )
+
 
 class MemberLookupResult(BaseModel):
     members: list[MemberRecord]
@@ -79,10 +95,13 @@ async def by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> Me
     """Every record the person has, in both houses: someone can move from one house to the other."""
     try:
         representative = await openaustralia.get_representative(person_id)
-        await openaustralia.get_senator(person_id)
+        senator = await openaustralia.get_senator(person_id)
     except ApiClientError as exc:
         raise ToolError(_describe(exc, person_id=person_id)) from None
-    return _result([MemberRecord.from_representative(record) for record in representative])
+    return _result(
+        [MemberRecord.from_representative(record) for record in representative]
+        + [MemberRecord.from_senator(record) for record in senator]
+    )
 
 
 def _result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
