@@ -52,13 +52,14 @@ def build_tools_server(http_client: httpx2.AsyncClient, config: Config) -> MCPSe
     @server.tool(annotations=READ_ONLY)
     async def get_senators(
         state: Annotated[State | None, Field(description=STATE)] = None,
+        party: Annotated[str | None, Field(min_length=2, description=PARTY)] = None,
     ) -> MemberLookupResult:
-        """List current Senators, for one state or territory if given.
+        """List current Senators, for one state or territory and of one party, if given.
 
         Returns each Senator's person_id, name, party, house, state, whether they're a current member, current
         positions and url.
         """
-        return await search(openaustralia, state=state)
+        return await search(openaustralia, state=state, party=party, house="senate")
 
     @server.tool(annotations=READ_ONLY)
     async def search_members(

@@ -266,3 +266,21 @@ class TestByParty:
             *((name, "senate") for name in GREENS_SENATORS),
         ]
         assert members[0]["electorate"] == "Ryan"
+
+    @pytest.mark.parametrize(
+        ("variant", "tool", "args"),
+        [
+            ("parameters", "get_members", {"party": "Greens", "house": "senate"}),
+            ("tools", "get_senators", {"party": "Greens"}),
+        ],
+    )
+    async def test_finds_the_partys_senators(
+        self, fake_api: FakeApi, variant: str, tool: str, args: dict[str, str]
+    ) -> None:
+        # Only the Senate is recorded, so asking the House as well would fail.
+        fake_api.route("openaustralia/getSenators_party_Greens.json", part_of={"party": ["Australian Greens"]})
+
+        result = await call(fake_api, variant, tool, args)
+
+        assert not result.is_error
+        assert [member["name"] for member in result.structured_content["members"]] == GREENS_SENATORS
