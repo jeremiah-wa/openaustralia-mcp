@@ -9,6 +9,7 @@ from pydantic import Field
 
 from evals.variants.members import (
     HOUSE,
+    NAME,
     PARTY,
     PERSON_ID,
     POSTCODE,
@@ -37,22 +38,22 @@ def build_parameters_server(http_client: httpx2.AsyncClient, config: Config) -> 
         state: Annotated[State | None, Field(description=STATE)] = None,
         party: Annotated[str | None, Field(min_length=2, description=PARTY)] = None,
         house: Annotated[House | None, Field(description=HOUSE)] = None,
+        name: Annotated[str | None, Field(min_length=2, description=NAME)] = None,
     ) -> MemberLookupResult:
         """Find federal members of Parliament.
 
         By postcode, it finds the members of the House of Representatives (MPs) for that area. A postcode can
         span more than one electorate, so there may be several. By person_id, it finds one person, current or
-        former, in either house. By state, it finds the current Senators for that state or territory. By party,
-        it finds the party's current members, in both houses unless house limits it to one. Returns each
-        member's person_id, name, party, house, electorate or state, whether they're a current member, current
-        positions and url.
+        former, in either house. By name, party or state, it finds current members who match all of them, in
+        both houses unless house limits it to one. A state means Senators. Returns each member's person_id, name,
+        party, house, electorate or state, whether they're a current member, current positions and url.
         """
         if person_id is not None:
             return await by_person_id(openaustralia, person_id)
         if postcode is not None:
             return await by_postcode(openaustralia, postcode)
-        if state is not None or party is not None or house is not None:
-            return await search(openaustralia, party=party, state=state, house=house)
-        raise ToolError("Give a postcode, a person_id, a state, a party or a house.")
+        if any(value is not None for value in (name, party, state, house)):
+            return await search(openaustralia, name=name, party=party, state=state, house=house)
+        raise ToolError("Give a postcode, a person_id, a name, a party, a state or a house.")
 
     return server

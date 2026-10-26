@@ -7,6 +7,7 @@ from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
 from evals.variants.members import (
+    NAME,
     PARTY,
     PERSON_ID,
     POSTCODE,
@@ -63,13 +64,14 @@ def build_tools_server(http_client: httpx2.AsyncClient, config: Config) -> MCPSe
 
     @server.tool(annotations=READ_ONLY)
     async def search_members(
+        name: Annotated[str | None, Field(min_length=2, description=NAME)] = None,
         party: Annotated[str | None, Field(min_length=2, description=PARTY)] = None,
     ) -> MemberLookupResult:
-        """Find current federal members of Parliament in both houses, by party.
+        """Find current federal members of Parliament in both houses, by name, party or both.
 
         Returns each member's person_id, name, party, house, electorate or state, whether they're a current
         member, current positions and url.
         """
-        return await search(openaustralia, party=party)
+        return await search(openaustralia, name=name, party=party)
 
     return server

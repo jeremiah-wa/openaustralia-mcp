@@ -27,6 +27,7 @@ POSTCODE = 'Australian postcode, e.g. "3056".'
 PERSON_ID = "A member's person_id, current or former, e.g. from a search_hansard hit."
 STATE = "A state or territory, e.g. TAS. Senators represent a whole state or territory."
 PARTY = 'Part of a party\'s name, e.g. "Greens" or "Labor".'
+NAME = 'Part or all of a current member\'s name, e.g. "Khalil" or "Peter Khalil", without a title.'
 HOUSE = "Only members of this house: the House of Representatives (MPs) or the Senate."
 
 House = Literal["representatives", "senate"]
@@ -121,17 +122,23 @@ async def by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> Me
 async def search(
     openaustralia: OpenAustraliaClient,
     *,
+    name: str | None = None,
     party: str | None = None,
     state: State | None = None,
     house: House | None = None,
 ) -> MemberLookupResult:
     """Current members who match every filter given, in both houses unless a house or a state limits it."""
-    given = {name: value for name, value in {"party": party, "state": state}.items() if value is not None}
+    filters = {"name": name, "party": party, "state": state}
+    given = {filter: value for filter, value in filters.items() if value is not None}
     # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
     house = "senate" if state else house
     try:
-        representatives = [] if house == "senate" else await openaustralia.get_representatives(party=party)
-        senators = [] if house == "representatives" else await openaustralia.get_senators(state=state, party=party)
+        representatives = [] if house == "senate" else await openaustralia.get_representatives(party=party, search=name)
+        senators = (
+            []
+            if house == "representatives"
+            else await openaustralia.get_senators(state=state, party=party, search=name)
+        )
     except ApiClientError as exc:
         raise ToolError(_describe(exc, **given)) from None
     return _result(

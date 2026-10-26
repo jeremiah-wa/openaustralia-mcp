@@ -167,6 +167,11 @@ class DebateEntry(BaseModel):
 _debate_entries = TypeAdapter(list[DebateEntry])
 
 
+def _none_found(data: Any) -> Any:
+    # With no members to send, OpenAustralia sends `{}` (an empty PHP array) rather than `[]`.
+    return [] if data == {} else data
+
+
 def _given(**params: str | None) -> dict[str, str]:
     """The parameters that have a value. OpenAustralia treats an empty parameter differently from a missing one."""
     return {name: value for name, value in params.items() if value is not None}
@@ -182,18 +187,23 @@ class OpenAustraliaClient:
         self._http = http
         self._api_key = api_key
 
-    async def get_representatives(self, postcode: str | None = None, *, party: str | None = None) -> Representatives:
-        """Current House of Representatives members whose electorate covers the postcode, or of the party.
+    async def get_representatives(
+        self, postcode: str | None = None, *, party: str | None = None, search: str | None = None
+    ) -> Representatives:
+        """Current House of Representatives members whose electorate covers the postcode, or who match the rest.
 
-        OpenAustralia matches part of a party's name, ignoring case: "greens" gets the Australian Greens.
+        OpenAustralia matches part of a party's name, or of a member's full name, ignoring case: "greens" gets the
+        Australian Greens, and "khalil" or "Peter Khalil" gets Peter Khalil.
         """
-        given = _given(postcode=postcode, party=party)
-        return _representatives.validate_python(await self._call("getRepresentatives", **given))
+        given = _given(postcode=postcode, party=party, search=search)
+        return _representatives.validate_python(_none_found(await self._call("getRepresentatives", **given)))
 
-    async def get_senators(self, *, state: State | None = None, party: str | None = None) -> list[Senator]:
-        """Current Senators, for one state or territory and of one party, if given."""
-        given = _given(state=STATE_SPELLINGS[state] if state else None, party=party)
-        return _senator_records.validate_python(await self._call("getSenators", **given))
+    async def get_senators(
+        self, *, state: State | None = None, party: str | None = None, search: str | None = None
+    ) -> list[Senator]:
+        """Current Senators who match every filter given, matched as for get_representatives."""
+        given = _given(state=STATE_SPELLINGS[state] if state else None, party=party, search=search)
+        return _senator_records.validate_python(_none_found(await self._call("getSenators", **given)))
 
     async def get_representative(self, person_id: str) -> list[Representative]:
         """The person's records as a member of the House, current or former. Empty if they never sat in it."""

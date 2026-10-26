@@ -284,3 +284,25 @@ class TestByParty:
 
         assert not result.is_error
         assert [member["name"] for member in result.structured_content["members"]] == GREENS_SENATORS
+
+
+class TestByName:
+    LOOKUPS = (("parameters", "get_members"), ("tools", "search_members"))
+
+    @pytest.mark.parametrize(("variant", "tool"), LOOKUPS)
+    async def test_finds_current_members_in_both_houses(self, fake_api: FakeApi, variant: str, tool: str) -> None:
+        # No MP is called Pocock, so getRepresentatives sends `{}`. Two Senators are.
+        fake_api.route("openaustralia/getRepresentatives_search_Pocock.json", part_of={"search": ["David Pocock"]})
+        fake_api.route(
+            "openaustralia/getSenators_search_Pocock.json", part_of={"search": ["Barbara Pocock", "David Pocock"]}
+        )
+
+        result = await call(fake_api, variant, tool, {"name": "Pocock"})
+
+        assert not result.is_error
+        assert [
+            (member["name"], member["party"], member["state"]) for member in result.structured_content["members"]
+        ] == [
+            ("Barbara Pocock", "Australian Greens", "SA"),
+            ("David Pocock", "Independent", "ACT"),
+        ]
