@@ -33,6 +33,9 @@ RECORDED = {
     # Name searches that find no one get `{}`.
     "openaustralia/getSenators_search_Khalil.json": RecordedRequest("getSenators", {"search": "Khalil"}),
     "openaustralia/getRepresentatives_search_Pocock.json": RecordedRequest("getRepresentatives", {"search": "Pocock"}),
+    # OpenAustralia takes TAS or Tasmania, but QLD fails where Queensland works, and NSW works where New South Wales
+    # fails. The member tools send one spelling that works for each state.
+    "openaustralia/getSenators_state_Tasmania.json": RecordedRequest("getSenators", {"state": "Tasmania"}),
     "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
     "openaustralia/getSenators_search_Pocock.json": RecordedRequest("getSenators", {"search": "Pocock"}),
     "openaustralia/getSenators_search_David_Pocock.json": RecordedRequest("getSenators", {"search": "David Pocock"}),
