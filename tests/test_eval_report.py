@@ -3,7 +3,7 @@
 import pytest
 
 from evals.graders import Trial
-from evals.report import TrialRecord, render_summary, score_cases, score_tags, trial_cost_usd
+from evals.report import Scores, TrialRecord, render_summary, score_cases, score_tags, scores, trial_cost_usd
 
 SONNET = "claude-sonnet-5-5"
 HAIKU = "claude-haiku-5-5"
@@ -124,3 +124,22 @@ class TestCost:
         summary = render_summary(records, errors=0)
 
         assert "Cost: $0.0060 for 4 trials, $0.0015 per trial." in summary
+
+
+class TestScoresFile:
+    def test_holds_passes_per_case_and_model_and_the_cost_per_trial(self) -> None:
+        records = [record("mp-3056", True, model=HAIKU), record("mp-3056", False, model=HAIKU)]
+        for item in records:
+            item.usage = {"input_tokens": 10_000, "output_tokens": 1_000}
+
+        run = scores(records)
+
+        assert run.models[HAIKU].effort == "high"
+        assert run.models[HAIKU].trials == 2
+        assert run.models[HAIKU].cost_per_trial_usd == pytest.approx(0.0015)
+        assert run.cases["mp-3056"][HAIKU].model_dump() == {"tags": ["regression"], "passes": 1, "trials": 2}
+
+    def test_round_trips_through_json(self) -> None:
+        run = scores([record("mp-3056", True)])
+
+        assert Scores.model_validate_json(run.model_dump_json()) == run

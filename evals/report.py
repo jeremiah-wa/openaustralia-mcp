@@ -132,3 +132,37 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
             for (case_id, model, failure), count in failures.items()
         ]
     return "\n".join(lines) + "\n"
+
+
+class ModelRun(BaseModel):
+    effort: str
+    trials: int
+    cost_per_trial_usd: float
+
+
+class CaseResult(BaseModel):
+    tags: list[str]
+    passes: int
+    trials: int
+
+
+class Scores(BaseModel):
+    """A run's scores, saved as scores.json. The committed evals/results/baseline.json is one of these."""
+
+    models: dict[str, ModelRun]
+    # By case id, then by model.
+    cases: dict[str, dict[str, CaseResult]]
+
+
+def scores(records: list[TrialRecord]) -> Scores:
+    models: dict[str, ModelRun] = {}
+    for model in dict.fromkeys(record.model for record in records):
+        mine = [record for record in records if record.model == model]
+        cost = sum(trial_cost_usd(model, record.usage) for record in mine)
+        models[model] = ModelRun(effort=mine[0].effort, trials=len(mine), cost_per_trial_usd=cost / len(mine))
+    cases: dict[str, dict[str, CaseResult]] = {}
+    for score in score_cases(records):
+        cases.setdefault(score.case_id, {})[score.model] = CaseResult(
+            tags=score.tags, passes=score.passes, trials=score.trials
+        )
+    return Scores(models=models, cases=cases)
