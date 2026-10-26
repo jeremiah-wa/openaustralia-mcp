@@ -39,6 +39,9 @@ RECORDED = {
     "openaustralia/getDebates_representatives_2026-06-23.80.1.json": RecordedRequest(
         "getDebates", {"type": "representatives", "gid": "2026-06-23.80.1"}
     ),
+    "openaustralia/getDebates_senate_2026-06-23.80.1.json": RecordedRequest(
+        "getDebates", {"type": "senate", "gid": "2026-06-23.80.1"}
+    ),
     "openaustralia/getDebates_senate_2026-10-15.118.1.json": RecordedRequest(
         "getDebates", {"type": "senate", "gid": "2026-10-15.118.1"}
     ),
