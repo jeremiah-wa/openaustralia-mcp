@@ -385,10 +385,22 @@ class TestArgumentsThatDontGoTogether:
         assert fake_api.requests == []
 
 
+# One call per kind of lookup. Each reaches OpenAustralia, so each has to handle what comes back.
+EVERY_LOOKUP = [
+    {"postcode": "3056"},
+    {"person_id": "10942"},
+    {"name": "Pocock"},
+    {"party": "Greens"},
+    {"state": "TAS"},
+]
+EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
+
+
 class TestMissingKey:
-    async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
+    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_explains_where_to_get_a_key(self, connect: Connect, args: dict[str, str]) -> None:
         async with connect(Config()) as client:
-            result = await client.call_tool("get_members", {"postcode": "3056"})
+            result = await client.call_tool("get_members", args)
 
         assert result.is_error
         assert result_text(result) == (
@@ -397,21 +409,23 @@ class TestMissingKey:
             "then set OPENAUSTRALIA_API_KEY in your MCP client config."
         )
 
-    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
+    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
         fake_api.route(POSTCODE_3056)
 
         async with connect(Config()) as client:
-            await client.call_tool("get_members", {"postcode": "3056"})
+            await client.call_tool("get_members", args)
 
         assert fake_api.requests == []
 
 
 class TestRejectedKey:
-    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi) -> None:
+    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
         fake_api.serve_fixture("openaustralia/getRepresentatives_bad_key.json")
 
         async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "3056"})
+            result = await client.call_tool("get_members", args)
 
         assert result.is_error
         assert result_text(result) == (
@@ -430,6 +444,30 @@ class TestApiError:
         assert result.is_error
         assert result_text(result) == (
             "Error executing tool get_members: OpenAustralia returned an error for postcode=0000: Unknown postcode"
+        )
+
+    @pytest.mark.parametrize(
+        ("args", "described"),
+        [
+            ({"person_id": "10942"}, "person_id=10942"),
+            ({"name": "Pocock"}, "name=Pocock"),
+            ({"party": "Greens"}, "party=Greens"),
+            ({"state": "TAS"}, "state=TAS"),
+            ({"party": "Greens", "house": "senate"}, "party=Greens, house=senate"),
+        ],
+        ids=["person_id", "name", "party", "state", "party-and-house"],
+    )
+    async def test_names_the_arguments_of_any_lookup(
+        self, connect: Connect, fake_api: FakeApi, args: dict[str, str], described: str
+    ) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_0000.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", args)
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool get_members: OpenAustralia returned an error for {described}: Unknown postcode"
         )
 
 
@@ -463,6 +501,18 @@ class TestApiUnavailable:
 
         assert result.is_error
         assert result_text(result) == f"Error executing tool get_members: {message}"
+
+    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_any_lookup_says_so(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
+        fake_api.serve(_connection_refused)
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", args)
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia couldn't be reached. Try again later."
+        )
 
 
 class TestPostcodeValidation:
@@ -502,19 +552,21 @@ class TestKeyNeverLeaks:
         else:
             fake_api.serve(request.param)
 
-    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None) -> None:
+    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
+    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None, args: dict[str, str]) -> None:
         async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "3056"})
+            result = await client.call_tool("get_members", args)
 
         assert TEST_KEY not in result_text(result)
 
+    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
     async def test_not_in_the_logs(
-        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture
+        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture, args: dict[str, str]
     ) -> None:
         caplog.set_level(logging.DEBUG)
 
         async with connect() as client:
-            await client.call_tool("get_members", {"postcode": "3056"})
+            await client.call_tool("get_members", args)
 
         assert caplog.records, "expected some log output to check"
         assert TEST_KEY not in caplog.text
