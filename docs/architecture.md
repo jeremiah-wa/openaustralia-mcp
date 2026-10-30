@@ -149,7 +149,6 @@ Nothing below the tool call is tested on its own ([ADR 0004](adr/0004-test-throu
 | Key validation | On first call | Readable errors instead of an opaque startup crash |
 | Hansard search page size | 20 hits, one OpenAustralia page | `getHansard` can't return fewer (`num` gives HTTP 500), and paging can later map straight onto its `page` |
 | Hansard excerpt | OpenAustralia's own, markup stripped | It's already short. Cutting further would lose context for little saving. |
-| `read_debate` house | A required argument, with no default | gids repeat across houses, and the wrong house silently returns a different speech. `search_hansard` hits already carry the house. |
 | `read_debate` text | Each speech after its speaker's name, paragraphs kept, paged by character offset over the joined text | One shape for a single speech and a whole debate. Character offsets stay valid between calls because published Hansard doesn't change. |
 | HTTP 404 from OpenAustralia | "Not found", naming the gid and house | `getDebates` sends a 404 page for an unknown gid, and "try again later" would send Claude round in circles |
 | Distribution | `uvx --from git+…` | No release process needed. PyPI later. |

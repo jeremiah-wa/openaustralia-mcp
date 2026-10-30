@@ -9,7 +9,7 @@ At first the tools follow the API functions one to one, with three changes: resu
 | `get_members` | Representatives by postcode only. Name and party search and Senators come next | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate/state |
 | `get_electorates` | Not built | OA `getDivisions` | Electorates (electoral divisions) |
 | `search_hansard` | Built, by query, `person_id` or both. First page only: paging and `order` come next | OA `getHansard` | 20 hits (one OpenAustralia page): speaker, `person_id`, date, house, debate title, excerpt, `gid`, URL. Plus the total number of hits |
-| `read_debate` | Built. Its cache by `gid` comes next | OA `getDebates` (by `gid` and `type`) | A speech, or the whole debate for a heading `gid`. Up to ~4,000 characters per call, plus `offset` for the next page |
+| `read_debate` | Built. Its cache by `gid` comes next | OA `getDebates` (by `gid` and `type`, so `house` is required: [ADR 0005](adr/0005-read-debate-requires-the-house.md)) | A speech, or the whole debate for a heading `gid`. Up to ~4,000 characters per call, plus `offset` for the next page |
 | `get_policies`, `get_policy` | Not built | TVFY `/policies` | Policy topics, with each member's agreement score |
 | `get_votes`, `get_vote` | Not built | TVFY `/divisions` | Individual votes and how each member voted |
 
