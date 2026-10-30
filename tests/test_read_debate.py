@@ -5,7 +5,8 @@ import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import TEST_KEY, Connect, FakeApi, Handler, result_text
+from .conftest import TEST_KEY, Connect, result_text
+from .fake_api import FakeApi, Handler
 
 pytestmark = pytest.mark.anyio
 
@@ -15,7 +16,7 @@ KHALIL_ARGS = {"gid": "2026-06-23.80.1", "house": "representatives"}
 
 class TestDebateRequest:
     async def test_asks_openaustralia_for_the_gid_in_that_house(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             result = await client.call_tool("read_debate", KHALIL_ARGS)
@@ -37,7 +38,7 @@ class TestDebateRequest:
 
 class TestDebateResult:
     async def test_returns_the_debate_title_date_and_link(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             result = await client.call_tool("read_debate", KHALIL_ARGS)
@@ -51,7 +52,7 @@ class TestDebateResult:
         assert content["url"] == "https://www.openaustralia.org.au/debates/?id=2026-06-23.78.2#g80.1"
 
     async def test_returns_the_speech_after_the_speakers_name(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             result = await client.call_tool("read_debate", KHALIL_ARGS)
@@ -66,7 +67,7 @@ class TestDebateResult:
         assert "&#8212;" not in text
 
     async def test_keeps_paragraph_breaks(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             result = await client.call_tool("read_debate", KHALIL_ARGS)
@@ -80,7 +81,7 @@ class TestDebateResult:
 
 class TestPaging:
     async def test_returns_the_first_4000_characters(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             result = await client.call_tool("read_debate", KHALIL_ARGS)
@@ -93,7 +94,7 @@ class TestPaging:
         assert content["total_length"] > 8715
 
     async def test_follows_next_offset_to_the_end_of_the_speech(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         pages = []
         offset: int | None = 0
@@ -111,7 +112,7 @@ class TestPaging:
         assert len("".join(page["text"] for page in pages)) == pages[0]["total_length"]
 
     async def test_explains_an_offset_past_the_end(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             first = await client.call_tool("read_debate", KHALIL_ARGS)
@@ -127,7 +128,7 @@ class TestPaging:
 
 class TestSenate:
     async def test_reads_a_senate_speech(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getDebates_senate_2026-10-15.118.1.json")
+        fake_api.route("openaustralia/getDebates_senate_2026-10-15.118.1.json")
 
         async with connect() as client:
             result = await client.call_tool("read_debate", {"gid": "2026-10-15.118.1", "house": "senate"})
@@ -143,7 +144,7 @@ class TestSenate:
 class TestWholeDebate:
     async def test_reads_every_speech_under_a_heading_gid(self, connect: Connect, fake_api: FakeApi) -> None:
         # 2026-06-23.78.2 is the "Budget" heading, the `id=` in the url of each speech in the debate.
-        fake_api.serve_fixture("openaustralia/getDebates_representatives_2026-06-23.78.2.json")
+        fake_api.route("openaustralia/getDebates_representatives_2026-06-23.78.2.json")
         args = {"gid": "2026-06-23.78.2", "house": "representatives"}
 
         pages = []
@@ -213,7 +214,7 @@ class TestArguments:
     async def test_rejects_malformed_arguments_without_a_request(
         self, connect: Connect, fake_api: FakeApi, arguments: dict[str, object], name: str
     ) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect() as client:
             result = await client.call_tool("read_debate", arguments)
@@ -236,7 +237,7 @@ class TestMissingKey:
         )
 
     async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(KHALIL)
+        fake_api.route(KHALIL)
 
         async with connect(Config()) as client:
             await client.call_tool("read_debate", KHALIL_ARGS)

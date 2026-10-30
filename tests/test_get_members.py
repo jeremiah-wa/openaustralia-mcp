@@ -5,7 +5,8 @@ import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import TEST_KEY, Connect, FakeApi, Handler, result_text
+from .conftest import TEST_KEY, Connect, result_text
+from .fake_api import FakeApi, Handler
 
 pytestmark = pytest.mark.anyio
 
@@ -14,7 +15,7 @@ POSTCODE_3056 = "openaustralia/getRepresentatives_postcode_3056.json"
 
 class TestLookupByPostcode:
     async def test_returns_the_member_with_attribution(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(POSTCODE_3056)
+        fake_api.route(POSTCODE_3056)
 
         async with connect() as client:
             result = await client.call_tool("get_members", {"postcode": "3056"})
@@ -40,7 +41,7 @@ class TestLookupByPostcode:
         }
 
     async def test_asks_openaustralia_for_that_postcode(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(POSTCODE_3056)
+        fake_api.route(POSTCODE_3056)
 
         async with connect() as client:
             await client.call_tool("get_members", {"postcode": "3056"})
@@ -63,7 +64,7 @@ class TestMissingKey:
         )
 
     async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture(POSTCODE_3056)
+        fake_api.route(POSTCODE_3056)
 
         async with connect(Config()) as client:
             await client.call_tool("get_members", {"postcode": "3056"})
@@ -87,7 +88,7 @@ class TestRejectedKey:
 
 class TestApiError:
     async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_0000.json")
+        fake_api.route("openaustralia/getRepresentatives_postcode_0000.json")
 
         async with connect() as client:
             result = await client.call_tool("get_members", {"postcode": "0000"})
@@ -135,7 +136,7 @@ class TestPostcodeValidation:
     async def test_rejects_a_malformed_postcode_without_a_request(
         self, connect: Connect, fake_api: FakeApi, postcode: str
     ) -> None:
-        fake_api.serve_fixture(POSTCODE_3056)
+        fake_api.route(POSTCODE_3056)
 
         async with connect() as client:
             result = await client.call_tool("get_members", {"postcode": postcode})
@@ -191,7 +192,7 @@ class TestPostcodeWithoutCurrentMember:
     async def test_lists_the_members_it_can_match_and_warns_the_list_may_be_incomplete(
         self, connect: Connect, fake_api: FakeApi
     ) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_3181.json")
+        fake_api.route("openaustralia/getRepresentatives_postcode_3181.json")
 
         async with connect() as client:
             result = await client.call_tool("get_members", {"postcode": "3181"})
@@ -214,7 +215,7 @@ class TestPostcodeWithoutCurrentMember:
         )
 
     async def test_explains_when_no_current_member_is_on_record(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_3142.json")
+        fake_api.route("openaustralia/getRepresentatives_postcode_3142.json")
 
         async with connect() as client:
             result = await client.call_tool("get_members", {"postcode": "3142"})

@@ -1,7 +1,6 @@
 import json
 from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from pathlib import Path
 
 import httpx2
 import pytest
@@ -11,35 +10,11 @@ from mcp.types import CallToolResult
 from openaustralia_mcp.config import Config
 from openaustralia_mcp.server import build_server
 
-FIXTURES = Path(__file__).parent / "fixtures"
+from .fake_api import FakeApi
 
 # Stands in for a real key. Tests check it never shows up in a result or a log.
 TEST_KEY = "TEST-KEY-not-real"
 TEST_CONFIG = Config(openaustralia_api_key=TEST_KEY)
-
-# What OpenAustralia actually sends.
-OA_HEADERS = {"content-type": "text/javascript; charset=iso-8859-1"}
-
-Handler = Callable[[httpx2.Request], httpx2.Response]
-
-
-class FakeApi:
-    """Stands in for the remote API: answers from recorded responses and keeps the requests it received."""
-
-    def __init__(self) -> None:
-        self.requests: list[httpx2.Request] = []
-        self._handler: Handler = lambda request: httpx2.Response(599)
-
-    def serve_fixture(self, name: str) -> None:
-        body = (FIXTURES / name).read_bytes()
-        self._handler = lambda request: httpx2.Response(200, content=body, headers=OA_HEADERS)
-
-    def serve(self, handler: Handler) -> None:
-        self._handler = handler
-
-    def __call__(self, request: httpx2.Request) -> httpx2.Response:
-        self.requests.append(request)
-        return self._handler(request)
 
 
 @pytest.fixture
