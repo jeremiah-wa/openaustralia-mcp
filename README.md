@@ -142,7 +142,7 @@ See [architecture.md](docs/architecture.md) for how the server is put together.
 
 ### Running the evals
 
-The evals check that Claude picks the right tool with the right arguments. They call the Anthropic API, so they cost money, and they never run under `uv run pytest` or in CI. Put `ANTHROPIC_API_KEY` in `.env`, then:
+The evals check that Claude picks the right tool with the right arguments. They call the Anthropic API, so they cost money. They never run under `uv run pytest`, and in CI they run only on demand. Put `ANTHROPIC_API_KEY` in `.env`, then:
 
 ```bash
 # One case, one trial, on Haiku: well under a cent
