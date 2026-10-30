@@ -19,17 +19,59 @@ These protect users' keys and keep the project within the data licences. Don't b
 3. **Keys never appear in logs, tool results, error messages or eval results.**
 4. **Read-only.** No tool changes data anywhere.
 5. **Cut Hansard text, never rewrite it.**
-   - Hansard is CC BY-NC-ND (no derivatives). The server may cut, excerpt and paginate it, but must not paraphrase or summarise it. Summarising is the client model's job.
+   - Hansard is CC BY-NC-ND (no derivatives). The server may cut, excerpt and paginate it, but must not paraphrase or summarise it. Summarising is left to the client model, which is an assumption (see [ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)).
 6. **Every tool result carries attribution:** a source URL and the licence line for its data.
 7. **Non-commercial.** Don't add anything that charges for access or resells the data.
 8. **Keep results small.**
    - Don't return a raw API response from a tool.
-   - New tools follow the result-shaping rules in [architecture.md](architecture.md#result-shaping).
+   - New tools follow the result-shaping rules in [tools.md](tools.md#result-shaping).
 
 ## Design changes
 
-- [architecture.md](architecture.md) records the current design and the reasons for it. If a change goes against something in it (tool names, result sizes, caching, the one-server decision), update the doc in the same change and add a row to its decision table.
+- [architecture.md](architecture.md) and [tools.md](tools.md) record the current design and the reasons for it. If a change goes against something in them (tool names, result sizes, caching), update the doc in the same change.
+- [api-notes.md](api-notes.md) records what the APIs actually do. Add what a live call shows there.
+- [adr/](adr/) records the big decisions, one file each. Add one only when a decision is all three of: hard to reverse, surprising without context, and the result of a real trade-off. Smaller decisions go in the doc they affect, with the reason.
+  - Name it `NNNN-slug.md`, with the next number. One paragraph is usually enough: the context, the decision and why. Add `Considered options` only when the rejected alternatives are worth remembering.
+  - When a decision changes, don't rewrite its ADR. Add a new one, and give the old one `status: superseded by ADR-NNNN` in frontmatter.
 - Tool names and descriptions are written for the model. When you rename a tool or change its description, check that the server `instructions` still describe the right chain of calls.
+
+## Adding a tool
+
+1. Check [api-notes.md](api-notes.md) for what the API does. Make live calls for anything it doesn't cover, and add what they show.
+2. Record the responses the tests need (see [Recording a response](#recording-a-response)).
+3. Build it test-first, in small commits (see [Tests](#tests)), keeping to the [house rules](#house-rules).
+4. Add the tool to the server `instructions`, so Claude knows where it fits in the chain of calls.
+5. Add eval cases, and put the scores before and after in the pull request (see [Evals](#evals)).
+6. Set the tool's status in [tools.md](tools.md), and record any naming or shaping decision there. Add an ADR if one qualifies (see [Design changes](#design-changes)).
+
+## Recording a response
+
+A fixture holds only the response body, as the API sent it, under `tests/fixtures/openaustralia/`. Name it after the function and its parameters, e.g. `getHansard_search_housing_person_10887.json`. OpenAustralia is a free service run by a charity, so record only what the tests need.
+
+To record one, set the first three values and run this in bash from the repo root, with your key in `.env`:
+
+```bash
+uv run --env-file .env python - <<'EOF'
+import os
+from pathlib import Path
+
+import httpx2
+
+function = "getRepresentatives"
+params = {"postcode": "3056"}
+fixture = "getRepresentatives_postcode_3056.json"
+
+response = httpx2.get(
+    f"https://www.openaustralia.org.au/api/{function}",
+    params={"key": os.environ["OPENAUSTRALIA_API_KEY"], "output": "js", **params},
+    timeout=20,
+)
+Path("tests/fixtures/openaustralia", fixture).write_bytes(response.content)
+print(response.status_code)
+EOF
+```
+
+Then add the request to `RECORDED` (see [Tests](#tests)), and check the diff for a key (see [House rules](#house-rules)).
 
 ## Code
 
@@ -54,7 +96,7 @@ The evals measure whether Claude picks the right tool with the right arguments. 
 
 - Every change to a tool's name, description or arguments, or to the server `instructions`, adds or updates eval cases. Put the scores before and after the change in the pull request. Add the `run-evals` label to run them in CI. The job summary compares the run with the baseline.
 - When such a change merges, update the baseline from a full run: copy its `summary.md` to `evals/results/baseline.md` (keeping the notes at the top up to date) and its `scores.json` to `evals/results/baseline.json`.
-- Evals call the Anthropic API, so they cost money and aren't deterministic. They never run in [ci.yml](../.github/workflows/ci.yml) or under `uv run pytest`. In CI they run only in [evals.yml](../.github/workflows/evals.yml): by hand, or when a pull request gets the `run-evals` label, never on a push. To run them again on a pull request, remove the label and add it back. The key comes from the `ANTHROPIC_API_KEY` repository secret, and reaches only the step that runs them. Don't add an eval run to any other workflow.
+- Evals call the Anthropic API, so they cost money and aren't deterministic. They never run in [ci.yml](../.github/workflows/ci.yml) or under `uv run pytest`. In CI they run only in [evals.yml](../.github/workflows/evals.yml): by hand, or when a pull request gets the `run-evals` label, never on a push. To run them again on a pull request, remove the label and add it back. The key comes from the `ANTHROPIC_API_KEY` repository secret, and reaches only the steps that check it and run them. Don't add an eval run to any other workflow.
 - Every run needs `--max-cost-usd`. The runner refuses a run whose estimate is over it, and stops starting trials once it's spent. The scores don't fail the job yet. A threshold can come once there are a few runs to compare.
 - The eval's own logic, such as the case format and the graders, is tested directly in `tests/test_eval_*.py`. Those tests are free and deterministic, so they do run under `uv run pytest` and in CI.
 
@@ -72,7 +114,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 |---|---|
 | `feat` | A new tool or a change in behaviour users can see |
 | `fix` | A bug fix |
-| `docs` | README, architecture.md, this file, or tool descriptions only |
+| `docs` | README, anything under `docs/`, or tool descriptions only |
 | `test` | Tests or fixtures only |
 | `refactor` | Code changes with no change in behaviour |
 | `chore` | Dependencies, tooling, CI |
@@ -84,7 +126,7 @@ Examples:
 ```
 feat(tools): add search_hansard with excerpt trimming
 fix(cache): stop caching responses that contain an API error
-docs: record person_id check result in architecture.md
+docs: record person_id check result in api-notes.md
 ```
 
 - Keep each commit to one logical change, small enough to revert without losing other work. A tool is usually several commits: one per behaviour, each with its test and the code that makes it pass, e.g. "add get_members lookup by postcode", then "explain a missing OpenAustralia key".
@@ -95,4 +137,4 @@ docs: record person_id check result in architecture.md
 
 - `main` is always in a working state. Do your work on a short-lived branch named `<type>/<short-description>`, e.g. `feat/search-hansard`.
 - Open a pull request into `main`. The description says what changed and why, and how you tested it, including any manual checks in MCP Inspector or Claude Desktop.
-- Squash-merge, using a Conventional Commit title for the squashed commit.
+- Merge with a merge commit, not a squash, so each commit stays on `main` and can be reverted on its own.

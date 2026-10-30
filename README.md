@@ -7,7 +7,7 @@ It is a thin layer over two existing APIs run by the [OpenAustralia Foundation](
 - **[OpenAustralia](https://www.openaustralia.org.au/api/)**: members, electorates, Hansard and debates.
 - **[They Vote For You](https://theyvoteforyou.org.au/)**: votes in Parliament (divisions) and policy positions.
 
-> **Status: early build.** This README describes the planned first release. So far `get_members` (Representatives by postcode), `search_hansard` and `read_debate` work. The other tools haven't been built yet.
+> **Status: early build.** This README describes the planned first release. [tools.md](docs/tools.md) says which tools work so far.
 
 ## What you can ask
 
@@ -43,9 +43,9 @@ All tools are read-only.
 | [Git](https://git-scm.com/downloads) | uv fetches the server straight from this repository. | Already installed on most developer machines. Check with `git --version`. |
 | An MCP client | Runs the server and talks to it. | [Claude Desktop](https://claude.ai/download), Claude Code, or another client that supports local (stdio) servers |
 | An OpenAustralia API key | Used by the member, electorate and Hansard tools | <https://www.openaustralia.org.au/api/key>. Free for low-volume, non-commercial use. |
-| A They Vote For You API key | Used by the voting and policy tools | Sign in at <https://theyvoteforyou.org.au/>. |
+| A They Vote For You API key (later) | For the voting and policy tools, which aren't built yet. You don't need one today. | Sign in at <https://theyvoteforyou.org.au/>. |
 
-The server starts without either key. Each tool needs only its own key: if that key is missing or rejected, the tool returns a message saying so and linking to where to get one, and the other tools keep working. So you can start with just the OpenAustralia key and add the other later.
+The server starts without a key. If a tool's key is missing or rejected, the tool returns a message saying so and linking to where to get one.
 
 ### For development
 
@@ -72,8 +72,7 @@ Add this to `claude_desktop_config.json` (Settings → Developer → Edit Config
         "openaustralia-mcp"
       ],
       "env": {
-        "OPENAUSTRALIA_API_KEY": "your-openaustralia-key",
-        "THEYVOTEFORYOU_API_KEY": "your-theyvoteforyou-key"
+        "OPENAUSTRALIA_API_KEY": "your-openaustralia-key"
       }
     }
   }
@@ -85,7 +84,7 @@ Restart Claude Desktop after saving.
 ### Claude Code
 
 ```bash
-claude mcp add openaustralia -e OPENAUSTRALIA_API_KEY=your-openaustralia-key -e THEYVOTEFORYOU_API_KEY=your-theyvoteforyou-key -- uvx --from git+https://github.com/jeremiah-wa/openaustralia-mcp openaustralia-mcp
+claude mcp add openaustralia -e OPENAUSTRALIA_API_KEY=your-openaustralia-key -- uvx --from git+https://github.com/jeremiah-wa/openaustralia-mcp openaustralia-mcp
 ```
 
 ### Other MCP clients
@@ -100,7 +99,7 @@ The code in this repository is MIT licensed. The data it fetches is not, and the
 |---|---|---|
 | Hansard (`search_hansard`, `read_debate`) | Commonwealth of Australia | [CC BY-NC-ND 3.0 AU](https://creativecommons.org/licenses/by-nc-nd/3.0/au/) |
 | Members, electorates | OpenAustralia Foundation | [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/) |
-| Votes, policies | They Vote For You | See [their data page](https://theyvoteforyou.org.au/help/data) |
+| Votes, policies | They Vote For You | [ODbL](https://opendatacommons.org/licenses/odbl/), to the extent they hold the rights. See [their licensing page](https://theyvoteforyou.org.au/help/licencing) |
 
 Specifically:
 
@@ -120,7 +119,7 @@ uv run pytest
 ```
 
 - Unit tests run against recorded API responses and don't need a key.
-- Set `OPENAUSTRALIA_API_KEY` (and optionally `THEYVOTEFORYOU_API_KEY`) to also run the live smoke tests. CI runs them weekly against the real API.
+- Set `OPENAUSTRALIA_API_KEY` to also run the live smoke tests. CI runs them weekly against the real API.
 - To poke at the tools by hand, use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (needs Node 22.19 or later). Keep `@latest` in the command, or npx may run an old cached v1:
 
 ```bash
@@ -138,11 +137,9 @@ uv run --env-file .env pytest                       # includes the live smoke te
 npx @modelcontextprotocol/inspector@latest uv run --env-file .env openaustralia-mcp
 ```
 
-See [architecture.md](docs/architecture.md) for how the server is put together.
-
 ### Running the evals
 
-The evals check that Claude picks the right tool with the right arguments. They call the Anthropic API, so they cost money, and they never run under `uv run pytest` or in CI. Put `ANTHROPIC_API_KEY` in `.env`, then:
+The evals check that Claude picks the right tool with the right arguments. They call the Anthropic API, so they cost money. They never run under `uv run pytest`, and in CI they run only on demand. Put `ANTHROPIC_API_KEY` in `.env`, then:
 
 ```bash
 # One case, one trial, on Haiku: well under a cent
@@ -153,6 +150,15 @@ uv run --group evals --env-file .env python -m evals --models claude-sonnet-5-5 
 ```
 
 `--max-cost-usd` is required. The runner refuses a run estimated above it, and stops starting trials once that much is spent. Results go to `evals/results/runs/<timestamp>/` (gitignored). A pull request that changes a tool's name, description or arguments compares its scores with [baseline.md](evals/results/baseline.md): add the `run-evals` label to run them in CI, or run [evals.yml](.github/workflows/evals.yml) by hand. See [evals.md](docs/evals.md).
+
+## Docs
+
+- [contributing.md](docs/contributing.md): house rules, and how to add a tool, test and commit. Read it before changing anything.
+- [architecture.md](docs/architecture.md): how the server is put together.
+- [tools.md](docs/tools.md): each tool's status, naming, result shaping and caching.
+- [api-notes.md](docs/api-notes.md): what the APIs actually do, from live calls.
+- [adr/](docs/adr/): the big decisions and why they went that way.
+- [evals.md](docs/evals.md): how Claude's tool use is measured.
 
 ## Roadmap
 

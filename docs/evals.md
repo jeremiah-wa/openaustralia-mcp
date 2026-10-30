@@ -40,7 +40,7 @@ A request with no matching fixture gets an HTTP 404. The server returns it to Cl
 
 ## The runner
 
-The runner ([evals/runner.py](../evals/runner.py)) is Python, using the Anthropic SDK's tool runner (beta). `async_mcp_tool` from `anthropic.lib.tools.mcp` turns each MCP tool into a Claude tool definition and calls it through the MCP session. The in-memory `Client` gives that session as `client.session`. The runner wraps it in a `RecordingSession`, which records each call's arguments and full result before passing the result on.
+The runner ([evals/runner.py](../evals/runner.py)) is Python, using the Anthropic SDK's tool runner (beta). `async_mcp_tool` from `anthropic.lib.tools.mcp` turns each MCP tool into a Claude tool definition and calls it through the MCP session. The in-memory `Client` gives that session as `client.session`. The runner wraps it in a `RecordingSession`, which records each call's arguments and full result before passing the result on. [ADR 0006](adr/0006-hand-written-eval-runner.md) records why it's hand-written.
 
 | Setting | Choice | Why |
 |---|---|---|
@@ -55,16 +55,16 @@ Checked while building it (anthropic 2.3, mcp 2.3):
 - It passes Claude's input on as it is, so a misnamed argument reaches the server and is recorded.
 - The tool runner has a turn limit, `max_iterations`, with no limit by default.
 - What Claude sees from a tool result: `async_mcp_tool` sends the result's `content` blocks, and the `structured_content` only when there are none. This server's tools return one text block that holds the same JSON as the structured content, so Claude gets the same data either way. **unverified**: whether Claude Code sends the text block, the structured content, or both. For this server's tools, that changes the format but not the data.
-- Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner fails a trial whose `model` isn't the one it asked for.
+- Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner stops the run if a response's `model` isn't the one it asked for.
 
 ## Cases
 
-Each case is a YAML file under `evals/cases/`. This example shows the intended shape. #6 may change the field names.
+Each case is a YAML file under `evals/cases/`. This is `mp-housing-3056.yaml`:
 
 ```yaml
 id: mp-housing-3056
-tags: [regression]
-question: What has my federal MP for postcode 3056 said about housing?
+tags: [regression, search]
+question: What has my federal MP for 3056 said about housing?
 fixtures:
   - getRepresentatives_postcode_3056.json
   - file: getHansard_search_housing_person_10887.json
@@ -81,7 +81,6 @@ expect:
   forbidden:
     - tool: search_hansard
       args_missing: [person_id]
-  max_calls: 4
   answer_contains: [Peter Khalil]
   cites_url: true
 ```
@@ -139,7 +138,7 @@ An LLM judge for answer quality, such as whether Hansard is quoted as it is, can
 
 Effort sets how deeply the model thinks, so it changes behaviour. Those are each model's defaults, but the runner sets them explicitly and records them with every run, so a change in defaults can't change the scores unnoticed. Scores are only compared between runs with the same model and effort.
 
-The runner checks that the `model` in each response is the one it asked for, and fails the trial loudly if not.
+The runner checks that the `model` in each response is the one it asked for. If not, it stops the whole run, with no summary, because the scores would be meaningless.
 
 ## Errors
 
@@ -155,11 +154,13 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 | The run's scores: passes per case and model, and each model's effort and cost per trial | Same folder, `scores.json` | No |
 | The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have. A pull request that changes a tool updates both when it merges |
 
+Pull requests compare with the baseline without committing every run. CI reads the scores and the cost per trial from `baseline.json`, not from the markdown.
+
 ## Where it lives
 
 - `evals/` at the top level, outside pytest's `testpaths`. Evals cost money and aren't deterministic, so `uv run pytest` never runs them.
 - An `evals` dependency group with `anthropic[mcp]`. It's not a runtime dependency.
-- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, and never in `ci.yml`. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores.
+- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, because each run costs money (see [Cost](#cost)), and never in `ci.yml`, which keeps the Anthropic key out of the jobs that run on every push. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores. There's no threshold until there are a few runs to compare.
 
 ## Keys
 
@@ -178,4 +179,6 @@ Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $
 ## Later
 
 - An LLM judge for answer quality.
+- An A/A run to measure the noise in the scores ([#17](https://github.com/jeremiah-wa/openaustralia-mcp/issues/17)).
+- A/B testing for tools and server versions ([#18](https://github.com/jeremiah-wa/openaustralia-mcp/issues/18)).
 - `claude plugin eval` on a small subset of cases. It runs them inside the real Claude Code, with its system prompt, tool naming and tool search, which can hide MCP tools until Claude searches for them. That's worth checking before a tool-shape decision such as #8 is locked in. It and the other options considered are compared in [this comment on #5](https://github.com/jeremiah-wa/openaustralia-mcp/issues/5#issuecomment-6411528943).
