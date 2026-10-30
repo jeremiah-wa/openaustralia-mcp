@@ -55,7 +55,7 @@ Checked while building it (anthropic 2.3, mcp 2.3):
 - It passes Claude's input on as it is, so a misnamed argument reaches the server and is recorded.
 - The tool runner has a turn limit, `max_iterations`, with no limit by default.
 - What Claude sees from a tool result: `async_mcp_tool` sends the result's `content` blocks, and the `structured_content` only when there are none. This server's tools return one text block that holds the same JSON as the structured content, so Claude gets the same data either way. **unverified**: whether Claude Code sends the text block, the structured content, or both. For this server's tools, that changes the format but not the data.
-- Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner fails a trial whose `model` isn't the one it asked for.
+- Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner stops the run if a response's `model` isn't the one it asked for.
 
 ## Cases
 
@@ -139,7 +139,7 @@ An LLM judge for answer quality, such as whether Hansard is quoted as it is, can
 
 Effort sets how deeply the model thinks, so it changes behaviour. Those are each model's defaults, but the runner sets them explicitly and records them with every run, so a change in defaults can't change the scores unnoticed. Scores are only compared between runs with the same model and effort.
 
-The runner checks that the `model` in each response is the one it asked for, and fails the trial loudly if not.
+The runner checks that the `model` in each response is the one it asked for. If not, it stops the whole run, with no summary, because the scores would be meaningless.
 
 ## Errors
 
