@@ -2,11 +2,11 @@
 
 What each tool does, how the tools are named, and how their results are shaped and cached. What the APIs behind them actually do is in [api-notes.md](api-notes.md).
 
-At first the tools follow the API functions one to one, with three changes: results are trimmed, results include the IDs the next call needs, and some names are changed so they don't mislead the model. Once real use shows where Claude struggles, the tools will be reworked around tasks.
+At first the tools follow the API functions one to one, with three changes: results are trimmed, results include the IDs the next call needs, and some names are changed so they don't mislead the model. The exception is `get_members`, which covers all four member functions. Once real use shows where Claude struggles, the tools will be reworked around tasks.
 
 | Tool | Status | API call(s) | Returns |
 |---|---|---|---|
-| `get_members` | Representatives by postcode only. Name and party search and Senators come next ([#16](https://github.com/jeremiah-wa/openaustralia-mcp/issues/16)) | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate/state |
+| `get_members` | Built, for both houses, by postcode, `person_id`, name, party, state and house | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate or state, and whether they're current |
 | `get_electorates` | Not built | OA `getDivisions` | Electorates (electoral divisions) |
 | `search_hansard` | Built, by query, `person_id` or both. First page only: paging and `order` come next | OA `getHansard` | 20 hits (one OpenAustralia page): speaker, `person_id`, date, house, debate title, excerpt, `gid`, URL. Plus the total number of hits |
 | `read_debate` | Built. Its cache by `gid` comes next | OA `getDebates` (by `gid` and `type`, so `house` is required: [ADR 0005](adr/0005-read-debate-requires-the-house.md)) | A speech, or the whole debate for a heading `gid`. Up to 4,000 characters per call, plus `offset` for the next page |
@@ -18,7 +18,7 @@ Guidance on chaining tools goes in the server `instructions` and the tool descri
 ## Naming
 
 - **"Divisions" means two different things.** OpenAustralia's `getDivisions` returns electorates, while They Vote For You's `/divisions` returns votes. The tools are named `get_electorates` and `get_votes` so the model can't mix them up.
-- **Only one tool looks up members.** They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
+- **Only one tool looks up members,** with more parameters rather than more tools ([ADR 0007](adr/0007-one-get-members-tool.md)). `get_members` takes a postcode, a `person_id`, or any of name, party, state and house, and explains combinations that make no sense. They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
 - **`getComments` is left out.** It fetches comments left on OpenAustralia, which aren't relevant for now: the server is for answering questions from the political data OpenAustralia curates.
 
 ## Result shaping

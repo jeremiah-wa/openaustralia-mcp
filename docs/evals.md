@@ -88,7 +88,7 @@ Both were built from `build_server`, with `get_members` removed and their own me
 - The runs: both variants, Sonnet and Haiku, 5 trials, over the 7 member cases (`members-*`) and the regression cases that use `get_members` or chain from it (`mp-0000`, `mp-3056`, `mp-3181`, `mp-housing-3056`, `mp-housing-read-3056`, `mp-recent-3056`) plus `ndis-search`. `mp-3142` was left out, because its baseline failures come from the harness (no recorded response for 3141), not the tools.
 - The result: `parameters`, by rule 2. Both variants passed every trial on 5 of 7 member cases on Sonnet and 4 of 7 on Haiku, and `parameters` took fewer calls per trial on both models. See [evals/results/member-lookup.md](../evals/results/member-lookup.md).
 
-`parameters` went into the server in [#16](https://github.com/jeremiah-wa/openaustralia-mcp/issues/16), with the wording that was measured, so `current` is the only variant for now. The variants' own code stays on the `chore/member-lookup-experiment` branch.
+`parameters` went into the server in [#16](https://github.com/jeremiah-wa/openaustralia-mcp/issues/16), with the wording that was measured ([ADR 0007](adr/0007-one-get-members-tool.md)), so `current` is the only variant for now. The variants' own code stays on the `chore/member-lookup-experiment` branch.
 
 ## Cases
 

@@ -24,7 +24,7 @@ Claude picks the tools, chains them (find the member → search Hansard → read
 
 | Tool | Source | What it does |
 |---|---|---|
-| `get_members` | OpenAustralia | Find Representatives and Senators by name, postcode or party. Returns `person_id`s. |
+| `get_members` | OpenAustralia | Find Representatives and Senators by postcode, name, party or state, or look up a `person_id`, current or former. Returns `person_id`s. |
 | `get_electorates` | OpenAustralia | Look up electorates (OpenAustralia calls them "divisions") by name or postcode. |
 | `search_hansard` | OpenAustralia | Search what was said in Parliament. Returns short excerpts with a `gid` per hit. |
 | `read_debate` | OpenAustralia | Read the full text of a speech, or a whole debate, by `gid` and house, a page at a time. |
