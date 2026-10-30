@@ -24,7 +24,7 @@ These protect users' keys and keep the project within the data licences. Don't b
 7. **Non-commercial.** Don't add anything that charges for access or resells the data.
 8. **Keep results small.**
    - Don't return a raw API response from a tool.
-   - New tools follow the result-shaping rules in [architecture.md](architecture.md#result-shaping).
+   - New tools follow the result-shaping rules in [tools.md](tools.md#result-shaping).
 
 ## Design changes
 

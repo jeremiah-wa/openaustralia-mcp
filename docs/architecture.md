@@ -55,33 +55,10 @@ Dashed lines aren't built yet.
 |---|---|
 | **Entry points** | Read config, build the server, attach a transport. Stage 1 ships stdio only. The HTTP entry point is a later addition and doesn't change the core. |
 | **Server factory** | The single construction point. It takes an HTTP client and the config, so tests can swap in fakes (see [Testing](#testing)). A clock parameter is added along with the cache. |
-| **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
-| **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. |
-| **Cache** | Will avoid repeat calls for data that rarely or never changes. Not built yet. |
+| **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. See [tools.md](tools.md). |
+| **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. See [tools.md](tools.md#result-shaping). |
+| **Cache** | Will avoid repeat calls for data that rarely or never changes. Not built yet. See [tools.md](tools.md#caching). |
 | **API clients** | One per API, though only the OpenAustralia client is built so far. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
-
-## Tools
-
-At first the tools follow the API functions one to one, with three changes: results are trimmed, results include the IDs the next call needs, and some names are changed so they don't mislead the model. Once real use shows where Claude struggles, the tools will be reworked around tasks.
-
-| Tool | API call(s) | Returns |
-|---|---|---|
-| `get_members` | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate/state |
-| `get_electorates` | OA `getDivisions` | Electorates (electoral divisions) |
-| `search_hansard` | OA `getHansard` | 20 hits (one OpenAustralia page): speaker, `person_id`, date, house, debate title, excerpt, `gid`, URL. Plus the total number of hits |
-| `read_debate` | OA `getDebates` (by `gid` and `type`) | Up to ~4,000 characters per call, plus `offset` for the next page |
-| `get_policies`, `get_policy` | TVFY `/policies` | Policy topics, with each member's agreement score |
-| `get_votes`, `get_vote` | TVFY `/divisions` | Individual votes and how each member voted |
-
-Notes on naming:
-
-- **"Divisions" means two different things.** OpenAustralia's `getDivisions` returns electorates, while They Vote For You's `/divisions` returns votes. The tools are named `get_electorates` and `get_votes` so the model can't mix them up.
-- **Only one tool looks up members.** They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
-- **`getComments` is left out.**
-
-What each API actually does, from live calls, is in [api-notes.md](api-notes.md).
-
-Status: `get_members` covers postcode lookup of Representatives only. Name and party search and Senators come next. `search_hansard` searches by query, `person_id` or both, and returns the first page of 20. Paging and `order` come next. `read_debate` reads a speech gid, or a heading gid for the whole debate, 4,000 characters at a time. Its cache by `gid` comes next.
 
 ## A typical question
 
@@ -141,31 +118,6 @@ flowchart TD
   - A pre-commit hook and CI scan with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed.
   - The evals' Anthropic key needs no custom rule. gitleaks' default `anthropic-api-key` rule, which `.gitleaks.toml` keeps, caught a fake key in four forms under v8.28.0: on its own, as `ANTHROPIC_API_KEY=…`, as a JSON value and as a Python argument. It doesn't flag the `.env.example` placeholder.
 - **Network failures, non-200 statuses and non-JSON bodies** (such as a Cloudflare challenge page) all return "couldn't be reached" or "didn't respond normally (HTTP …)".
-
-## Result shaping
-
-Hansard responses are long, and model context is limited. The rules:
-
-| Rule | Default |
-|---|---|
-| Search hits per page | 20, OpenAustralia's fixed page size |
-| Excerpt | OpenAustralia's own (~400 characters), with markup stripped and entities decoded |
-| `read_debate` page size | ~4,000 characters, with an `offset` for the next page |
-| Attribution | Every result ends with a source URL and the licence line |
-| Hansard text | Cut, never rewritten or summarised on the server (CC BY-NC-ND: no derivatives) |
-
-These defaults are starting values, to be tuned once recorded responses show real sizes.
-
-## Caching
-
-No cache is built yet, so every call goes to the API. This is the plan. The cache will be in memory only, and lost when the process exits.
-
-| Data | Policy | Why |
-|---|---|---|
-| Members, electorates | 24-hour TTL | Rarely change, and almost every question looks up a `person_id` |
-| TVFY policies | 24-hour TTL | Rarely change |
-| Debate text (by `gid` and house) | Bounded LRU (~50 items) | Published Hansard never changes, and paging with `offset` would otherwise download the whole debate again for every page. The key needs the house, because gids repeat across houses |
-| Searches | Not cached | New sitting days change the results, and a stale search could silently miss today's debate |
 
 ## Testing
 
