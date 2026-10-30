@@ -13,6 +13,8 @@ class Call(BaseModel):
     tool: str
     input: dict[str, Any]
     result: dict[str, Any] | None = None
+    # The tool's error message, for a call that failed.
+    error: str | None = None
 
     def describe(self) -> str:
         return f"{self.tool}({', '.join(f'{name}={value!r}' for name, value in self.input.items())})"

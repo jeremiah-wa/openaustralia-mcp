@@ -29,6 +29,10 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.2",
 ]
+evals = [
+    "anthropic[mcp]>=2.3.0",
+    "pyyaml>=6.0.3",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
