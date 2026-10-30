@@ -152,13 +152,14 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 | One JSON line per trial: case, model, effort, calls, results, answer, grades, token usage | `evals/results/runs/<timestamp>/trials.jsonl` | No, gitignored |
 | Trials that ended in an error | Same folder, `errors.jsonl` | No |
 | A markdown summary per run: scores by model and tag, cases by model, failure reasons, cost | Same folder, `summary.md` | No |
-| The baseline summary | `evals/results/baseline.md` | Yes. A pull request that changes a tool compares against it, and updates it when it merges |
+| The run's scores: passes per case and model, and each model's effort and cost per trial | Same folder, `scores.json` | No |
+| The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have. A pull request that changes a tool updates both when it merges |
 
 ## Where it lives
 
 - `evals/` at the top level, outside pytest's `testpaths`. Evals cost money and aren't deterministic, so `uv run pytest` never runs them.
 - An `evals` dependency group with `anthropic[mcp]`. It's not a runtime dependency.
-- They're run by hand, with the command in the README (#6), and on demand in their own workflow ([#7](https://github.com/jeremiah-wa/openaustralia-mcp/issues/7)). Never in `ci.yml`.
+- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, and never in `ci.yml`. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores.
 
 ## Keys
 
@@ -170,7 +171,7 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 
 A run costs cases × trials × models × the cost of one trial. The cost of a trial is measured from the token usage in the results and priced per model. In October 2026, Sonnet 5.5 costs $2 per million input tokens and $10 per million output tokens, and Haiku 5.5 costs $0.10 and $0.50.
 
-Before starting, the runner prints an estimate from the mean cost per trial in the latest run that used each model. `--max-cost-usd` is required, and the runner stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
+Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. `--max-cost-usd` is required. The runner refuses a run whose estimate is over it, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
 Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average.
 

@@ -205,7 +205,7 @@ flowchart LR
 - **Cache tests** move the fake clock forward to check the TTL, and count HTTP calls to check that paging through one `gid` fetches it only once.
 - **Live smoke tests** use the same tool-level seam with a real HTTP client. They run only when the key env vars are set. CI runs them in `live.yml` every Sunday at 20:17 UTC, by hand, and on pull requests that change them, and fails if the key secret is missing rather than letting them skip.
 - **Manual testing** uses MCP Inspector.
-- **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. See [evals.md](evals.md).
+- **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. CI runs them only in `evals.yml`, by hand or when a pull request gets the `run-evals` label, and the job summary compares the run with the committed baseline. See [evals.md](evals.md).
 
 Nothing below the tool call is tested on its own. That keeps the internals free to change when the tools are reworked around tasks.
 
@@ -231,7 +231,8 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | Tool-use evals | A hand-written runner on the Anthropic SDK's tool runner, over the in-memory MCP client, with recorded responses routed by request. See [evals.md](evals.md) | Same seam as the tests, no OpenAustralia key, and graders can check argument values and the raw input. Cheapest per run. `claude plugin eval`, Inspect AI and promptfoo were compared in [#5](https://github.com/jeremiah-wa/openaustralia-mcp/issues/5#issuecomment-6411528943) |
 | Eval graders | Deterministic: expected calls with arguments matched on value, dependencies rather than an exact order, forbidden calls, unknown arguments, number of calls, facts the answer must contain, and a cited `url`. No LLM judge yet | Tool choice, arguments and facts from the fixtures can be checked exactly. A fixed order rejects other valid paths |
 | Eval models and trials | `claude-sonnet-5-5` by default and `claude-haiku-5-5` as the stress test, with effort set explicitly. 5 trials per case, reporting the pass rate and pass^k | Answers vary between runs and sampling can't be turned down. Smaller models are more sensitive to tool design |
-| Eval results | JSON per run, gitignored. A markdown baseline, `evals/results/baseline.md`, is committed | Pull requests compare against the baseline without committing every run |
+| Eval results | JSON per run, gitignored. The baseline is committed as markdown, `evals/results/baseline.md`, and as scores, `evals/results/baseline.json` | Pull requests compare against the baseline without committing every run. CI reads the scores and the cost per trial from the JSON, not from the markdown |
+| Evals in CI | A separate workflow, `evals.yml`, run by hand or by the `run-evals` label on a pull request, reporting only | Each full run costs about $2.40, so never on a push. A separate workflow keeps the Anthropic key out of the jobs that run on every push. No threshold until there are a few runs to compare |
 | Code licence | MIT | Data licences are documented separately |
 
 ## Open questions
