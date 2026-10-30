@@ -28,7 +28,11 @@ These protect users' keys and keep the project within the data licences. Don't b
 
 ## Design changes
 
-- [architecture.md](architecture.md) records the current design and the reasons for it. If a change goes against something in it (tool names, result sizes, caching, the one-server decision), update the doc in the same change and add a row to its decision table.
+- [architecture.md](architecture.md) and [tools.md](tools.md) record the current design and the reasons for it. If a change goes against something in them (tool names, result sizes, caching), update the doc in the same change.
+- [api-notes.md](api-notes.md) records what the APIs actually do. Add what a live call shows there.
+- [adr/](adr/) records the big decisions, one file each. Add one only when a decision is all three of: hard to reverse, surprising without context, and the result of a real trade-off. Smaller decisions go in the doc they affect, with the reason.
+  - Name it `NNNN-slug.md`, with the next number. One paragraph is usually enough: the context, the decision and why. Add `Considered options` only when the rejected alternatives are worth remembering.
+  - When a decision changes, don't rewrite its ADR. Add a new one, and give the old one `status: superseded by ADR-NNNN` in frontmatter.
 - Tool names and descriptions are written for the model. When you rename a tool or change its description, check that the server `instructions` still describe the right chain of calls.
 
 ## Code
@@ -72,7 +76,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 |---|---|
 | `feat` | A new tool or a change in behaviour users can see |
 | `fix` | A bug fix |
-| `docs` | README, architecture.md, this file, or tool descriptions only |
+| `docs` | README, anything under `docs/`, or tool descriptions only |
 | `test` | Tests or fixtures only |
 | `refactor` | Code changes with no change in behaviour |
 | `chore` | Dependencies, tooling, CI |
@@ -84,7 +88,7 @@ Examples:
 ```
 feat(tools): add search_hansard with excerpt trimming
 fix(cache): stop caching responses that contain an API error
-docs: record person_id check result in architecture.md
+docs: record person_id check result in api-notes.md
 ```
 
 - Keep each commit to one logical change, small enough to revert without losing other work. A tool is usually several commits: one per behaviour, each with its test and the code that makes it pass, e.g. "add get_members lookup by postcode", then "explain a missing OpenAustralia key".
