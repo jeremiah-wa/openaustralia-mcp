@@ -9,7 +9,7 @@ At first the tools follow the API functions one to one, with three changes: resu
 | `get_members` | Representatives by postcode only. Name and party search and Senators come next | OA `getRepresentatives`, `getRepresentative`, `getSenators`, `getSenator` | Members with `person_id`, house, party, electorate/state |
 | `get_electorates` | Not built | OA `getDivisions` | Electorates (electoral divisions) |
 | `search_hansard` | Built, by query, `person_id` or both. First page only: paging and `order` come next | OA `getHansard` | 20 hits (one OpenAustralia page): speaker, `person_id`, date, house, debate title, excerpt, `gid`, URL. Plus the total number of hits |
-| `read_debate` | Built. Its cache by `gid` comes next | OA `getDebates` (by `gid` and `type`, so `house` is required: [ADR 0005](adr/0005-read-debate-requires-the-house.md)) | A speech, or the whole debate for a heading `gid`. Up to ~4,000 characters per call, plus `offset` for the next page |
+| `read_debate` | Built. Its cache by `gid` comes next | OA `getDebates` (by `gid` and `type`, so `house` is required: [ADR 0005](adr/0005-read-debate-requires-the-house.md)) | A speech, or the whole debate for a heading `gid`. Up to 4,000 characters per call, plus `offset` for the next page |
 | `get_policies`, `get_policy` | Not built | TVFY `/policies` | Policy topics, with each member's agreement score |
 | `get_votes`, `get_vote` | Not built | TVFY `/divisions` | Individual votes and how each member voted |
 
@@ -29,7 +29,7 @@ Hansard responses are long, and model context is limited. The rules:
 |---|---|---|
 | Search hits per page | 20, OpenAustralia's fixed page size | `getHansard` can't return fewer (`num` gives HTTP 500), and paging can later map straight onto its `page` |
 | Excerpt | OpenAustralia's own (~400 characters), with markup stripped and entities decoded | It's already short. Cutting further would lose context for little saving |
-| `read_debate` page size | ~4,000 characters, with an `offset` for the next page | A whole debate can run to about 51,000 characters |
+| `read_debate` page size | 4,000 characters, with an `offset` for the next page | A whole debate can run to about 51,000 characters |
 | `read_debate` text | Each speech after its speaker's name, paragraphs kept, paged by character offset over the joined text | One shape for a single speech and a whole debate. Character offsets stay valid between calls because published Hansard doesn't change |
 | Attribution | Every successful result ends with `source_url` (the OpenAustralia home page) and the licence line | The Creative Commons licences require credit and a link to the licence. `source_url` is our choice (**unverified**: Parliament's copyright page returns 403 to scripts). They Vote For You asks for a link to its site, so its tools will need one |
 | Hansard text | Cut, never rewritten or summarised on the server | No derivatives ([ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)) |
