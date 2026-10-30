@@ -136,7 +136,7 @@ flowchart LR
 - **Manual testing** uses MCP Inspector.
 - **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. CI runs them only in `evals.yml`, by hand or when a pull request gets the `run-evals` label, and the job summary compares the run with the committed baseline. See [evals.md](evals.md).
 
-Nothing below the tool call is tested on its own. That keeps the internals free to change when the tools are reworked around tasks.
+Nothing below the tool call is tested on its own ([ADR 0004](adr/0004-test-through-the-tool-call.md)).
 
 ## Key decisions
 
