@@ -9,7 +9,8 @@ The project is in early building. `get_members` (postcode lookup of Representati
 - [README.md](README.md): what the server does, its tools, setup for Claude Desktop and Claude Code, data licences, development commands, roadmap.
 - [architecture.md](docs/architecture.md): components, tool-to-API mapping, key and error handling, result shaping, caching, testing seams, decision log, open questions.
 - [contributing.md](docs/contributing.md): house rules (keys, licences, read-only), code and test conventions, commit and branch conventions.
+- [evals.md](docs/evals.md): evals of Claude's tool use: seam, runner, cases, graders, trials, models, results, cost.
 
-Read architecture.md before changing tools, result sizes, caching or tests. When a design decision changes, update those docs, not this file.
+Read architecture.md before changing tools, result sizes, caching or tests, and evals.md before changing a tool's name, description or arguments. When a design decision changes, update those docs, not this file.
 
 Follow the commit conventions in contributing.md. Never add a `Co-Authored-By: Claude` trailer, or any other AI attribution, to commits or pull requests.

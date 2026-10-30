@@ -161,6 +161,7 @@ flowchart TD
   - The API clients catch HTTP errors and re-raise them `from None` with the status only, because httpx2 errors carry the request and its URL.
   - Tests check results and captured logs for a sentinel key.
   - A pre-commit hook and CI scan with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed.
+  - The evals' Anthropic key needs no custom rule. gitleaks' default `anthropic-api-key` rule, which `.gitleaks.toml` keeps, caught a fake key in four forms under v8.28.0: on its own, as `ANTHROPIC_API_KEY=…`, as a JSON value and as a Python argument. It doesn't flag the `.env.example` placeholder.
 - **Network failures, non-200 statuses and non-JSON bodies** (such as a Cloudflare challenge page) all return "couldn't be reached" or "didn't respond normally (HTTP …)".
 
 ## Result shaping
@@ -204,6 +205,7 @@ flowchart LR
 - **Cache tests** move the fake clock forward to check the TTL, and count HTTP calls to check that paging through one `gid` fetches it only once.
 - **Live smoke tests** use the same tool-level seam with a real HTTP client. They run only when the key env vars are set. CI runs them in `live.yml` every Sunday at 20:17 UTC, by hand, and on pull requests that change them, and fails if the key secret is missing rather than letting them skip.
 - **Manual testing** uses MCP Inspector.
+- **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. See [evals.md](evals.md).
 
 Nothing below the tool call is tested on its own. That keeps the internals free to change when the tools are reworked around tasks.
 
@@ -226,6 +228,10 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | Distribution | `uvx --from git+…` | No release process needed. PyPI later. |
 | Live tests in CI | A separate weekly workflow, with the OpenAustralia key in a repository secret | Recorded responses can't show the API changing. Weekly keeps the load on a charity's free API small, and a separate workflow keeps the key out of the jobs that run on every push |
 | Committed-key check | gitleaks with a custom rule in `.gitleaks.toml`, run by a pre-commit hook and again in CI | GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You. The hook stops a key before it's committed. CI catches clones without the hook, and `--no-verify` |
+| Tool-use evals | A hand-written runner on the Anthropic SDK's tool runner, over the in-memory MCP client, with recorded responses routed by request. See [evals.md](evals.md) | Same seam as the tests, no OpenAustralia key, and graders can check argument values and the raw input. Cheapest per run. `claude plugin eval`, Inspect AI and promptfoo were compared in [#5](https://github.com/jeremiah-wa/openaustralia-mcp/issues/5#issuecomment-6411528943) |
+| Eval graders | Deterministic: expected calls with arguments matched on value, dependencies rather than an exact order, forbidden calls, unknown arguments, number of calls, facts the answer must contain, and a cited `url`. No LLM judge yet | Tool choice, arguments and facts from the fixtures can be checked exactly. A fixed order rejects other valid paths |
+| Eval models and trials | `claude-sonnet-5-5` by default and `claude-haiku-5-5` as the stress test, with effort set explicitly. 5 trials per case, reporting the pass rate and pass^k | Answers vary between runs and sampling can't be turned down. Smaller models are more sensitive to tool design |
+| Eval results | JSON per run, gitignored. A markdown baseline, `evals/results/baseline.md`, is committed | Pull requests compare against the baseline without committing every run |
 | Code licence | MIT | Data licences are documented separately |
 
 ## Open questions
