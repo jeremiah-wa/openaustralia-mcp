@@ -54,6 +54,32 @@ class TestLookupByPostcode:
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "postcode": "3056"}
 
 
+class TestLookupByPersonId:
+    async def test_finds_a_former_member(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Keith Wolahan was the MP for Menzies until 2025, and was never a Senator.
+        fake_api.route("openaustralia/getRepresentative_id_10990.json")
+        fake_api.route("openaustralia/getSenator_id_10990.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10990"})
+
+        assert not result.is_error
+        assert result.structured_content["members"] == [
+            {
+                "person_id": "10990",
+                "name": "Keith Wolahan",
+                "party": "Liberal Party",
+                "house": "representatives",
+                "electorate": "Menzies",
+                "state": None,
+                "current": False,
+                "left": "2025-05-03",
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/mp/?p=10990",
+            }
+        ]
+
+
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
         async with connect(Config()) as client:

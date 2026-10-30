@@ -31,13 +31,15 @@ class MemberRecord(BaseModel):
 
     @classmethod
     def from_representative(cls, representative: Representative) -> "MemberRecord":
+        current = representative.is_current
         return cls(
             person_id=representative.person_id,
             name=representative.full_name,
             party=representative.party or "",
             house="representatives",
             electorate=representative.constituency,
-            current=True,
+            current=current,
+            left=None if current else representative.left_house,
             positions=representative.current_positions,
             url=representative.url,
         )

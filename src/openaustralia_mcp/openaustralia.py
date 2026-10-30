@@ -36,7 +36,12 @@ class Representative(BaseModel):
     full_name: str
     party: str | None = None
     constituency: str | None = None
+    left_house: str = STILL_CURRENT
     office: list[Office] = []
+
+    @property
+    def is_current(self) -> bool:
+        return self.left_house == STILL_CURRENT
 
     @property
     def current_positions(self) -> list[str]:
@@ -52,6 +57,7 @@ class Representative(BaseModel):
 # such as an electorate abolished in a redistribution that its postcode data still includes.
 Representatives = list[Representative | Literal[False]]
 _representatives = TypeAdapter(Representatives)
+_representative_records = TypeAdapter(list[Representative])
 
 
 class HansardSpeaker(BaseModel):
@@ -138,6 +144,10 @@ class OpenAustraliaClient:
     async def get_representatives(self, postcode: str) -> Representatives:
         """House of Representatives members whose electorate covers the postcode."""
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
+
+    async def get_representative(self, person_id: str) -> list[Representative]:
+        """The person's records as a member of the House, current or former."""
+        return _representative_records.validate_python(await self._call("getRepresentative", id=person_id))
 
     async def search_hansard(self, search: str | None = None, person: str | None = None) -> HansardSearch:
         """Speeches in either house that match the search and/or are by the person, newest first, 20 to a page."""

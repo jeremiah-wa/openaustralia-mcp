@@ -67,13 +67,24 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
 
     @server.tool(annotations=READ_ONLY)
     async def get_members(
-        postcode: Annotated[str, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')],
+        postcode: Annotated[
+            str | None, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')
+        ] = None,
+        person_id: Annotated[
+            str | None,
+            Field(
+                pattern=r"^\d+$",
+                description="A member's person_id, current or former, e.g. from a search_hansard hit.",
+            ),
+        ] = None,
     ) -> MemberLookupResult:
         """Find the federal member of the House of Representatives (MP) for an Australian postcode.
 
         Returns each member's person_id, name, party, electorate and current positions. A postcode can
         span more than one electorate, so there may be several members. Senators aren't covered yet.
         """
+        if person_id is not None:
+            return await _member_by_person_id(openaustralia, person_id)
         return await _members_by_postcode(openaustralia, postcode)
 
     @server.tool(annotations=READ_ONLY)
@@ -165,6 +176,15 @@ async def _members_by_postcode(openaustralia: OpenAustraliaClient, postcode: str
         )
     note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
     return _member_lookup_result([MemberRecord.from_representative(member) for member in found], note)
+
+
+async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> MemberLookupResult:
+    """Every record the person has."""
+    try:
+        representative = await openaustralia.get_representative(person_id)
+    except ApiClientError as exc:
+        raise ToolError(_describe(exc, person_id=person_id)) from None
+    return _member_lookup_result([MemberRecord.from_representative(record) for record in representative])
 
 
 def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
