@@ -65,6 +65,9 @@ RECORDED = {
     "openaustralia/getSenator_id_10942.json": RecordedRequest("getSenator", {"id": "10942"}),
     # Every current Senator, with the offices getSenator leaves out.
     "openaustralia/getSenators.json": RecordedRequest("getSenators", {}),
+    # Don Farrell left the Senate in 2014 and came back in 2016: he has a former and a current Senate record.
+    "openaustralia/getRepresentative_id_10708.json": RecordedRequest("getRepresentative", {"id": "10708"}),
+    "openaustralia/getSenator_id_10708.json": RecordedRequest("getSenator", {"id": "10708"}),
     "openaustralia/getRepresentative_id_99999.json": RecordedRequest("getRepresentative", {"id": "99999"}),
     "openaustralia/getSenator_id_99999.json": RecordedRequest("getSenator", {"id": "99999"}),
     "openaustralia/getHansard_person_10887.json": RecordedRequest("getHansard", {"person": "10887"}),

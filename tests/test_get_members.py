@@ -151,6 +151,28 @@ class TestLookupByPersonId:
             },
         ]
 
+    async def test_keeps_the_former_record_of_a_senator_who_came_back(
+        self, connect: Connect, fake_api: FakeApi
+    ) -> None:
+        # Don Farrell left the Senate in 2014 and came back in 2016.
+        fake_api.route("openaustralia/getRepresentative_id_10708.json")
+        fake_api.route("openaustralia/getSenator_id_10708.json")
+        fake_api.route("openaustralia/getSenators.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10708"})
+
+        assert not result.is_error
+        [current, former] = result.structured_content["members"]
+        assert (current["current"], current["left"]) == (True, None)
+        assert current["positions"] == [
+            "Minister for Trade and Tourism",
+            "Deputy Leader of the Government in the Senate",
+            "Special Minister of State",
+        ]
+        assert (former["current"], former["left"]) == (False, "2014-06-30")
+        assert former["positions"] == []
+
     async def test_asks_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
         fake_api.route("openaustralia/getSenator_id_10990.json")
