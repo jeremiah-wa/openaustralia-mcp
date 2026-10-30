@@ -32,6 +32,7 @@ from openaustralia_mcp.openaustralia import (
     SITE_URL,
     OpenAustraliaClient,
     Representative,
+    State,
 )
 
 VERSION = version("openaustralia-mcp")
@@ -77,6 +78,10 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
                 description="A member's person_id, current or former, e.g. from a search_hansard hit.",
             ),
         ] = None,
+        state: Annotated[
+            State | None,
+            Field(description="A state or territory, e.g. TAS. Senators represent a whole state or territory."),
+        ] = None,
     ) -> MemberLookupResult:
         """Find the federal member of the House of Representatives (MP) for an Australian postcode.
 
@@ -87,7 +92,9 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             return await _member_by_person_id(openaustralia, person_id)
         if postcode is not None:
             return await _members_by_postcode(openaustralia, postcode)
-        raise ToolError("Give a postcode or a person_id.")
+        if state is not None:
+            return await _search_members(openaustralia, state=state)
+        raise ToolError("Give a postcode, a person_id or a state.")
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
@@ -193,6 +200,15 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
         [MemberRecord.from_representative(record) for record in representative]
         + [MemberRecord.from_senator(record) for record in senator]
     )
+
+
+async def _search_members(openaustralia: OpenAustraliaClient, *, state: State) -> MemberLookupResult:
+    """Current Senators for the state."""
+    try:
+        senators = await openaustralia.get_senators(state=state)
+    except ApiClientError as exc:
+        raise ToolError(_describe(exc, state=state)) from None
+    return _member_lookup_result([MemberRecord.from_senator(senator) for senator in senators])
 
 
 def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:

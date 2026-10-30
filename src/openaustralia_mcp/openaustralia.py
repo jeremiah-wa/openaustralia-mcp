@@ -59,9 +59,30 @@ Representatives = list[Representative | Literal[False]]
 _representatives = TypeAdapter(Representatives)
 _representative_records = TypeAdapter(list[Representative])
 
+State = Literal["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"]
+# A spelling of each state that getSenators' `state` accepts. It takes TAS or Tasmania and VIC or Victoria, but only
+# Queensland, not QLD, and only NSW, WA, SA, ACT and NT, not their full names.
+STATE_SPELLINGS: dict[State, str] = {
+    "NSW": "NSW",
+    "VIC": "Victoria",
+    "QLD": "Queensland",
+    "WA": "WA",
+    "SA": "SA",
+    "TAS": "Tasmania",
+    "ACT": "ACT",
+    "NT": "NT",
+}
+# Senators' `constituency` uses the same mix of spellings.
+_STATE_CODES = {spelling: code for code, spelling in STATE_SPELLINGS.items()} | {code: code for code in STATE_SPELLINGS}
+
 
 class Senator(Representative):
     """A Senator as getSenator(s) returns them. `constituency` is their state or territory."""
+
+    @property
+    def state(self) -> str | None:
+        """The state or territory as a code, such as TAS, whichever way OpenAustralia spells it."""
+        return _STATE_CODES.get(self.constituency or "", self.constituency)
 
     @property
     def url(self) -> str:
@@ -159,6 +180,10 @@ class OpenAustraliaClient:
     async def get_representatives(self, postcode: str) -> Representatives:
         """House of Representatives members whose electorate covers the postcode."""
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
+
+    async def get_senators(self, *, state: State) -> list[Senator]:
+        """Current Senators for the state."""
+        return _senator_records.validate_python(await self._call("getSenators", state=STATE_SPELLINGS[state]))
 
     async def get_representative(self, person_id: str) -> list[Representative]:
         """The person's records as a member of the House, current or former. Empty if they never sat in it."""

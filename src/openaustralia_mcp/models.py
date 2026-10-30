@@ -60,7 +60,7 @@ class MemberRecord(BaseModel):
             name=senator.full_name,
             party=senator.party or "",
             house="senate",
-            state=senator.constituency,
+            state=senator.state,
             current=current,
             left=None if current else senator.left_house,
             # getSenators includes offices. getSenator gave Dave Sharma none: his are on his former House record.

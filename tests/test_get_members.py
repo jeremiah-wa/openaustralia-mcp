@@ -60,7 +60,7 @@ class TestNoArguments:
             result = await client.call_tool("get_members", {})
 
         assert result.is_error
-        assert result_text(result) == "Error executing tool get_members: Give a postcode or a person_id."
+        assert result_text(result) == "Error executing tool get_members: Give a postcode, a person_id or a state."
         assert fake_api.requests == []
 
 
@@ -146,6 +146,72 @@ class TestLookupByPersonId:
         assert result_text(result) == (
             "Error executing tool get_members: OpenAustralia has no member of either house with person_id 99999."
         )
+
+
+# The current Senators for Tasmania, in the order OpenAustralia sends them.
+TASMANIA = [
+    "Carol Brown",
+    "Helen Polley",
+    "Nick McKim",
+    "Jonathon Duniam",
+    "Richard Colbeck",
+    "Claire Chandler",
+    "Jacqui Lambie",
+    "Josh Dolega",
+    "Richard Dowling",
+    "Tammy Tyrrell",
+    "Chris Gatenby",
+    "Vanessa Bleyer",
+]
+
+
+class TestSenatorsByState:
+    async def test_lists_the_states_senators(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getSenators_state_Tasmania.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"state": "TAS"})
+
+        assert not result.is_error
+        members = result.structured_content["members"]
+        assert [member["name"] for member in members] == TASMANIA
+        assert members[-1] == {
+            "person_id": "11065",
+            "name": "Vanessa Bleyer",
+            "party": "Australian Greens",
+            "house": "senate",
+            "electorate": None,
+            "state": "TAS",
+            "current": True,
+            "left": None,
+            "positions": [],
+            "url": "https://www.openaustralia.org.au/senator/?p=11065",
+        }
+
+    @pytest.mark.parametrize(
+        ("state", "spelling"),
+        [
+            ("NSW", "NSW"),
+            ("VIC", "Victoria"),
+            ("QLD", "Queensland"),
+            ("WA", "WA"),
+            ("SA", "SA"),
+            ("TAS", "Tasmania"),
+            ("ACT", "ACT"),
+            ("NT", "NT"),
+        ],
+    )
+    async def test_sends_a_spelling_openaustralia_accepts(
+        self, connect: Connect, fake_api: FakeApi, state: str, spelling: str
+    ) -> None:
+        # From live calls: QLD gets no one where Queensland works, and New South Wales no one where NSW works.
+        fake_api.serve(lambda request: httpx2.Response(200, json=[]))
+
+        async with connect() as client:
+            await client.call_tool("get_members", {"state": state})
+
+        [request] = fake_api.requests
+        assert request.url.params["state"] == spelling
 
 
 class TestMissingKey:
