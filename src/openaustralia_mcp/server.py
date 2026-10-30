@@ -82,6 +82,9 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             State | None,
             Field(description="A state or territory, e.g. TAS. Senators represent a whole state or territory."),
         ] = None,
+        party: Annotated[
+            str | None, Field(min_length=2, description='Part of a party\'s name, e.g. "Greens" or "Labor".')
+        ] = None,
     ) -> MemberLookupResult:
         """Find the federal member of the House of Representatives (MP) for an Australian postcode.
 
@@ -92,9 +95,9 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             return await _member_by_person_id(openaustralia, person_id)
         if postcode is not None:
             return await _members_by_postcode(openaustralia, postcode)
-        if state is not None:
-            return await _search_members(openaustralia, state=state)
-        raise ToolError("Give a postcode, a person_id or a state.")
+        if any(value is not None for value in (party, state)):
+            return await _search_members(openaustralia, party=party, state=state)
+        raise ToolError("Give a postcode, a person_id, a party or a state.")
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
@@ -202,13 +205,22 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
     )
 
 
-async def _search_members(openaustralia: OpenAustraliaClient, *, state: State) -> MemberLookupResult:
-    """Current Senators for the state."""
+async def _search_members(
+    openaustralia: OpenAustraliaClient, *, party: str | None = None, state: State | None = None
+) -> MemberLookupResult:
+    """Current members who match every filter given, in both houses unless a state limits it."""
+    filters = {"party": party, "state": state}
+    given = {key: value for key, value in filters.items() if value is not None}
     try:
-        senators = await openaustralia.get_senators(state=state)
+        # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
+        representatives = [] if state else await openaustralia.get_representatives(party=party)
+        senators = await openaustralia.get_senators(state=state, party=party)
     except ApiClientError as exc:
-        raise ToolError(_describe(exc, state=state)) from None
-    return _member_lookup_result([MemberRecord.from_senator(senator) for senator in senators])
+        raise ToolError(_describe(exc, **given)) from None
+    return _member_lookup_result(
+        [MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)]
+        + [MemberRecord.from_senator(senator) for senator in senators]
+    )
 
 
 def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
