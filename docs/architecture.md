@@ -115,9 +115,10 @@ flowchart TD
   - `build_server` raises the `httpx2` and `httpcore2` loggers to WARNING. At INFO, httpx2 logs every request URL, and the SDK writes INFO logs to stderr.
   - The API clients catch HTTP errors and re-raise them `from None` with the status only, because httpx2 errors carry the request and its URL.
   - Tests check results and captured logs for a sentinel key.
-  - A pre-commit hook and CI scan with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed.
+  - A pre-commit hook and CI scan with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed. It needs the custom rule in `.gitleaks.toml`, because GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You. The hook stops a key before it's committed. CI catches clones without the hook, and `--no-verify`.
   - The evals' Anthropic key needs no custom rule. gitleaks' default `anthropic-api-key` rule, which `.gitleaks.toml` keeps, caught a fake key in four forms under v8.28.0: on its own, as `ANTHROPIC_API_KEY=…`, as a JSON value and as a Python argument. It doesn't flag the `.env.example` placeholder.
 - **Network failures, non-200 statuses and non-JSON bodies** (such as a Cloudflare challenge page) all return "couldn't be reached" or "didn't respond normally (HTTP …)".
+- **An HTTP 404 from OpenAustralia** returns "Not found", naming the gid and house. `getDebates` sends a 404 page for an unknown gid, and "try again later" would send Claude round in circles.
 
 ## Testing
 
@@ -132,32 +133,22 @@ flowchart LR
 
 - **Unit tests** call tools through an in-memory MCP client, the same way a real client does, and check the result: trimming, IDs, attribution and error messages. HTTP is served from recorded responses, so no key is needed and the tests run in CI. Each recorded response answers only the request it was recorded for (`RECORDED` in `tests/fake_api.py`), and any other request gets a 404.
 - **Cache tests** will come with the cache. They'll move a fake clock forward to check the TTL, and count HTTP calls to check that paging through one `gid` fetches it only once.
-- **Live smoke tests** use the same tool-level seam with a real HTTP client. They run only when the key env vars are set. CI runs them in `live.yml` every Sunday at 20:17 UTC, by hand, and on pull requests that change them, and fails if the key secret is missing rather than letting them skip.
+- **Live smoke tests** use the same tool-level seam with a real HTTP client. They run only when the key env vars are set. CI runs them in `live.yml` every Sunday at 20:17 UTC, by hand, and on pull requests that change them, and fails if the key secret is missing rather than letting them skip. Recorded responses can't show the API changing. Weekly keeps the load on a charity's free API small, and a separate workflow keeps the key out of the jobs that run on every push.
 - **Manual testing** uses MCP Inspector.
 - **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. CI runs them only in `evals.yml`, by hand or when a pull request gets the `run-evals` label, and the job summary compares the run with the committed baseline. See [evals.md](evals.md).
 
 Nothing below the tool call is tested on its own ([ADR 0004](adr/0004-test-through-the-tool-call.md)).
 
-## Key decisions
+## Stack
 
-| Decision | Choice | Reason |
-|---|---|---|
-| Language | Python, `uv`, the official `mcp` SDK (2.x) | Less boilerplate. The focus is MCP, not the language. |
-| HTTP client | `httpx2` | The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two |
-| Tool shape | One tool per API function, for now | Real usage should drive the redesign around tasks |
-| Workflow guidance | Server `instructions` and tool descriptions | The model always sees these. Prompts and resources are chosen by the user, not the model. |
-| Key validation | On first call | Readable errors instead of an opaque startup crash |
-| Hansard search page size | 20 hits, one OpenAustralia page | `getHansard` can't return fewer (`num` gives HTTP 500), and paging can later map straight onto its `page` |
-| Hansard excerpt | OpenAustralia's own, markup stripped | It's already short. Cutting further would lose context for little saving. |
-| `read_debate` text | Each speech after its speaker's name, paragraphs kept, paged by character offset over the joined text | One shape for a single speech and a whole debate. Character offsets stay valid between calls because published Hansard doesn't change. |
-| HTTP 404 from OpenAustralia | "Not found", naming the gid and house | `getDebates` sends a 404 page for an unknown gid, and "try again later" would send Claude round in circles |
-| Distribution | `uvx --from git+…` | No release process needed. PyPI later. |
-| Live tests in CI | A separate weekly workflow, with the OpenAustralia key in a repository secret | Recorded responses can't show the API changing. Weekly keeps the load on a charity's free API small, and a separate workflow keeps the key out of the jobs that run on every push |
-| Committed-key check | gitleaks with a custom rule in `.gitleaks.toml`, run by a pre-commit hook and again in CI | GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You. The hook stops a key before it's committed. CI catches clones without the hook, and `--no-verify` |
-| Eval models and trials | `claude-sonnet-5-5` by default and `claude-haiku-5-5` as the stress test, with effort set explicitly. 5 trials per case, reporting the pass rate and pass^k | Answers vary between runs and sampling can't be turned down. Smaller models are more sensitive to tool design |
-| Eval results | JSON per run, gitignored. The baseline is committed as markdown, `evals/results/baseline.md`, and as scores, `evals/results/baseline.json` | Pull requests compare against the baseline without committing every run. CI reads the scores and the cost per trial from the JSON, not from the markdown |
-| Evals in CI | A separate workflow, `evals.yml`, run by hand or by the `run-evals` label on a pull request, reporting only | Each full run costs about $2.40, so never on a push. A separate workflow keeps the Anthropic key out of the jobs that run on every push. No threshold until there are a few runs to compare |
-| Code licence | MIT | Data licences are documented separately |
+- **Python, `uv` and the official `mcp` SDK (2.x).** Less boilerplate. The focus is MCP, not the language.
+- **`httpx2` for HTTP.** The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two.
+- **Distributed with `uvx --from git+…`.** No release process needed. PyPI later.
+- **MIT for the code.** The data has its own [licences](../README.md#data-and-licences).
+
+## Decisions
+
+The decisions that are hard to reverse, surprising without context and a real trade-off are in [adr/](adr/), one file each. Smaller ones are recorded next to what they decide.
 
 ## Open questions
 

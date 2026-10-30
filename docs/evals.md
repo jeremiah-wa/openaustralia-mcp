@@ -155,11 +155,13 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 | The run's scores: passes per case and model, and each model's effort and cost per trial | Same folder, `scores.json` | No |
 | The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have. A pull request that changes a tool updates both when it merges |
 
+Pull requests compare with the baseline without committing every run. CI reads the scores and the cost per trial from `baseline.json`, not from the markdown.
+
 ## Where it lives
 
 - `evals/` at the top level, outside pytest's `testpaths`. Evals cost money and aren't deterministic, so `uv run pytest` never runs them.
 - An `evals` dependency group with `anthropic[mcp]`. It's not a runtime dependency.
-- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, and never in `ci.yml`. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores.
+- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, because each run costs money (see [Cost](#cost)), and never in `ci.yml`, which keeps the Anthropic key out of the jobs that run on every push. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores. There's no threshold until there are a few runs to compare.
 
 ## Keys
 

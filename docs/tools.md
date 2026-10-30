@@ -13,6 +13,8 @@ At first the tools follow the API functions one to one, with three changes: resu
 | `get_policies`, `get_policy` | Not built | TVFY `/policies` | Policy topics, with each member's agreement score |
 | `get_votes`, `get_vote` | Not built | TVFY `/divisions` | Individual votes and how each member voted |
 
+Guidance on chaining tools goes in the server `instructions` and the tool descriptions, because the model always sees these. Prompts and resources are chosen by the user, not the model.
+
 ## Naming
 
 - **"Divisions" means two different things.** OpenAustralia's `getDivisions` returns electorates, while They Vote For You's `/divisions` returns votes. The tools are named `get_electorates` and `get_votes` so the model can't mix them up.
@@ -23,13 +25,14 @@ At first the tools follow the API functions one to one, with three changes: resu
 
 Hansard responses are long, and model context is limited. The rules:
 
-| Rule | Default |
-|---|---|
-| Search hits per page | 20, OpenAustralia's fixed page size |
-| Excerpt | OpenAustralia's own (~400 characters), with markup stripped and entities decoded |
-| `read_debate` page size | ~4,000 characters, with an `offset` for the next page |
-| Attribution | Every result ends with a source URL and the licence line |
-| Hansard text | Cut, never rewritten or summarised on the server ([ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)) |
+| Rule | Default | Why |
+|---|---|---|
+| Search hits per page | 20, OpenAustralia's fixed page size | `getHansard` can't return fewer (`num` gives HTTP 500), and paging can later map straight onto its `page` |
+| Excerpt | OpenAustralia's own (~400 characters), with markup stripped and entities decoded | It's already short. Cutting further would lose context for little saving |
+| `read_debate` page size | ~4,000 characters, with an `offset` for the next page | A whole debate can run to about 51,000 characters |
+| `read_debate` text | Each speech after its speaker's name, paragraphs kept, paged by character offset over the joined text | One shape for a single speech and a whole debate. Character offsets stay valid between calls because published Hansard doesn't change |
+| Attribution | Every result ends with a source URL and the licence line | The data licences require it |
+| Hansard text | Cut, never rewritten or summarised on the server | No derivatives ([ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)) |
 
 These defaults are starting values, to be tuned once recorded responses show real sizes.
 
