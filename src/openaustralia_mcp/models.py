@@ -12,30 +12,39 @@ from openaustralia_mcp.openaustralia import HANSARD_LICENCE, SITE_URL, DebateEnt
 DEBATE_PAGE_SIZE = 4000
 
 
-class Member(BaseModel):
+House = Literal["representatives", "senate"]
+
+
+class MemberRecord(BaseModel):
+    """One person's membership of one house. Someone who sat in both houses has a record for each."""
+
     person_id: str = Field(description="Stable ID for this person. Pass it to other tools.")
     name: str
     party: str
-    electorate: str
-    house: Literal["representatives"]
+    house: House
+    electorate: str | None = Field(default=None, description="For a member of the House of Representatives.")
+    state: str | None = Field(default=None, description="For a Senator: the state or territory they represent.")
+    current: bool = Field(description="False for a former member of this house.")
+    left: str | None = Field(default=None, description="The date a former member left this house.")
     positions: list[str] = Field(description="Current ministerial or other offices, if any.")
     url: str = Field(description="The member's page on OpenAustralia. Cite it.")
 
     @classmethod
-    def from_representative(cls, representative: Representative) -> "Member":
+    def from_representative(cls, representative: Representative) -> "MemberRecord":
         return cls(
             person_id=representative.person_id,
             name=representative.full_name,
             party=representative.party or "",
-            electorate=representative.constituency or "",
             house="representatives",
+            electorate=representative.constituency,
+            current=True,
             positions=representative.current_positions,
             url=representative.url,
         )
 
 
-class MembersResult(BaseModel):
-    members: list[Member]
+class MemberLookupResult(BaseModel):
+    members: list[MemberRecord]
     note: str | None = Field(default=None, description="A caveat to pass on to the user, if any.")
     source_url: str
     licence: str

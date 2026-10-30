@@ -19,7 +19,13 @@ from openaustralia_mcp.errors import (
     MissingKeyError,
     NotFoundError,
 )
-from openaustralia_mcp.models import DebateResult, HansardHit, HansardSearchResult, Member, MembersResult
+from openaustralia_mcp.models import (
+    DebateResult,
+    HansardHit,
+    HansardSearchResult,
+    MemberLookupResult,
+    MemberRecord,
+)
 from openaustralia_mcp.openaustralia import (
     HANSARD_LICENCE,
     MEMBERS_LICENCE,
@@ -62,7 +68,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     @server.tool(annotations=READ_ONLY)
     async def get_members(
         postcode: Annotated[str, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')],
-    ) -> MembersResult:
+    ) -> MemberLookupResult:
         """Find the federal member of the House of Representatives (MP) for an Australian postcode.
 
         Returns each member's person_id, name, party, electorate and current positions. A postcode can
@@ -80,8 +86,8 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
                 f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
                 "behind changes to electorate boundaries, so try a neighbouring postcode."
             )
-        return MembersResult(
-            members=[Member.from_representative(member) for member in found],
+        return MemberLookupResult(
+            members=[MemberRecord.from_representative(member) for member in found],
             note=PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None,
             source_url=SITE_URL,
             licence=MEMBERS_LICENCE,
