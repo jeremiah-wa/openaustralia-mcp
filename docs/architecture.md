@@ -43,7 +43,7 @@ flowchart TB
     factory --> tools
     tools --> shape
     tools --> oac
-    tools --> tvc
+    tools -.-> tvc
     tools -.-> cache
     cache -.-> oac
     cache -.-> tvc
@@ -58,7 +58,7 @@ Dashed lines aren't built yet.
 | **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
 | **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. |
 | **Cache** | Will avoid repeat calls for data that rarely or never changes. Not built yet. |
-| **API clients** | One per API. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
+| **API clients** | One per API, though only the OpenAustralia client is built so far. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
 
 ## Tools
 
@@ -143,7 +143,7 @@ sequenceDiagram
 
 Every result includes the IDs the next call needs (`person_id` → `gid`). The model never has to guess at API syntax.
 
-The last step relies on They Vote For You using the same `person_id`s as OpenAustralia. Live calls confirmed it does (see [Tools](#tools)), so a `person_id` from `get_members` can be passed straight to the voting tools, with no matching across the two APIs.
+The last step isn't built yet. It relies on They Vote For You using the same `person_id`s as OpenAustralia. Live calls confirmed it does (see [Tools](#tools)), so a `person_id` from `get_members` can be passed straight to the voting tools, with no matching across the two APIs.
 
 ## Keys and errors
 
@@ -159,7 +159,7 @@ flowchart TD
 ```
 
 - **Validation is lazy.** The server always starts, and a key problem comes back as a tool result that Claude can explain to the user. Failing at startup would only show up in Claude Desktop as an unhelpful "server disconnected".
-- **Each key is independent.** Missing a They Vote For You key disables only the voting tools.
+- **Each key is independent.** Once the voting tools are built, missing a They Vote For You key will disable only those. The server doesn't read that key yet.
 - **Keys never appear in logs, results or errors.** OpenAustralia only accepts the key in the query string, so every request URL contains it. That's why:
   - `build_server` raises the `httpx2` and `httpcore2` loggers to WARNING. At INFO, httpx2 logs every request URL, and the SDK writes INFO logs to stderr.
   - The API clients catch HTTP errors and re-raise them `from None` with the status only, because httpx2 errors carry the request and its URL.
