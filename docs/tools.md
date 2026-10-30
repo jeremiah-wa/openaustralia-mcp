@@ -29,7 +29,7 @@ Hansard responses are long, and model context is limited. The rules:
 | Excerpt | OpenAustralia's own (~400 characters), with markup stripped and entities decoded |
 | `read_debate` page size | ~4,000 characters, with an `offset` for the next page |
 | Attribution | Every result ends with a source URL and the licence line |
-| Hansard text | Cut, never rewritten or summarised on the server (CC BY-NC-ND: no derivatives) |
+| Hansard text | Cut, never rewritten or summarised on the server ([ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)) |
 
 These defaults are starting values, to be tuned once recorded responses show real sizes.
 
