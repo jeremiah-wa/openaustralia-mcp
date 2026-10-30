@@ -1,0 +1,302 @@
+{
+  "models": {
+    "claude-sonnet-5-5": {
+      "effort": "high",
+      "trials": 80,
+      "cost_per_trial_usd": 0.028089025
+    },
+    "claude-haiku-5-5": {
+      "effort": "medium",
+      "trials": 80,
+      "cost_per_trial_usd": 0.0014898875
+    }
+  },
+  "cases": {
+    "housing-by-person-id": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "mp-0000": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "mp-3056": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "mp-3142": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 4,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 0,
+        "trials": 5
+      }
+    },
+    "mp-3181": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "mp-housing-3056": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "mp-housing-read-3056": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "mp-recent-3056": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 4,
+        "trials": 5
+      }
+    },
+    "ndis-search": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "ndis-senate-read": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "no-results": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "off-topic": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "pasted-link": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "capability",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "capability",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "search-without-a-topic": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "senate-gid": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 4,
+        "trials": 5
+      }
+    },
+    "two-pages": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "read"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    }
+  }
+}

@@ -3,7 +3,17 @@
 import pytest
 
 from evals.graders import Trial
-from evals.report import TrialRecord, render_summary, score_cases, score_tags, trial_cost_usd
+from evals.report import (
+    Scores,
+    TrialRecord,
+    estimate_usd,
+    render_comparison,
+    render_summary,
+    score_cases,
+    score_tags,
+    scores,
+    trial_cost_usd,
+)
 
 SONNET = "claude-sonnet-5-5"
 HAIKU = "claude-haiku-5-5"
@@ -124,3 +134,79 @@ class TestCost:
         summary = render_summary(records, errors=0)
 
         assert "Cost: $0.0060 for 4 trials, $0.0015 per trial." in summary
+
+
+class TestScoresFile:
+    def test_holds_passes_per_case_and_model_and_the_cost_per_trial(self) -> None:
+        records = [record("mp-3056", True, model=HAIKU), record("mp-3056", False, model=HAIKU)]
+        for item in records:
+            item.usage = {"input_tokens": 10_000, "output_tokens": 1_000}
+
+        run = scores(records)
+
+        assert run.models[HAIKU].effort == "high"
+        assert run.models[HAIKU].trials == 2
+        assert run.models[HAIKU].cost_per_trial_usd == pytest.approx(0.0015)
+        assert run.cases["mp-3056"][HAIKU].model_dump() == {"tags": ["regression"], "passes": 1, "trials": 2}
+
+    def test_round_trips_through_json(self) -> None:
+        run = scores([record("mp-3056", True)])
+
+        assert Scores.model_validate_json(run.model_dump_json()) == run
+
+
+def run_of(
+    *results: tuple[str, int], model: str = SONNET, effort: str = "high", tags: tuple[str, ...] = ("regression",)
+) -> Scores:
+    """Scores for cases that passed the given number of their 5 trials."""
+    records = [
+        record(case_id, trial < passes, model=model, tags=tags) for case_id, passes in results for trial in range(5)
+    ]
+    for item in records:
+        item.effort = effort
+    return scores(records)
+
+
+class TestComparison:
+    def test_shows_each_tags_score_then_and_now(self) -> None:
+        baseline = run_of(("mp-3056", 5), ("ndis", 5))
+        now = run_of(("mp-3056", 5), ("ndis", 3))
+
+        comparison = render_comparison(baseline, now)
+
+        assert "| claude-sonnet-5-5 | regression | 2 | 100% | 80% | -20 points |" in comparison
+
+    def test_lists_only_the_cases_that_changed(self) -> None:
+        comparison = render_comparison(run_of(("mp-3056", 5), ("ndis", 5)), run_of(("mp-3056", 5), ("ndis", 3)))
+
+        assert "| ndis | claude-sonnet-5-5 | 5/5 | 3/5 |" in comparison
+        assert "| mp-3056 |" not in comparison
+
+    def test_compares_only_the_cases_both_runs_have(self) -> None:
+        # A run of a few cases, such as --cases 'mp-*', against the full baseline.
+        comparison = render_comparison(run_of(("mp-3056", 5), ("ndis", 0)), run_of(("mp-3056", 5)))
+
+        assert "| claude-sonnet-5-5 | regression | 1 | 100% | 100% | 0 points |" in comparison
+
+    def test_names_cases_the_baseline_doesnt_have(self) -> None:
+        comparison = render_comparison(run_of(("mp-3056", 5)), run_of(("mp-3056", 5), ("senators", 1)))
+
+        assert "Not in the baseline: `senators`." in comparison
+
+    def test_warns_when_the_effort_differs(self) -> None:
+        comparison = render_comparison(run_of(("mp-3056", 5)), run_of(("mp-3056", 5), effort="low"))
+
+        assert (
+            "claude-sonnet-5-5 ran at effort low, and the baseline at high, so the scores aren't comparable."
+            in comparison
+        )
+
+
+class TestEstimate:
+    def test_is_cases_times_trials_times_each_models_cost_per_trial(self) -> None:
+        estimate = estimate_usd(cases=16, trials=5, cost_per_trial={SONNET: 0.03, HAIKU: 0.002})
+
+        assert estimate == pytest.approx(16 * 5 * (0.03 + 0.002))
+
+    def test_is_none_when_a_model_has_no_measured_cost(self) -> None:
+        assert estimate_usd(cases=16, trials=5, cost_per_trial={SONNET: 0.03, HAIKU: None}) is None

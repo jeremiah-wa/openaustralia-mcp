@@ -18,13 +18,23 @@ from mcp.types import CallToolResult
 
 from evals.cases import Case
 from evals.graders import Call, Trial, grade
-from evals.report import TrialRecord, render_summary, trial_cost_usd
+from evals.report import (
+    Scores,
+    TrialRecord,
+    estimate_usd,
+    render_comparison,
+    render_summary,
+    scores,
+    trial_cost_usd,
+)
 from openaustralia_mcp.config import Config
 from openaustralia_mcp.server import build_server
 from tests.fake_api import FakeApi
 
 CASES = Path(__file__).parent / "cases"
 RUNS = Path(__file__).parent / "results" / "runs"
+# The committed scores of the baseline run. Runs compare with it, and CI estimates costs from it.
+BASELINE = Path(__file__).parent / "results" / "baseline.json"
 
 # Each model's default effort, set explicitly so a change in defaults can't change the scores unnoticed.
 EFFORT = {"claude-sonnet-5-5": "high", "claude-haiku-5-5": "medium"}
@@ -110,12 +120,12 @@ async def run_trial(claude: anthropic.AsyncAnthropic, case: Case, model: str) ->
 
 
 def measured_cost_per_trial(model: str) -> float | None:
-    """The mean cost of a trial on this model in the latest run that used it, or None before any run."""
-    for run in sorted(RUNS.glob("*/trials.jsonl"), reverse=True):
-        records = [TrialRecord.model_validate_json(line) for line in run.read_text("utf-8").splitlines()]
-        costs = [trial_cost_usd(model, record.usage) for record in records if record.model == model]
-        if costs:
-            return sum(costs) / len(costs)
+    """The cost per trial on this model in the latest local run that used it, else in the baseline, else None."""
+    for path in [*sorted(RUNS.glob("*/scores.json"), reverse=True), BASELINE]:
+        if path.exists():
+            measured = Scores.model_validate_json(path.read_text("utf-8"))
+            if model in measured.models:
+                return measured.models[model].cost_per_trial_usd
     return None
 
 
@@ -185,18 +195,24 @@ async def run(cases: list[Case], models: list[str], trials: int, max_cost_usd: f
     ]
     if stopped_at_cap:
         header += [f"Stopped starting trials at the ${max_cost_usd:.2f} cost cap, so some trials didn't run.", ""]
-    (out / "summary.md").write_text("\n".join([*header, render_summary(records, errors=errors)]), encoding="utf-8")
+    run_scores = scores(records)
+    (out / "scores.json").write_text(run_scores.model_dump_json(indent=2), encoding="utf-8")
+    parts = [*header, render_summary(records, errors=errors)]
+    if BASELINE.exists() and records:
+        parts.append(render_comparison(Scores.model_validate_json(BASELINE.read_text("utf-8")), run_scores))
+    (out / "summary.md").write_text("\n".join(parts), encoding="utf-8")
     return out
 
 
-def estimate(cases: list[Case], models: list[str], trials: int) -> None:
-    for model in models:
+def estimate(cases: list[Case], models: list[str], trials: int) -> float | None:
+    cost_per_trial = {model: measured_cost_per_trial(model) for model in models}
+    for model, per_trial in cost_per_trial.items():
         count = len(cases) * trials
-        per_trial = measured_cost_per_trial(model)
         if per_trial is None:
             print(f"{model}: {count} trials. No earlier run to estimate the cost from.")
         else:
             print(f"{model}: {count} trials, about ${per_trial * count:.2f} (${per_trial:.4f} per trial).")
+    return estimate_usd(cases=len(cases), trials=trials, cost_per_trial=cost_per_trial)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -211,7 +227,9 @@ def main(argv: list[str] | None = None) -> None:
     cases = load_cases(args.cases)
     if not cases:
         sys.exit(f"No cases match evals/cases/{args.cases}.yaml")
-    estimate(cases, args.models, args.trials)
+    expected = estimate(cases, args.models, args.trials)
+    if expected is not None and expected > args.max_cost_usd:
+        sys.exit(f"Not running: the estimate, ${expected:.2f}, is over --max-cost-usd ${args.max_cost_usd:.2f}.")
     out = anyio.run(run, cases, args.models, args.trials, args.max_cost_usd, args.concurrency)
     print(f"\nResults: {out}\n")
     print((out / "summary.md").read_text("utf-8"))
