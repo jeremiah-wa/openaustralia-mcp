@@ -239,7 +239,7 @@ async def _with_offices(openaustralia: OpenAustraliaClient, records: list[Senato
     if not any(record.is_current for record in records):
         return records
     listed = {senator.person_id: senator for senator in await openaustralia.get_senators()}
-    return [listed[record.person_id] if record.is_current else record for record in records]
+    return [listed.get(record.person_id, record) if record.is_current else record for record in records]
 
 
 async def _search_members(

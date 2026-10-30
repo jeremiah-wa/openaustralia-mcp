@@ -6,11 +6,23 @@ import pytest
 from openaustralia_mcp.config import Config
 
 from .conftest import TEST_KEY, Connect, result_text
-from .fake_api import FakeApi, Handler
+from .fake_api import FIXTURES, FakeApi, Handler
 
 pytestmark = pytest.mark.anyio
 
 POSTCODE_3056 = "openaustralia/getRepresentatives_postcode_3056.json"
+
+
+def _sharma_with(senators: httpx2.Response) -> Handler:
+    """Dave Sharma's recorded records, with the list of current Senators answered as given."""
+
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        function = request.url.path.rsplit("/", 1)[-1]
+        if function == "getSenators":
+            return senators
+        return httpx2.Response(200, content=(FIXTURES / f"openaustralia/{function}_id_10942.json").read_bytes())
+
+    return answer
 
 
 class TestLookupByPostcode:
@@ -184,6 +196,17 @@ class TestLookupByPersonId:
         assert not result.is_error
         assert [member["left"] for member in result.structured_content["members"]] == ["2022-04-13"]
         assert len(fake_api.requests) == 2
+
+    async def test_keeps_a_current_senator_the_list_leaves_out(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Not seen in a real response. If the two functions disagree, the person still has their record.
+        fake_api.serve(_sharma_with(httpx2.Response(200, json={})))
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10942"})
+
+        assert not result.is_error
+        [_, senator] = result.structured_content["members"]
+        assert (senator["state"], senator["current"], senator["positions"]) == ("NSW", True, [])
 
     async def test_asks_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
