@@ -11,7 +11,7 @@ The project is in early building. [tools.md](docs/tools.md) says which tools wor
 - [tools.md](docs/tools.md): each tool's status and API calls, naming, result shaping, caching.
 - [api-notes.md](docs/api-notes.md): what live calls have shown each API actually does.
 - [adr/](docs/adr/): the big decisions and why they went that way, one file each.
-- [contributing.md](docs/contributing.md): house rules (keys, licences, read-only), code and test conventions, commit and branch conventions.
+- [contributing.md](docs/contributing.md): house rules (keys, licences, read-only), steps for adding a tool or recording a response, code and test conventions, commit and branch conventions.
 - [evals.md](docs/evals.md): evals of Claude's tool use: seam, runner, cases, graders, trials, models, results, cost.
 
 Read tools.md and api-notes.md before changing tools, result sizes or caching, architecture.md before changing tests or how the server is built, and evals.md before changing a tool's name, description or arguments. When a design decision changes, update those docs, not this file.

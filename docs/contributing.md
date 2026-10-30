@@ -35,6 +35,44 @@ These protect users' keys and keep the project within the data licences. Don't b
   - When a decision changes, don't rewrite its ADR. Add a new one, and give the old one `status: superseded by ADR-NNNN` in frontmatter.
 - Tool names and descriptions are written for the model. When you rename a tool or change its description, check that the server `instructions` still describe the right chain of calls.
 
+## Adding a tool
+
+1. Check [api-notes.md](api-notes.md) for what the API does. Make live calls for anything it doesn't cover, and add what they show.
+2. Record the responses the tests need (see [Recording a response](#recording-a-response)).
+3. Build it test-first, in small commits (see [Tests](#tests)), keeping to the [house rules](#house-rules).
+4. Add the tool to the server `instructions`, so Claude knows where it fits in the chain of calls.
+5. Add eval cases, and put the scores before and after in the pull request (see [Evals](#evals)).
+6. Set the tool's status in [tools.md](tools.md), and record any naming or shaping decision there. Add an ADR if one qualifies (see [Design changes](#design-changes)).
+
+## Recording a response
+
+A fixture holds only the response body, as the API sent it, under `tests/fixtures/openaustralia/`. Name it after the function and its parameters, e.g. `getHansard_search_housing_person_10887.json`. OpenAustralia is a free service run by a charity, so record only what the tests need.
+
+To record one, set the first three values and run this in bash from the repo root, with your key in `.env`:
+
+```bash
+uv run --env-file .env python - <<'EOF'
+import os
+from pathlib import Path
+
+import httpx2
+
+function = "getRepresentatives"
+params = {"postcode": "3056"}
+fixture = "getRepresentatives_postcode_3056.json"
+
+response = httpx2.get(
+    f"https://www.openaustralia.org.au/api/{function}",
+    params={"key": os.environ["OPENAUSTRALIA_API_KEY"], "output": "js", **params},
+    timeout=20,
+)
+Path("tests/fixtures/openaustralia", fixture).write_bytes(response.content)
+print(response.status_code)
+EOF
+```
+
+Then add the request to `RECORDED` (see [Tests](#tests)), and check the diff for a key (see [House rules](#house-rules)).
+
 ## Code
 
 - Python, managed with `uv`. Add dependencies with `uv add`, not by editing `pyproject.toml` by hand.
