@@ -59,12 +59,12 @@ Checked while building it (anthropic 2.3, mcp 2.3):
 
 ## Cases
 
-Each case is a YAML file under `evals/cases/`. This example shows the intended shape. #6 may change the field names.
+Each case is a YAML file under `evals/cases/`. This is `mp-housing-3056.yaml`:
 
 ```yaml
 id: mp-housing-3056
-tags: [regression]
-question: What has my federal MP for postcode 3056 said about housing?
+tags: [regression, search]
+question: What has my federal MP for 3056 said about housing?
 fixtures:
   - getRepresentatives_postcode_3056.json
   - file: getHansard_search_housing_person_10887.json
@@ -81,7 +81,6 @@ expect:
   forbidden:
     - tool: search_hansard
       args_missing: [person_id]
-  max_calls: 4
   answer_contains: [Peter Khalil]
   cites_url: true
 ```
