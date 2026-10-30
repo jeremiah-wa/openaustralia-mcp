@@ -43,9 +43,9 @@ All tools are read-only.
 | [Git](https://git-scm.com/downloads) | uv fetches the server straight from this repository. | Already installed on most developer machines. Check with `git --version`. |
 | An MCP client | Runs the server and talks to it. | [Claude Desktop](https://claude.ai/download), Claude Code, or another client that supports local (stdio) servers |
 | An OpenAustralia API key | Used by the member, electorate and Hansard tools | <https://www.openaustralia.org.au/api/key>. Free for low-volume, non-commercial use. |
-| A They Vote For You API key | Used by the voting and policy tools | Sign in at <https://theyvoteforyou.org.au/>. |
+| A They Vote For You API key (later) | For the voting and policy tools, which aren't built yet. You don't need one today. | Sign in at <https://theyvoteforyou.org.au/>. |
 
-The server starts without either key. Each tool needs only its own key: if that key is missing or rejected, the tool returns a message saying so and linking to where to get one, and the other tools keep working. So you can start with just the OpenAustralia key and add the other later.
+The server starts without a key. If a tool's key is missing or rejected, the tool returns a message saying so and linking to where to get one.
 
 ### For development
 
@@ -72,8 +72,7 @@ Add this to `claude_desktop_config.json` (Settings → Developer → Edit Config
         "openaustralia-mcp"
       ],
       "env": {
-        "OPENAUSTRALIA_API_KEY": "your-openaustralia-key",
-        "THEYVOTEFORYOU_API_KEY": "your-theyvoteforyou-key"
+        "OPENAUSTRALIA_API_KEY": "your-openaustralia-key"
       }
     }
   }
@@ -85,7 +84,7 @@ Restart Claude Desktop after saving.
 ### Claude Code
 
 ```bash
-claude mcp add openaustralia -e OPENAUSTRALIA_API_KEY=your-openaustralia-key -e THEYVOTEFORYOU_API_KEY=your-theyvoteforyou-key -- uvx --from git+https://github.com/jeremiah-wa/openaustralia-mcp openaustralia-mcp
+claude mcp add openaustralia -e OPENAUSTRALIA_API_KEY=your-openaustralia-key -- uvx --from git+https://github.com/jeremiah-wa/openaustralia-mcp openaustralia-mcp
 ```
 
 ### Other MCP clients
@@ -120,7 +119,7 @@ uv run pytest
 ```
 
 - Unit tests run against recorded API responses and don't need a key.
-- Set `OPENAUSTRALIA_API_KEY` (and optionally `THEYVOTEFORYOU_API_KEY`) to also run the live smoke tests. CI runs them weekly against the real API.
+- Set `OPENAUSTRALIA_API_KEY` to also run the live smoke tests. CI runs them weekly against the real API.
 - To poke at the tools by hand, use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (needs Node 22.19 or later). Keep `@latest` in the command, or npx may run an old cached v1:
 
 ```bash
