@@ -1,0 +1,11 @@
+id: pasted-link
+# May already pass: the link has the gid, and its /debates/ path means the House.
+tags: [capability, read]
+question: Can you read this speech? https://www.openaustralia.org.au/debates/?id=2026-06-23.80.1
+fixtures:
+  - getDebates_representatives_2026-06-23.80.1.json
+expect:
+  calls:
+    - tool: read_debate
+      args: {gid: "2026-06-23.80.1", house: representatives}
+  cites_url: true

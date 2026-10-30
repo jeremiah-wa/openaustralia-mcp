@@ -1,0 +1,13 @@
+id: housing-by-person-id
+tags: [regression, search]
+question: Find speeches about housing by the member with person_id 10887.
+fixtures:
+  - file: getHansard_search_housing_person_10887.json
+    search_contains: [housing]
+expect:
+  calls:
+    - tool: search_hansard
+      args: {person_id: "10887"}
+      args_contain: {query: [housing]}
+  max_calls: 2
+  cites_url: true

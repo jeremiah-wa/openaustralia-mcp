@@ -1,0 +1,12 @@
+id: no-results
+tags: [regression, search]
+question: Has anyone in Parliament said 'xyzzyplughnonsenseword'?
+fixtures:
+  - file: getHansard_search_no_results.json
+    search_contains: [xyzzyplughnonsenseword]
+expect:
+  calls:
+    - tool: search_hansard
+      args_contain: {query: [xyzzyplughnonsenseword]}
+  max_calls: 2
+  # No hits, so no url to cite.

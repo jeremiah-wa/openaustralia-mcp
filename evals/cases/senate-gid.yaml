@@ -1,0 +1,15 @@
+id: senate-gid
+tags: [regression, read]
+question: Read the Senate speech with gid 2026-06-23.80.1.
+fixtures:
+  # The same gid in the House is a different speech, Peter Khalil's.
+  - getDebates_senate_2026-06-23.80.1.json
+expect:
+  calls:
+    - tool: read_debate
+      args: {gid: "2026-06-23.80.1", house: senate}
+  forbidden:
+    - tool: read_debate
+      args: {house: representatives}
+  answer_contains: [Lidia Thorpe]
+  cites_url: true
