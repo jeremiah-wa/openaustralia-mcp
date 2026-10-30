@@ -1,7 +1,7 @@
 id: members-greens
 # Members of a party in both houses. The Greens have one MP, Elizabeth Watson-Brown, and ten Senators, including
 # Vanessa Bleyer, who took her seat in August 2026.
-tags: [capability, members]
+tags: [regression, members]
 question: Who are the Greens members of federal Parliament?
 fixtures:
   - file: getRepresentatives_party_Greens.json

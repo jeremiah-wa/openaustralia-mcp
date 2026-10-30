@@ -2,7 +2,7 @@ id: members-former-from-hansard
 # Keith Wolahan was the MP for Menzies from 2022 to 2025. Name searches find current members only, so the way to him
 # is his person_id on a Ruby Princess hit in Hansard, then a lookup by person_id. His member page in the answer
 # shows that lookup happened.
-tags: [capability, members, search]
+tags: [regression, members, search]
 question: >-
   Keith Wolahan spoke about the Ruby Princess in Parliament. Which electorate did that member represent,
   and are they still in Parliament?

@@ -1,7 +1,7 @@
 id: members-by-name
 # Case 17 from #6. Graded on the answer, so it's the same for every variant of the tools (#8): the member's url
 # shows the answer came from a lookup, not from memory. A lookup that doesn't say the house asks both.
-tags: [capability, members]
+tags: [regression, members]
 question: Which electorate does Peter Khalil represent?
 fixtures:
   - file: getRepresentatives_search_Khalil.json

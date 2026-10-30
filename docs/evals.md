@@ -6,7 +6,7 @@ How the evals measure whether Claude uses the tools well, and why they're built 
 
 The unit tests prove that a tool works once it's called. They can't show that Claude calls it: that it picks the right tool, fills in the right arguments and chains the calls. Tool names, descriptions, argument schemas and the server `instructions` are all written for the model, and the evals check them by measurement instead of by reading.
 
-The first question they answer is whether member lookup should be more tools or more parameters ([#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8)). After that, every change to a tool's name, description or arguments is measured before and after (see [contributing.md](contributing.md#evals)).
+The first question they answered was whether member lookup should be more tools or more parameters ([#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8)). The answer was more parameters (see [Member lookup](#member-lookup-8)). After that, every change to a tool's name, description or arguments is measured before and after (see [contributing.md](contributing.md#evals)).
 
 ## How a run works
 
@@ -67,6 +67,29 @@ A variant is a set of tools to give Claude. `--variant current`, the default, is
 
 To compare two variants, run the same cases, trials and models on each, and compare the two summaries case by case. A run on a variant also compares with the baseline over the cases both have, which shows whether the variant broke what already worked.
 
+### Member lookup ([#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8))
+
+Member lookup was about to grow from postcodes to `person_id`, Senators, name and party. #8 measured which shape worked better before building either:
+
+| Variant | Member tools |
+|---|---|
+| `parameters` | `get_members(postcode?, person_id?, name?, party?, state?, house?)`, which explains argument combinations that make no sense |
+| `tools` | `get_members(postcode)`, `get_member(person_id)`, `get_senators(state?, party?)`, `search_members(name?, party?)` |
+
+Both were built from `build_server`, with `get_members` removed and their own member tools added. They called one shared lookup and returned one result model, so they returned the same results, and their arguments were described word for word alike. They differed only in tool names, tool descriptions, the instructions' line about finding members, and, in `tools`, `search_hansard`'s note on where a `person_id` comes from. Neither had a `date`: OpenAustralia ignores it with a postcode and returns `{}` without one.
+
+**How the winner was chosen.** This was settled before the full runs. The best variant lets Claude answer the questions reliably in the fewest tool calls.
+
+- The member cases are graded on the answer, not the path: facts from the recorded responses and a URL only the right lookup returns. So each case was the same for both variants. Which tool Claude picked and how it filled the arguments explain a failure, from `trials.jsonl`, but didn't score. An unknown argument still fails a trial, because the server drops it silently.
+- The rule:
+  1. The variant with more member cases passing every trial wins, if it's ahead by 2 or more cases on either model and breaks no `get_members` regression case. A gap of 1 case out of 7 is run-to-run noise.
+  2. Otherwise, the variant with fewer calls per trial on the member cases, on both models, wins.
+  3. Otherwise `parameters` wins: it has fewer tools, which is what the guidance in #8 favours, and it's what architecture.md already said.
+- The runs: both variants, Sonnet and Haiku, 5 trials, over the 7 member cases (`members-*`) and the regression cases that use `get_members` or chain from it (`mp-0000`, `mp-3056`, `mp-3181`, `mp-housing-3056`, `mp-housing-read-3056`, `mp-recent-3056`) plus `ndis-search`. `mp-3142` was left out, because its baseline failures come from the harness (no recorded response for 3141), not the tools.
+- The result: `parameters`, by rule 2. Both variants passed every trial on 5 of 7 member cases on Sonnet and 4 of 7 on Haiku, and `parameters` took fewer calls per trial on both models. See [evals/results/member-lookup.md](../evals/results/member-lookup.md).
+
+`parameters` went into the server in [#16](https://github.com/jeremiah-wa/openaustralia-mcp/issues/16), with the wording that was measured, so `current` is the only variant for now. The variants' own code stays on the `chore/member-lookup-experiment` branch.
+
 ## Cases
 
 Each case is a YAML file under `evals/cases/`. This is `mp-housing-3056.yaml`:
@@ -107,9 +130,9 @@ expect:
 | `cites_url` | The final answer must include a `url` from a tool result |
 | `tags` | `regression` or `capability`, plus any free labels |
 
-**Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as Senators or a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
+**Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
 
-The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. The cases for member lookup by name and Senators (17 to 19 in that list) belong to [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8), because their expected calls depend on the tool shape it picks.
+The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. Cases 17 to 19 in that list (a member by name, a Senator's speeches on housing, and Tasmania's Senators), and four more member cases, came with [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8) as `members-*`. They have no expected calls: they're graded on the answer alone, which let #8 run the same case on each shape of member tools (see [Member lookup](#member-lookup-8)). They became regression cases when that lookup went into the server.
 
 ## Graders
 
@@ -137,6 +160,7 @@ An LLM judge for answer quality, such as whether Hansard is quoted as it is, can
 - Each case runs **5 trials** per model, because answers vary from run to run. Sonnet 5.5 and Haiku 5.5 accept only the default sampling settings, so there's no `temperature` to turn down.
 - **Per case:** the pass rate (passing trials out of 5) and pass^k (whether all 5 passed). pass^k matters for regression cases, where consistency is the point: a case that passes 75% of the time passes all of 3 trials only about 42% of the time.
 - **Per model and overall:** the mean pass rate and the share of cases passing every trial, split by tag. The regression score is the headline. Capability cases are reported separately.
+- **Efficiency, per model and tag:** tool calls per trial, failed calls per trial, and input tokens per trial. A failed call counts as a call, since Claude spent a turn on it. Input tokens include the tool definitions, which every turn sends again. Each case's cell also shows its calls per trial, e.g. `5/5, 1.2 calls`.
 - **Noise:** at 20 cases × 5 trials, the overall pass rate moves by about ±10 points between runs for no reason (roughly 1/√(cases × trials)). Smaller differences aren't a signal. To compare two variants, such as the two member-lookup shapes in #8, run both on the same cases, trials and model, and compare case by case.
 
 ## Models
@@ -184,7 +208,7 @@ A run costs cases × trials × models × the cost of one trial. The cost of a tr
 
 Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. `--max-cost-usd` is required. The runner refuses a run whose estimate is over it, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
-Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average.
+Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average. The 7 member cases from #8 bring a full run to 23 cases, about $3.40 at those rates, which is under the workflow's default $5 cap.
 
 ## Later
 

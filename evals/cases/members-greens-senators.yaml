@@ -1,6 +1,6 @@
 id: members-greens-senators
 # Members of a party in one house. Both houses' fixtures are here, since a lookup by party alone asks both.
-tags: [capability, members]
+tags: [regression, members]
 question: Who are the Greens Senators?
 fixtures:
   - file: getSenators_party_Greens.json

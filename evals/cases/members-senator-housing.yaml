@@ -1,7 +1,7 @@
 id: members-senator-housing
 # Case 18 from #6. Two Senators are called Pocock: Barbara (11008) and David (11009). Only David's housing search is
 # recorded, so a Senate speech url in the answer shows Claude found his person_id and searched with it.
-tags: [capability, members, search]
+tags: [regression, members, search]
 question: What has Senator David Pocock said about housing?
 fixtures:
   # Fixtures are tried in order: "Pocock" gets both Senators, "David Pocock" only him.
