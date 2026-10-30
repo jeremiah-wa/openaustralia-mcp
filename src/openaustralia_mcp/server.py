@@ -23,6 +23,7 @@ from openaustralia_mcp.models import (
     DebateResult,
     HansardHit,
     HansardSearchResult,
+    House,
     MemberLookupResult,
     MemberRecord,
 )
@@ -78,12 +79,16 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
                 description="A member's person_id, current or former, e.g. from a search_hansard hit.",
             ),
         ] = None,
+        party: Annotated[
+            str | None, Field(min_length=2, description='Part of a party\'s name, e.g. "Greens" or "Labor".')
+        ] = None,
         state: Annotated[
             State | None,
             Field(description="A state or territory, e.g. TAS. Senators represent a whole state or territory."),
         ] = None,
-        party: Annotated[
-            str | None, Field(min_length=2, description='Part of a party\'s name, e.g. "Greens" or "Labor".')
+        house: Annotated[
+            House | None,
+            Field(description="Only members of this house: the House of Representatives (MPs) or the Senate."),
         ] = None,
     ) -> MemberLookupResult:
         """Find the federal member of the House of Representatives (MP) for an Australian postcode.
@@ -95,9 +100,9 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             return await _member_by_person_id(openaustralia, person_id)
         if postcode is not None:
             return await _members_by_postcode(openaustralia, postcode)
-        if any(value is not None for value in (party, state)):
-            return await _search_members(openaustralia, party=party, state=state)
-        raise ToolError("Give a postcode, a person_id, a party or a state.")
+        if any(value is not None for value in (party, state, house)):
+            return await _search_members(openaustralia, party=party, state=state, house=house)
+        raise ToolError("Give a postcode, a person_id, or any of party, state and house.")
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
@@ -206,15 +211,20 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
 
 
 async def _search_members(
-    openaustralia: OpenAustraliaClient, *, party: str | None = None, state: State | None = None
+    openaustralia: OpenAustraliaClient,
+    *,
+    party: str | None = None,
+    state: State | None = None,
+    house: House | None = None,
 ) -> MemberLookupResult:
-    """Current members who match every filter given, in both houses unless a state limits it."""
-    filters = {"party": party, "state": state}
+    """Current members who match every filter given, in both houses unless a house or a state limits it."""
+    filters = {"party": party, "state": state, "house": house}
     given = {key: value for key, value in filters.items() if value is not None}
+    # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
+    house = "senate" if state else house
     try:
-        # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
-        representatives = [] if state else await openaustralia.get_representatives(party=party)
-        senators = await openaustralia.get_senators(state=state, party=party)
+        representatives = [] if house == "senate" else await openaustralia.get_representatives(party=party)
+        senators = [] if house == "representatives" else await openaustralia.get_senators(state=state, party=party)
     except ApiClientError as exc:
         raise ToolError(_describe(exc, **given)) from None
     return _member_lookup_result(

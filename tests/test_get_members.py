@@ -60,8 +60,8 @@ class TestNoArguments:
             result = await client.call_tool("get_members", {})
 
         assert result.is_error
-        assert (
-            result_text(result) == "Error executing tool get_members: Give a postcode, a person_id, a party or a state."
+        assert result_text(result) == (
+            "Error executing tool get_members: Give a postcode, a person_id, or any of party, state and house."
         )
         assert fake_api.requests == []
 
@@ -246,6 +246,25 @@ class TestLookupByParty:
             *((name, "senate") for name in GREENS_SENATORS),
         ]
         assert members[0]["electorate"] == "Ryan"
+
+    async def test_house_limits_it_to_the_senate(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Only the Senate is recorded, so asking the House as well would fail.
+        fake_api.route("openaustralia/getSenators_party_Greens.json", part_of={"party": ["Australian Greens"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens", "house": "senate"})
+
+        assert not result.is_error
+        assert [member["name"] for member in result.structured_content["members"]] == GREENS_SENATORS
+
+    async def test_house_limits_it_to_the_house_of_representatives(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentatives_party_Greens.json", part_of={"party": ["Australian Greens"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens", "house": "representatives"})
+
+        assert not result.is_error
+        assert [member["name"] for member in result.structured_content["members"]] == ["Elizabeth Watson-Brown"]
 
 
 class TestMissingKey:
