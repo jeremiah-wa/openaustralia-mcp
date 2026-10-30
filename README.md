@@ -100,7 +100,7 @@ The code in this repository is MIT licensed. The data it fetches is not, and the
 |---|---|---|
 | Hansard (`search_hansard`, `read_debate`) | Commonwealth of Australia | [CC BY-NC-ND 3.0 AU](https://creativecommons.org/licenses/by-nc-nd/3.0/au/) |
 | Members, electorates | OpenAustralia Foundation | [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/) |
-| Votes, policies | They Vote For You | See [their data page](https://theyvoteforyou.org.au/help/data) |
+| Votes, policies | They Vote For You | [ODbL](https://opendatacommons.org/licenses/odbl/), to the extent they hold the rights. See [their licensing page](https://theyvoteforyou.org.au/help/licencing) |
 
 Specifically:
 
