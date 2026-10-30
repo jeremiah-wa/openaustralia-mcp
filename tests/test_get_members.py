@@ -353,6 +353,17 @@ class TestArgumentsThatDontGoTogether:
 
         assert not result.is_error
 
+    async def test_state_with_the_house_of_representatives(self, connect: Connect, fake_api: FakeApi) -> None:
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"state": "TAS", "house": "representatives"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: A state means Senators: they represent a whole state or territory. "
+            "MPs represent electorates, so for MPs give a postcode or a name instead."
+        )
+        assert fake_api.requests == []
+
 
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:

@@ -114,6 +114,11 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
                     "or search by name, party, state and house instead."
                 )
             return await _members_by_postcode(openaustralia, postcode)
+        if state is not None and house == "representatives":
+            raise ToolError(
+                "A state means Senators: they represent a whole state or territory. "
+                "MPs represent electorates, so for MPs give a postcode or a name instead."
+            )
         if any(value is not None for value in (name, party, state, house)):
             return await _search_members(openaustralia, name=name, party=party, state=state, house=house)
         raise ToolError("Give a postcode, a person_id, or any of name, party, state and house.")
