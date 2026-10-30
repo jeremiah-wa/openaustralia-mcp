@@ -19,7 +19,7 @@ Guidance on chaining tools goes in the server `instructions` and the tool descri
 
 - **"Divisions" means two different things.** OpenAustralia's `getDivisions` returns electorates, while They Vote For You's `/divisions` returns votes. The tools are named `get_electorates` and `get_votes` so the model can't mix them up.
 - **Only one tool looks up members.** They Vote For You's people data is folded into the policy and vote results instead of getting its own tool.
-- **`getComments` is left out.**
+- **`getComments` is left out.** It fetches comments left on OpenAustralia, which aren't relevant for now: the server is for answering questions from the political data OpenAustralia curates.
 
 ## Result shaping
 
