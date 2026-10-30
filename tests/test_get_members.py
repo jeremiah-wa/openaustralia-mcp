@@ -333,6 +333,26 @@ class TestArgumentsThatDontGoTogether:
         )
         assert fake_api.requests == []
 
+    @pytest.mark.parametrize("other", [{"name": "Khalil"}, {"party": "Labor"}, {"state": "VIC"}, {"house": "senate"}])
+    async def test_postcode_with_a_search(self, connect: Connect, fake_api: FakeApi, other: dict[str, str]) -> None:
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3056", **other})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: A postcode finds the MPs for that area by itself. Give it on its own, "
+            "or search by name, party, state and house instead."
+        )
+        assert fake_api.requests == []
+
+    async def test_postcode_with_its_own_house(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route(POSTCODE_3056)
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": "3056", "house": "representatives"})
+
+        assert not result.is_error
+
 
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
