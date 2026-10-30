@@ -90,8 +90,8 @@ expect:
 | `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords (see [The seam](#the-seam)) |
 | `expect.calls` | Calls that must appear. `args` must match exactly. `args_contain` must contain one of the listed texts, ignoring case, e.g. `[NDIS, National Disability Insurance Scheme]`. Other arguments are free |
 | `after` | This call needs the output of the named call, so it must come after it. Only for real dependencies, not for a preferred order |
-| `forbidden` | Calls that must not appear |
-| `max_calls` | Optional cap on the number of tool calls |
+| `forbidden` | Calls that must not appear. Give the `tool` alone, `args` that must not have those values, or `args_missing`, arguments that must not all be missing |
+| `max_calls` | Optional cap on the number of tool calls. `0` means Claude should answer without a tool |
 | `answer_contains` | Text the final answer must contain, ignoring case. Use it for facts from the fixtures, such as a member's name, not for phrasing |
 | `cites_url` | The final answer must include a `url` from a tool result |
 | `tags` | `regression` or `capability`, plus any free labels |
@@ -110,11 +110,12 @@ All graders are deterministic. A trial passes when every check passes.
 | Unknown arguments | A call has an argument that isn't in the tool's schema, such as `person=` instead of `person_id=` |
 | Number of calls | There are more tool calls than `max_calls` |
 | Answer content | The answer is missing any of the `answer_contains` texts |
-| Citation | `cites_url` is set and the answer has no `url` from a tool result |
+| Citation | `cites_url` is set and the answer has no `url` from a tool result. `source_url` doesn't count, because every result has the same one |
+| Turn cap | The trial reached the turn cap without a final answer |
 
 The graders check dependencies, not an exact sequence. Requiring one fixed order rejects other valid paths ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)), and an extra harmless call, such as a second search, is fine unless the case sets `max_calls`.
 
-The graders are the eval's own logic, so they get unit tests in #6. The rule to test only through the tool call doesn't apply to them.
+The graders ([evals/graders.py](../evals/graders.py)) and the case format ([evals/cases.py](../evals/cases.py)) are the eval's own logic, so they're tested directly, in `tests/test_eval_graders.py` and `tests/test_eval_cases.py`. The rule to test only through the tool call doesn't apply to them. They import only pydantic, so `uv run pytest` runs those tests without the `evals` dependency group.
 
 An LLM judge for answer quality, such as whether Hansard is quoted as it is, can come later.
 
