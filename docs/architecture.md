@@ -1,6 +1,6 @@
 # Architecture
 
-How the OpenAustralia MCP server is put together, and why. It started as a draft before any code existed, and it's updated as tools are built. Where something hasn't been verified yet, it's marked **unverified**.
+How the OpenAustralia MCP server is put together. It's updated as tools are built. [tools.md](tools.md) covers the tools, [api-notes.md](api-notes.md) what the APIs actually do, and [adr/](adr/) the decisions behind the design.
 
 ## Overview
 
@@ -11,7 +11,7 @@ flowchart LR
     user([User]) --> client["MCP client<br/>(Claude Desktop / Claude Code)"]
     client <-- "stdio (JSON-RPC)" --> server["openaustralia-mcp<br/>(local Python process)"]
     server -- "HTTPS GET + key" --> oa["OpenAustralia API<br/>openaustralia.org.au/api"]
-    server -- "HTTPS GET + key" --> tvfy["They Vote For You API<br/>theyvoteforyou.org.au/api/v1"]
+    server -. "HTTPS GET + key (not built yet)" .-> tvfy["They Vote For You API<br/>theyvoteforyou.org.au/api/v1"]
     env[["Env vars<br/>OPENAUSTRALIA_API_KEY<br/>THEYVOTEFORYOU_API_KEY"]] -.-> server
 ```
 
