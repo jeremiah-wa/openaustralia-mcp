@@ -58,7 +58,7 @@ Dashed lines aren't built yet.
 | **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. See [tools.md](tools.md). |
 | **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. See [tools.md](tools.md#result-shaping). |
 | **Cache** | Will avoid repeat calls for data that rarely or never changes. Not built yet. See [tools.md](tools.md#caching). |
-| **API clients** | One per API, though only the OpenAustralia client is built so far. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
+| **API clients** | One per API, in one server ([ADR 0001](adr/0001-one-server-over-both-apis.md)), though only the OpenAustralia client is built so far. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
 
 ## A typical question
 
@@ -145,7 +145,6 @@ Nothing below the tool call is tested on its own. That keeps the internals free 
 | Language | Python, `uv`, the official `mcp` SDK (2.x) | Less boilerplate. The focus is MCP, not the language. |
 | HTTP client | `httpx2` | The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two |
 | Transport | stdio first, with a transport-agnostic core | Local use needs no hosting, and HTTP can be added later without a refactor |
-| Servers | One server, two API clients | Speech and votes join on the member, both APIs use the same `person_id`, and one server can name things clearly |
 | Tool shape | One tool per API function, for now | Real usage should drive the redesign around tasks |
 | Workflow guidance | Server `instructions` and tool descriptions | The model always sees these. Prompts and resources are chosen by the user, not the model. |
 | Key validation | On first call | Readable errors instead of an opaque startup crash |
