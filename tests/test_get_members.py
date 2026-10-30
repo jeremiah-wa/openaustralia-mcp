@@ -61,7 +61,7 @@ class TestNoArguments:
 
         assert result.is_error
         assert result_text(result) == (
-            "Error executing tool get_members: Give a postcode, a person_id, or any of party, state and house."
+            "Error executing tool get_members: Give a postcode, a person_id, or any of name, party, state and house."
         )
         assert fake_api.requests == []
 
@@ -265,6 +265,39 @@ class TestLookupByParty:
 
         assert not result.is_error
         assert [member["name"] for member in result.structured_content["members"]] == ["Elizabeth Watson-Brown"]
+
+
+class TestLookupByName:
+    async def test_finds_senators_when_no_mp_matches(self, connect: Connect, fake_api: FakeApi) -> None:
+        # No MP is called Pocock, so getRepresentatives sends `{}`. Two Senators are.
+        fake_api.route("openaustralia/getRepresentatives_search_Pocock.json", part_of={"search": ["David Pocock"]})
+        fake_api.route(
+            "openaustralia/getSenators_search_Pocock.json", part_of={"search": ["Barbara Pocock", "David Pocock"]}
+        )
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"name": "Pocock"})
+
+        assert not result.is_error
+        assert [
+            (member["name"], member["party"], member["state"]) for member in result.structured_content["members"]
+        ] == [
+            ("Barbara Pocock", "Australian Greens", "SA"),
+            ("David Pocock", "Independent", "ACT"),
+        ]
+
+    async def test_finds_an_mp_when_no_senator_matches(self, connect: Connect, fake_api: FakeApi) -> None:
+        # No Senator is called Khalil, so getSenators sends `{}`.
+        fake_api.route("openaustralia/getRepresentatives_search_Khalil.json", part_of={"search": ["Peter Khalil"]})
+        fake_api.route("openaustralia/getSenators_search_Khalil.json", part_of={"search": ["Peter Khalil"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"name": "Khalil"})
+
+        assert not result.is_error
+        assert [
+            (member["name"], member["electorate"], member["house"]) for member in result.structured_content["members"]
+        ] == [("Peter Khalil", "Wills", "representatives")]
 
 
 class TestMissingKey:
