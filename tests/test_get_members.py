@@ -299,6 +299,21 @@ class TestLookupByName:
             (member["name"], member["electorate"], member["house"]) for member in result.structured_content["members"]
         ] == [("Peter Khalil", "Wills", "representatives")]
 
+    async def test_explains_that_former_members_need_a_person_id(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Keith Wolahan left the House in 2025, so neither house finds him by name.
+        fake_api.route("openaustralia/getRepresentatives_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
+        fake_api.route("openaustralia/getSenators_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"name": "Wolahan"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia has no current member matching name=Wolahan. "
+            "Searches find current members only. For a former member, find their person_id, for example on a "
+            "search_hansard hit, and look them up by that."
+        )
+
 
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:

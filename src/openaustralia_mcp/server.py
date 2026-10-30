@@ -239,10 +239,16 @@ async def _search_members(
         )
     except ApiClientError as exc:
         raise ToolError(_describe(exc, **given)) from None
-    return _member_lookup_result(
-        [MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)]
-        + [MemberRecord.from_senator(senator) for senator in senators]
-    )
+    members = [
+        MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)
+    ] + [MemberRecord.from_senator(senator) for senator in senators]
+    if not members:
+        matching = ", ".join(f"{key}={value}" for key, value in given.items())
+        raise ToolError(
+            f"OpenAustralia has no current member matching {matching}. Searches find current members only. "
+            "For a former member, find their person_id, for example on a search_hansard hit, and look them up by that."
+        )
+    return _member_lookup_result(members)
 
 
 def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
