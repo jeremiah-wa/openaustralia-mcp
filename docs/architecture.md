@@ -135,7 +135,7 @@ flowchart LR
 - **Cache tests** will come with the cache. They'll move a fake clock forward to check the TTL, and count HTTP calls to check that paging through one `gid` fetches it only once.
 - **Live smoke tests** use the same tool-level seam with a real HTTP client. They run only when the key env vars are set. CI runs them in `live.yml` every Sunday at 20:17 UTC, by hand, and on pull requests that change them, and fails if the key secret is missing rather than letting them skip. Recorded responses can't show the API changing. Weekly keeps the load on a charity's free API small, and a separate workflow keeps the key out of the jobs that run on every push.
 - **Manual testing** uses MCP Inspector.
-- **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. CI runs them only in `evals.yml`, by hand or when a pull request gets the `run-evals` label, and the job summary compares the run with the committed baseline. See [evals.md](evals.md).
+- **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They cost money and aren't deterministic, so they live outside pytest. See [evals.md](evals.md).
 
 Nothing below the tool call is tested on its own ([ADR 0004](adr/0004-test-through-the-tool-call.md)).
 
