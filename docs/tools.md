@@ -31,7 +31,7 @@ Hansard responses are long, and model context is limited. The rules:
 | Excerpt | OpenAustralia's own (~400 characters), with markup stripped and entities decoded | It's already short. Cutting further would lose context for little saving |
 | `read_debate` page size | ~4,000 characters, with an `offset` for the next page | A whole debate can run to about 51,000 characters |
 | `read_debate` text | Each speech after its speaker's name, paragraphs kept, paged by character offset over the joined text | One shape for a single speech and a whole debate. Character offsets stay valid between calls because published Hansard doesn't change |
-| Attribution | Every result ends with a source URL and the licence line | The data licences require it |
+| Attribution | Every successful result ends with `source_url` (the OpenAustralia home page) and the licence line | The Creative Commons licences require credit and a link to the licence. `source_url` is our choice (**unverified**: Parliament's copyright page returns 403 to scripts). They Vote For You asks for a link to its site, so its tools will need one |
 | Hansard text | Cut, never rewritten or summarised on the server | No derivatives ([ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)) |
 
 These defaults are starting values, to be tuned once recorded responses show real sizes.
