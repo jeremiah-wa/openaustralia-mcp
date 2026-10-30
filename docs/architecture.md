@@ -159,14 +159,4 @@ The decisions that are hard to reverse, surprising without context and a real tr
 
 ## Later stages
 
-```mermaid
-flowchart LR
-    s1["1. Local stdio<br/>OpenAustralia tools"] --> s1b["1b. They Vote For You tools"]
-    s1b --> s3["Rework tools around tasks"]
-    s3 --> s4["MCP prompts"]
-    s4 -.-> s5["Remote HTTP server"]
-    s5 -.-> s6["claude.ai connector<br/>(key in x-api-key header)"]
-    s6 -.-> s7["OAuth (optional)"]
-```
-
-For the remote stages, the server would read keys from request headers instead of env vars, for each request. The core stays the same. Only the entry point and how the config is supplied change.
+The order is in the [README's roadmap](../README.md#roadmap). For the remote stages, the server would read keys from request headers, such as `x-api-key`, instead of env vars, for each request. The core stays the same. Only the entry point and how the config is supplied change. OAuth could come after that, as an option.
