@@ -159,4 +159,4 @@ The decisions that are hard to reverse, surprising without context and a real tr
 
 ## Later stages
 
-The order is in the [README's roadmap](../README.md#roadmap). For the remote stages, the server would read keys from request headers, such as `x-api-key`, instead of env vars, for each request. The core stays the same. Only the entry point and how the config is supplied change. OAuth could come after that, as an option.
+The order is in the [README's roadmap](../README.md#roadmap). For the remote stages, the server would read keys from request headers, such as `x-api-key`, instead of env vars, for each request. The core stays the same. Only the entry point and how the config is supplied change. OAuth could come after that, as an option. Docker packaging gets revisited at this stage ([#1](https://github.com/jeremiah-wa/openaustralia-mcp/issues/1)).

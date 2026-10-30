@@ -179,4 +179,6 @@ Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $
 ## Later
 
 - An LLM judge for answer quality.
+- An A/A run to measure the noise in the scores ([#17](https://github.com/jeremiah-wa/openaustralia-mcp/issues/17)).
+- A/B testing for tools and server versions ([#18](https://github.com/jeremiah-wa/openaustralia-mcp/issues/18)).
 - `claude plugin eval` on a small subset of cases. It runs them inside the real Claude Code, with its system prompt, tool naming and tool search, which can hide MCP tools until Claude searches for them. That's worth checking before a tool-shape decision such as #8 is locked in. It and the other options considered are compared in [this comment on #5](https://github.com/jeremiah-wa/openaustralia-mcp/issues/5#issuecomment-6411528943).
