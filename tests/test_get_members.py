@@ -315,6 +315,25 @@ class TestLookupByName:
         )
 
 
+class TestArgumentsThatDontGoTogether:
+    @pytest.mark.parametrize(
+        "other",
+        [{"postcode": "3056"}, {"name": "Sharma"}, {"party": "Liberal"}, {"state": "NSW"}, {"house": "senate"}],
+    )
+    async def test_person_id_with_anything_else(
+        self, connect: Connect, fake_api: FakeApi, other: dict[str, str]
+    ) -> None:
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10942", **other})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: A person_id finds one person in both houses by itself. "
+            "Give it on its own."
+        )
+        assert fake_api.requests == []
+
+
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
         async with connect(Config()) as client:

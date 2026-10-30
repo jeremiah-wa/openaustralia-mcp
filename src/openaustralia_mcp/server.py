@@ -104,6 +104,8 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         span more than one electorate, so there may be several members. Senators aren't covered yet.
         """
         if person_id is not None:
+            if any(value is not None for value in (postcode, name, party, state, house)):
+                raise ToolError("A person_id finds one person in both houses by itself. Give it on its own.")
             return await _member_by_person_id(openaustralia, person_id)
         if postcode is not None:
             return await _members_by_postcode(openaustralia, postcode)
