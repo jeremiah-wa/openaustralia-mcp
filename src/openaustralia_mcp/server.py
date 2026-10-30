@@ -236,7 +236,7 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
 
 async def _with_offices(openaustralia: OpenAustraliaClient, records: list[Senator]) -> list[Senator]:
     """The same records with their offices: getSenator sends none, and getSenators does."""
-    if not records:
+    if not any(record.is_current for record in records):
         return records
     listed = {senator.person_id: senator for senator in await openaustralia.get_senators()}
     return [listed[record.person_id] if record.is_current else record for record in records]

@@ -173,6 +173,18 @@ class TestLookupByPersonId:
         assert (former["current"], former["left"]) == (False, "2014-06-30")
         assert former["positions"] == []
 
+    async def test_needs_no_list_of_senators_for_a_former_senator(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Kristina Keneally left the Senate in 2022.
+        fake_api.route("openaustralia/getRepresentative_id_10906.json")
+        fake_api.route("openaustralia/getSenator_id_10906.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10906"})
+
+        assert not result.is_error
+        assert [member["left"] for member in result.structured_content["members"]] == ["2022-04-13"]
+        assert len(fake_api.requests) == 2
+
     async def test_asks_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
         fake_api.route("openaustralia/getSenator_id_10990.json")
