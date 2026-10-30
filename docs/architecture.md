@@ -106,7 +106,7 @@ flowchart TD
     req --> ok{"Response has<br/>{error: …}?"}
     ok -- no --> result["Shape and return result"]
     ok -- "yes: bad key" --> rejected["Return readable message:<br/>'Key was rejected. Check it or get a new one at …'"]
-    ok -- "yes: other" --> other["Return the API's error text,<br/>with the tool and arguments"]
+    ok -- "yes: other" --> other["Return the API's error text,<br/>with the API's name and the arguments"]
 ```
 
 - **Validation is lazy.** The server always starts, and a key problem comes back as a tool result that Claude can explain to the user. Failing at startup would only show up in Claude Desktop as an unhelpful "server disconnected".
@@ -118,7 +118,7 @@ flowchart TD
   - A pre-commit hook and CI scan with gitleaks for a key in a `key=` query, a `"key"` field or an `…_API_KEY` setting, in case a fixture or doc is committed unscrubbed. It needs the custom rule in `.gitleaks.toml`, because GitHub's secret scanning only knows its partners' key formats, which don't include OpenAustralia or They Vote For You. The hook stops a key before it's committed. CI catches clones without the hook, and `--no-verify`.
   - The evals' Anthropic key needs no custom rule. gitleaks' default `anthropic-api-key` rule, which `.gitleaks.toml` keeps, caught a fake key in four forms under v8.28.0: on its own, as `ANTHROPIC_API_KEY=…`, as a JSON value and as a Python argument. It doesn't flag the `.env.example` placeholder.
 - **Network failures, non-200 statuses and non-JSON bodies** (such as a Cloudflare challenge page) all return "couldn't be reached" or "didn't respond normally (HTTP …)".
-- **An HTTP 404 from OpenAustralia** returns "Not found", naming the gid and house. `getDebates` sends a 404 page for an unknown gid, and "try again later" would send Claude round in circles.
+- **A 404 from `getDebates`** is how OpenAustralia answers an unknown gid, so `read_debate` says it has no speech or debate with that gid in that house. "Try again later" would send Claude round in circles.
 
 ## Testing
 
