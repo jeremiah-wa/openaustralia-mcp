@@ -115,6 +115,7 @@ class TestLookupByPersonId:
         # Dave Sharma was the MP for Wentworth until 2022, and has been a Senator for NSW since 2023.
         fake_api.route("openaustralia/getRepresentative_id_10942.json")
         fake_api.route("openaustralia/getSenator_id_10942.json")
+        fake_api.route("openaustralia/getSenators.json")
 
         async with connect() as client:
             result = await client.call_tool("get_members", {"person_id": "10942"})
@@ -142,7 +143,10 @@ class TestLookupByPersonId:
                 "state": "NSW",
                 "current": True,
                 "left": None,
-                "positions": [],
+                "positions": [
+                    "Shadow Assistant Minister for Citizenship and Multicultural Affairs",
+                    "Shadow Assistant Minister for International Development and the Indo-Pacific",
+                ],
                 "url": "https://www.openaustralia.org.au/senator/?p=10942",
             },
         ]

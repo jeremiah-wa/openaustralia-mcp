@@ -6,6 +6,7 @@ question: Who is the member with person_id 10942, and which house of Parliament 
 fixtures:
   - getRepresentative_id_10942.json
   - getSenator_id_10942.json
+  - getSenators.json
 expect:
   # "Senat" matches Senate and Senator.
   answer_contains: [Dave Sharma, Senat]

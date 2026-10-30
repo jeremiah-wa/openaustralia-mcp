@@ -33,6 +33,7 @@ from openaustralia_mcp.openaustralia import (
     SITE_URL,
     OpenAustraliaClient,
     Representative,
+    Senator,
     State,
 )
 
@@ -222,7 +223,7 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
     """Every record the person has, in both houses: someone can move from one house to the other."""
     try:
         representative = await openaustralia.get_representative(person_id)
-        senator = await openaustralia.get_senator(person_id)
+        senator = await _with_offices(openaustralia, await openaustralia.get_senator(person_id))
     except ApiClientError as exc:
         raise ToolError(_describe(exc, person_id=person_id)) from None
     if not representative and not senator:
@@ -231,6 +232,14 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
         [MemberRecord.from_representative(record) for record in representative]
         + [MemberRecord.from_senator(record) for record in senator]
     )
+
+
+async def _with_offices(openaustralia: OpenAustraliaClient, records: list[Senator]) -> list[Senator]:
+    """The same records with their offices: getSenator sends none, and getSenators does."""
+    if not records:
+        return records
+    listed = {senator.person_id: senator for senator in await openaustralia.get_senators()}
+    return [listed[record.person_id] for record in records]
 
 
 async def _search_members(
