@@ -135,6 +135,18 @@ class TestLookupByPersonId:
         asked = {(request.url.path.rsplit("/", 1)[-1], request.url.params["id"]) for request in fake_api.requests}
         assert asked == {("getRepresentative", "10990"), ("getSenator", "10990")}
 
+    async def test_says_when_neither_house_knows_the_person(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentative_id_99999.json")
+        fake_api.route("openaustralia/getSenator_id_99999.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "99999"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia has no member of either house with person_id 99999."
+        )
+
 
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:

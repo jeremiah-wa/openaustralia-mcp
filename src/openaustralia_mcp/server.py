@@ -187,6 +187,8 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
         senator = await openaustralia.get_senator(person_id)
     except ApiClientError as exc:
         raise ToolError(_describe(exc, person_id=person_id)) from None
+    if not representative and not senator:
+        raise ToolError(f"OpenAustralia has no member of either house with person_id {person_id}.")
     return _member_lookup_result(
         [MemberRecord.from_representative(record) for record in representative]
         + [MemberRecord.from_senator(record) for record in senator]
