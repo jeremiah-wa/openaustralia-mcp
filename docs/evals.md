@@ -40,7 +40,7 @@ A request with no matching fixture gets an HTTP 404. The server returns it to Cl
 
 ## The runner
 
-The runner ([evals/runner.py](../evals/runner.py)) is Python, using the Anthropic SDK's tool runner (beta). `async_mcp_tool` from `anthropic.lib.tools.mcp` turns each MCP tool into a Claude tool definition and calls it through the MCP session. The in-memory `Client` gives that session as `client.session`. The runner wraps it in a `RecordingSession`, which records each call's arguments and full result before passing the result on.
+The runner ([evals/runner.py](../evals/runner.py)) is Python, using the Anthropic SDK's tool runner (beta). `async_mcp_tool` from `anthropic.lib.tools.mcp` turns each MCP tool into a Claude tool definition and calls it through the MCP session. The in-memory `Client` gives that session as `client.session`. The runner wraps it in a `RecordingSession`, which records each call's arguments and full result before passing the result on. [ADR 0006](adr/0006-hand-written-eval-runner.md) records why it's hand-written.
 
 | Setting | Choice | Why |
 |---|---|---|
