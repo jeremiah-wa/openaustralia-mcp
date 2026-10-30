@@ -132,3 +132,93 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
             for (case_id, model, failure), count in failures.items()
         ]
     return "\n".join(lines) + "\n"
+
+
+class ModelRun(BaseModel):
+    effort: str
+    trials: int
+    cost_per_trial_usd: float
+
+
+class CaseResult(BaseModel):
+    tags: list[str]
+    passes: int
+    trials: int
+
+
+class Scores(BaseModel):
+    """A run's scores, saved as scores.json. The committed evals/results/baseline.json is one of these."""
+
+    models: dict[str, ModelRun]
+    # By case id, then by model.
+    cases: dict[str, dict[str, CaseResult]]
+
+
+def scores(records: list[TrialRecord]) -> Scores:
+    models: dict[str, ModelRun] = {}
+    for model in dict.fromkeys(record.model for record in records):
+        mine = [record for record in records if record.model == model]
+        cost = sum(trial_cost_usd(model, record.usage) for record in mine)
+        models[model] = ModelRun(effort=mine[0].effort, trials=len(mine), cost_per_trial_usd=cost / len(mine))
+    cases: dict[str, dict[str, CaseResult]] = {}
+    for score in score_cases(records):
+        cases.setdefault(score.case_id, {})[score.model] = CaseResult(
+            tags=score.tags, passes=score.passes, trials=score.trials
+        )
+    return Scores(models=models, cases=cases)
+
+
+def render_comparison(baseline: Scores, run: Scores) -> str:
+    """The markdown comparison of a run with the baseline, over the cases and models both have."""
+    lines = ["## Compared with the baseline", ""]
+    models = [model for model in run.models if model in baseline.models]
+    for model in models:
+        effort, baseline_effort = run.models[model].effort, baseline.models[model].effort
+        if effort != baseline_effort:
+            warning = f"{model} ran at effort {effort}, and the baseline at {baseline_effort}"
+            lines += [f"{warning}, so the scores aren't comparable.", ""]
+
+    lines += ["| Model | Tag | Cases | Baseline | This run | Change |", "|---|---|---|---|---|---|"]
+    for model in models:
+        shared = [case for case in run.cases if model in run.cases[case] and model in baseline.cases.get(case, {})]
+        for tag in HEADLINE_TAGS:
+            tagged = [case for case in shared if tag in run.cases[case][model].tags]
+            if not tagged:
+                continue
+            then = _mean_pass_rate(baseline, tagged, model)
+            now = _mean_pass_rate(run, tagged, model)
+            change = round((now - then) * 100)
+            points = f"{change:+d}" if change else "0"
+            lines.append(f"| {model} | {tag} | {len(tagged)} | {then:.0%} | {now:.0%} | {points} points |")
+
+    changed = [
+        (case, model)
+        for model in models
+        for case in run.cases
+        if model in run.cases[case]
+        and model in baseline.cases.get(case, {})
+        and run.cases[case][model].passes / run.cases[case][model].trials
+        != baseline.cases[case][model].passes / baseline.cases[case][model].trials
+    ]
+    if changed:
+        lines += ["", "| Case | Model | Baseline | This run |", "|---|---|---|---|"]
+        for case, model in changed:
+            then, now = baseline.cases[case][model], run.cases[case][model]
+            lines.append(f"| {case} | {model} | {then.passes}/{then.trials} | {now.passes}/{now.trials} |")
+
+    new = [case for case in run.cases if case not in baseline.cases]
+    if new:
+        lines += ["", f"Not in the baseline: {', '.join(f'`{case}`' for case in new)}."]
+    lines += ["", "With about 100 trials per model, differences under about 10 points are noise (docs/evals.md)."]
+    return "\n".join(lines) + "\n"
+
+
+def _mean_pass_rate(run: Scores, cases: list[str], model: str) -> float:
+    return sum(run.cases[case][model].passes / run.cases[case][model].trials for case in cases) / len(cases)
+
+
+def estimate_usd(*, cases: int, trials: int, cost_per_trial: dict[str, float | None]) -> float | None:
+    """What a run will cost, from each model's measured cost per trial. None if a model has no measured cost."""
+    if any(cost is None for cost in cost_per_trial.values()):
+        return None
+    return sum(cases * trials * cost for cost in cost_per_trial.values() if cost is not None)
