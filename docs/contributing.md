@@ -137,4 +137,4 @@ docs: record person_id check result in api-notes.md
 
 - `main` is always in a working state. Do your work on a short-lived branch named `<type>/<short-description>`, e.g. `feat/search-hansard`.
 - Open a pull request into `main`. The description says what changed and why, and how you tested it, including any manual checks in MCP Inspector or Claude Desktop.
-- Squash-merge, using a Conventional Commit title for the squashed commit.
+- Merge with a merge commit, not a squash, so each commit stays on `main` and can be reverted on its own.
