@@ -39,6 +39,18 @@ class TestGetMembersLive:
         assert not result.is_error
         assert {member["house"] for member in result.structured_content["members"]} == {"representatives", "senate"}
 
+    async def test_finds_a_senators_positions_by_person_id(self) -> None:
+        # getSenator sends no offices, so these come from getSenators.
+        senators = await get_members({"house": "senate"})
+        holder = next(member for member in senators.structured_content["members"] if member["positions"])
+
+        result = await get_members({"person_id": holder["person_id"]})
+
+        assert not result.is_error
+        records = result.structured_content["members"]
+        [senator] = [member for member in records if member["house"] == "senate" and member["current"]]
+        assert senator["positions"] == holder["positions"]
+
     @pytest.mark.parametrize("state", ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"])
     async def test_lists_each_states_senators(self, state: str) -> None:
         # OpenAustralia spells states inconsistently, and only a real call shows a spelling still works.
