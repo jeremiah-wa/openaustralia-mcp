@@ -19,7 +19,7 @@ These protect users' keys and keep the project within the data licences. Don't b
 3. **Keys never appear in logs, tool results, error messages or eval results.**
 4. **Read-only.** No tool changes data anywhere.
 5. **Cut Hansard text, never rewrite it.**
-   - Hansard is CC BY-NC-ND (no derivatives). The server may cut, excerpt and paginate it, but must not paraphrase or summarise it. Summarising is the client model's job.
+   - Hansard is CC BY-NC-ND (no derivatives). The server may cut, excerpt and paginate it, but must not paraphrase or summarise it. Summarising is left to the client model, which is an assumption (see [ADR 0003](adr/0003-cut-hansard-never-rewrite-it.md)).
 6. **Every tool result carries attribution:** a source URL and the licence line for its data.
 7. **Non-commercial.** Don't add anything that charges for access or resells the data.
 8. **Keep results small.**
