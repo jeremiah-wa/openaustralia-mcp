@@ -1,0 +1,21 @@
+id: mp-housing-3056
+tags: [regression, search]
+question: What has my federal MP for 3056 said about housing?
+fixtures:
+  - getRepresentatives_postcode_3056.json
+  - file: getHansard_search_housing_person_10887.json
+    search_contains: [housing]
+expect:
+  calls:
+    - id: member
+      tool: get_members
+      args: {postcode: "3056"}
+    - tool: search_hansard
+      args: {person_id: "10887"}
+      args_contain: {query: [housing]}
+      after: member
+  forbidden:
+    - tool: search_hansard
+      args_missing: [person_id]
+  answer_contains: [Peter Khalil]
+  cites_url: true

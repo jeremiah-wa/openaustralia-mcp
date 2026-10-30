@@ -1,0 +1,9 @@
+id: search-without-a-topic
+tags: [regression, search]
+question: Search Hansard for me.
+expect:
+  # Claude should ask what to search for.
+  forbidden:
+    - tool: search_hansard
+      args_missing: [query, person_id]
+  max_calls: 0

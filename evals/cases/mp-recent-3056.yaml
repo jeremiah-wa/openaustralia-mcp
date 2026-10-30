@@ -1,0 +1,17 @@
+id: mp-recent-3056
+tags: [regression, search]
+question: What has the MP for 3056 been talking about in Parliament lately?
+fixtures:
+  - getRepresentatives_postcode_3056.json
+  # Answers a search by person alone, with no query.
+  - getHansard_person_10887.json
+expect:
+  calls:
+    - id: member
+      tool: get_members
+      args: {postcode: "3056"}
+    - tool: search_hansard
+      args: {person_id: "10887"}
+      after: member
+  answer_contains: [Peter Khalil]
+  cites_url: true

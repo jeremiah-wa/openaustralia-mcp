@@ -100,6 +100,8 @@ expect:
 
 **Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as Senators or a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
 
+The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. The cases for member lookup by name and Senators (17 to 19 in that list) belong to [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8), because their expected calls depend on the tool shape it picks.
+
 ## Graders
 
 All graders are deterministic. A trial passes when every check passes.
@@ -170,7 +172,7 @@ A run costs cases × trials × models × the cost of one trial. The cost of a tr
 
 Before starting, the runner prints an estimate from the mean cost per trial in the latest run that used each model. `--max-cost-usd` is required, and the runner stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
-The smoke runs on case `mp-3056` (one `get_members` call) cost $0.0085 a trial on Sonnet 5.5 and $0.0004 on Haiku 5.5. Cases with longer chains cost more. The baseline in #6 gives the measured figure across all the cases.
+Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average.
 
 ## Later
 

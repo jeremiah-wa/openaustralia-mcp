@@ -25,6 +25,10 @@ RECORDED = {
     "openaustralia/getRepresentatives_postcode_3056.json": RecordedRequest("getRepresentatives", {"postcode": "3056"}),
     "openaustralia/getRepresentatives_postcode_3142.json": RecordedRequest("getRepresentatives", {"postcode": "3142"}),
     "openaustralia/getRepresentatives_postcode_3181.json": RecordedRequest("getRepresentatives", {"postcode": "3181"}),
+    # Neighbours of 3142, which Claude tries when 3142 has no current member.
+    "openaustralia/getRepresentatives_postcode_3143.json": RecordedRequest("getRepresentatives", {"postcode": "3143"}),
+    "openaustralia/getRepresentatives_postcode_3144.json": RecordedRequest("getRepresentatives", {"postcode": "3144"}),
+    "openaustralia/getRepresentatives_postcode_3146.json": RecordedRequest("getRepresentatives", {"postcode": "3146"}),
     "openaustralia/getHansard_person_10887.json": RecordedRequest("getHansard", {"person": "10887"}),
     "openaustralia/getHansard_search_housing_person_10887.json": RecordedRequest(
         "getHansard", {"search": "housing", "person": "10887"}
@@ -38,6 +42,9 @@ RECORDED = {
     ),
     "openaustralia/getDebates_representatives_2026-06-23.80.1.json": RecordedRequest(
         "getDebates", {"type": "representatives", "gid": "2026-06-23.80.1"}
+    ),
+    "openaustralia/getDebates_senate_2026-06-23.80.1.json": RecordedRequest(
+        "getDebates", {"type": "senate", "gid": "2026-06-23.80.1"}
     ),
     "openaustralia/getDebates_senate_2026-10-15.118.1.json": RecordedRequest(
         "getDebates", {"type": "senate", "gid": "2026-10-15.118.1"}
