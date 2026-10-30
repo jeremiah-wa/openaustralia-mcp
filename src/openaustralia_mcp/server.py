@@ -85,7 +85,9 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         """
         if person_id is not None:
             return await _member_by_person_id(openaustralia, person_id)
-        return await _members_by_postcode(openaustralia, postcode)
+        if postcode is not None:
+            return await _members_by_postcode(openaustralia, postcode)
+        raise ToolError("Give a postcode or a person_id.")
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(

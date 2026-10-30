@@ -54,6 +54,16 @@ class TestLookupByPostcode:
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "postcode": "3056"}
 
 
+class TestNoArguments:
+    async def test_says_what_to_give(self, connect: Connect, fake_api: FakeApi) -> None:
+        async with connect() as client:
+            result = await client.call_tool("get_members", {})
+
+        assert result.is_error
+        assert result_text(result) == "Error executing tool get_members: Give a postcode or a person_id."
+        assert fake_api.requests == []
+
+
 class TestLookupByPersonId:
     async def test_finds_a_former_member(self, connect: Connect, fake_api: FakeApi) -> None:
         # Keith Wolahan was the MP for Menzies until 2025, and was never a Senator.
