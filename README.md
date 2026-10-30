@@ -139,17 +139,7 @@ npx @modelcontextprotocol/inspector@latest uv run --env-file .env openaustralia-
 
 ### Running the evals
 
-The evals check that Claude picks the right tool with the right arguments. They call the Anthropic API, so they cost money. They never run under `uv run pytest`, and in CI they run only on demand. Put `ANTHROPIC_API_KEY` in `.env`, then:
-
-```bash
-# One case, one trial, on Haiku: well under a cent
-uv run --group evals --env-file .env python -m evals --models claude-haiku-5-5 --trials 1 --cases mp-3056 --max-cost-usd 0.10
-
-# Everything, as for the baseline
-uv run --group evals --env-file .env python -m evals --models claude-sonnet-5-5 claude-haiku-5-5 --trials 5 --max-cost-usd 5
-```
-
-`--max-cost-usd` is required. The runner refuses a run estimated above it, and stops starting trials once that much is spent. `--cases` takes several names or globs, e.g. `--cases "mp-*" ndis-search`. `--variant` picks the set of tools Claude gets: the server's own (`current`, the default) or an eval-only variant (see [evals.md](docs/evals.md#variants)). Results go to `evals/results/runs/<timestamp>/` (gitignored). A pull request that changes a tool's name, description or arguments compares its scores with [baseline.md](evals/results/baseline.md): add the `run-evals` label to run them in CI, or run [evals.yml](.github/workflows/evals.yml) by hand. See [evals.md](docs/evals.md).
+The evals check that Claude picks the right tool with the right arguments, and they cost money to run. [evals.md](docs/evals.md#running-them) has the commands, and [contributing.md](docs/contributing.md#evals) says when to run them.
 
 ## Docs
 

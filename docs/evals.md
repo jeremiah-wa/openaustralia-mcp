@@ -28,6 +28,24 @@ flowchart LR
 4. The trial ends when Claude answers, or at the turn cap.
 5. The graders score the recorded calls and the final answer. This repeats for every trial and every model.
 
+## Running them
+
+Put `ANTHROPIC_API_KEY` in `.env`, then:
+
+```bash
+# One case, one trial, on Haiku: well under a cent
+uv run --group evals --env-file .env python -m evals --models claude-haiku-5-5 --trials 1 --cases mp-3056 --max-cost-usd 0.10
+
+# Everything, as for the baseline
+uv run --group evals --env-file .env python -m evals --models claude-sonnet-5-5 claude-haiku-5-5 --trials 5 --max-cost-usd 5
+```
+
+- `--cases` takes several names or globs, e.g. `--cases "mp-*" ndis-search`.
+- `--variant` picks the set of tools Claude gets: the server's own (`current`, the default) or an eval-only variant (see [Variants](#variants)).
+- `--max-cost-usd` caps the spend (see [Cost](#cost)).
+
+To run them in CI, add the `run-evals` label to a pull request, or run [evals.yml](../.github/workflows/evals.yml) from the Actions tab, where the models, trials and cost cap are inputs. [contributing.md](contributing.md#evals) says when.
+
 ## The seam
 
 The evals use the same seam as the tests (see [Testing](architecture.md#testing)): `build_server(http_client, config)` with an `httpx2.MockTransport`. There's no subprocess, no OpenAustralia key, and no network apart from the Anthropic API.
@@ -186,15 +204,15 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 | Trials that ended in an error | Same folder, `errors.jsonl` | No |
 | A markdown summary per run: scores by model and tag, cases by model, failure reasons, cost | Same folder, `summary.md` | No |
 | The run's scores: passes per case and model, and each model's effort and cost per trial | Same folder, `scores.json` | No |
-| The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have. A pull request that changes a tool updates both when it merges |
+| The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have |
 
 Pull requests compare with the baseline without committing every run. CI reads the scores and the cost per trial from `baseline.json`, not from the markdown.
 
 ## Where it lives
 
-- `evals/` at the top level, outside pytest's `testpaths`. Evals cost money and aren't deterministic, so `uv run pytest` never runs them.
+- `evals/` at the top level, outside pytest's `testpaths`, so `uv run pytest` doesn't run them.
 - An `evals` dependency group with `anthropic[mcp]`. It's not a runtime dependency.
-- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, because each run costs money (see [Cost](#cost)), and never in `ci.yml`, which keeps the Anthropic key out of the jobs that run on every push. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores. There's no threshold until there are a few runs to compare.
+- [evals.yml](../.github/workflows/evals.yml) in CI. The job writes the summary and the comparison with the baseline to the job summary, and uploads the run's files as an artifact.
 
 ## Keys
 
@@ -206,7 +224,7 @@ Pull requests compare with the baseline without committing every run. CI reads t
 
 A run costs cases × trials × models × the cost of one trial. The cost of a trial is measured from the token usage in the results and priced per model. In October 2026, Sonnet 5.5 costs $2 per million input tokens and $10 per million output tokens, and Haiku 5.5 costs $0.10 and $0.50.
 
-Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. `--max-cost-usd` is required. The runner refuses a run whose estimate is over it, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
+Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. The runner refuses a run whose estimate is over `--max-cost-usd`, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
 Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average. The 7 member cases from #8 bring a full run to 23 cases, about $3.40 at those rates, which is under the workflow's default $5 cap.
 
