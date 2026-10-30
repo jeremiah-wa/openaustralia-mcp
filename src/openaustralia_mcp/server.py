@@ -181,12 +181,16 @@ async def _members_by_postcode(openaustralia: OpenAustraliaClient, postcode: str
 
 
 async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> MemberLookupResult:
-    """Every record the person has."""
+    """Every record the person has, in both houses: someone can move from one house to the other."""
     try:
         representative = await openaustralia.get_representative(person_id)
+        senator = await openaustralia.get_senator(person_id)
     except ApiClientError as exc:
         raise ToolError(_describe(exc, person_id=person_id)) from None
-    return _member_lookup_result([MemberRecord.from_representative(record) for record in representative])
+    return _member_lookup_result(
+        [MemberRecord.from_representative(record) for record in representative]
+        + [MemberRecord.from_senator(record) for record in senator]
+    )
 
 
 def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:

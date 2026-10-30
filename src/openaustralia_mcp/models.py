@@ -6,7 +6,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from openaustralia_mcp.openaustralia import HANSARD_LICENCE, SITE_URL, DebateEntry, HansardRow, Representative
+from openaustralia_mcp.openaustralia import (
+    HANSARD_LICENCE,
+    SITE_URL,
+    DebateEntry,
+    HansardRow,
+    Representative,
+    Senator,
+)
 
 # Characters of debate text per read_debate call.
 DEBATE_PAGE_SIZE = 4000
@@ -40,8 +47,25 @@ class MemberRecord(BaseModel):
             electorate=representative.constituency,
             current=current,
             left=None if current else representative.left_house,
-            positions=representative.current_positions,
+            # OpenAustralia attaches a person's offices to each of their records, even a former one.
+            positions=representative.current_positions if current else [],
             url=representative.url,
+        )
+
+    @classmethod
+    def from_senator(cls, senator: Senator) -> "MemberRecord":
+        current = senator.is_current
+        return cls(
+            person_id=senator.person_id,
+            name=senator.full_name,
+            party=senator.party or "",
+            house="senate",
+            state=senator.constituency,
+            current=current,
+            left=None if current else senator.left_house,
+            # getSenators includes offices. getSenator gave Dave Sharma none: his are on his former House record.
+            positions=senator.current_positions if current else [],
+            url=senator.url,
         )
 
 

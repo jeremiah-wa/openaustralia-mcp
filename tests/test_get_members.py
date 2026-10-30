@@ -89,6 +89,52 @@ class TestLookupByPersonId:
             }
         ]
 
+    async def test_finds_someone_who_moved_houses(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Dave Sharma was the MP for Wentworth until 2022, and has been a Senator for NSW since 2023.
+        fake_api.route("openaustralia/getRepresentative_id_10942.json")
+        fake_api.route("openaustralia/getSenator_id_10942.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10942"})
+
+        assert not result.is_error
+        assert result.structured_content["members"] == [
+            {
+                "person_id": "10942",
+                "name": "Dave Sharma",
+                "party": "Liberal Party",
+                "house": "representatives",
+                "electorate": "Wentworth",
+                "state": None,
+                "current": False,
+                "left": "2022-05-21",
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/mp/?p=10942",
+            },
+            {
+                "person_id": "10942",
+                "name": "Dave Sharma",
+                "party": "Liberal Party",
+                "house": "senate",
+                "electorate": None,
+                "state": "NSW",
+                "current": True,
+                "left": None,
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/senator/?p=10942",
+            },
+        ]
+
+    async def test_asks_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentative_id_10990.json")
+        fake_api.route("openaustralia/getSenator_id_10990.json")
+
+        async with connect() as client:
+            await client.call_tool("get_members", {"person_id": "10990"})
+
+        asked = {(request.url.path.rsplit("/", 1)[-1], request.url.params["id"]) for request in fake_api.requests}
+        assert asked == {("getRepresentative", "10990"), ("getSenator", "10990")}
+
 
 class TestMissingKey:
     async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:

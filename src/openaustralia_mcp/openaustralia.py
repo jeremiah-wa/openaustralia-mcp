@@ -60,6 +60,21 @@ _representatives = TypeAdapter(Representatives)
 _representative_records = TypeAdapter(list[Representative])
 
 
+class Senator(Representative):
+    """A Senator as getSenator(s) returns them. `constituency` is their state or territory."""
+
+    @property
+    def url(self) -> str:
+        """The Senator's page on OpenAustralia."""
+        return f"{SITE_URL}/senator/?p={self.person_id}"
+
+
+_senator_records = TypeAdapter(list[Senator])
+
+# What getRepresentative and getSenator say for a person who never sat in that house.
+UNKNOWN_PERSON = "Unknown person ID"
+
+
 class HansardSpeaker(BaseModel):
     person_id: str
     first_name: str
@@ -146,8 +161,20 @@ class OpenAustraliaClient:
         return _representatives.validate_python(await self._call("getRepresentatives", postcode=postcode))
 
     async def get_representative(self, person_id: str) -> list[Representative]:
-        """The person's records as a member of the House, current or former."""
-        return _representative_records.validate_python(await self._call("getRepresentative", id=person_id))
+        """The person's records as a member of the House, current or former. Empty if they never sat in it."""
+        return _representative_records.validate_python(await self._person("getRepresentative", person_id))
+
+    async def get_senator(self, person_id: str) -> list[Senator]:
+        """The person's records as a Senator, current or former. Empty if they never sat in the Senate."""
+        return _senator_records.validate_python(await self._person("getSenator", person_id))
+
+    async def _person(self, function: str, person_id: str) -> Any:
+        try:
+            return await self._call(function, id=person_id)
+        except ApiError as exc:
+            if exc.message == UNKNOWN_PERSON:
+                return []
+            raise
 
     async def search_hansard(self, search: str | None = None, person: str | None = None) -> HansardSearch:
         """Speeches in either house that match the search and/or are by the person, newest first, 20 to a page."""
