@@ -74,24 +74,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         Returns each member's person_id, name, party, electorate and current positions. A postcode can
         span more than one electorate, so there may be several members. Senators aren't covered yet.
         """
-        try:
-            representatives = await openaustralia.get_representatives(postcode)
-        except ApiClientError as exc:
-            raise ToolError(_describe(exc, postcode=postcode)) from None
-
-        # A division OpenAustralia can't match to a current member comes back as `false`.
-        found = [member for member in representatives if isinstance(member, Representative)]
-        if not found:
-            raise ToolError(
-                f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
-                "behind changes to electorate boundaries, so try a neighbouring postcode."
-            )
-        return MemberLookupResult(
-            members=[MemberRecord.from_representative(member) for member in found],
-            note=PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None,
-            source_url=SITE_URL,
-            licence=MEMBERS_LICENCE,
-        )
+        return await _members_by_postcode(openaustralia, postcode)
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
@@ -164,6 +147,28 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         return result
 
     return server
+
+
+async def _members_by_postcode(openaustralia: OpenAustraliaClient, postcode: str) -> MemberLookupResult:
+    """The MPs whose electorates cover the postcode."""
+    try:
+        representatives = await openaustralia.get_representatives(postcode)
+    except ApiClientError as exc:
+        raise ToolError(_describe(exc, postcode=postcode)) from None
+
+    # A division OpenAustralia can't match to a current member comes back as `false`.
+    found = [member for member in representatives if isinstance(member, Representative)]
+    if not found:
+        raise ToolError(
+            f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
+            "behind changes to electorate boundaries, so try a neighbouring postcode."
+        )
+    note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
+    return _member_lookup_result([MemberRecord.from_representative(member) for member in found], note)
+
+
+def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
+    return MemberLookupResult(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
 
 
 def _describe(exc: ApiClientError, **arguments: str) -> str:
