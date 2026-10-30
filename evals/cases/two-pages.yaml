@@ -1,0 +1,15 @@
+id: two-pages
+tags: [regression, read]
+question: Read me the first two pages of the House debate 2026-06-23.78.2.
+fixtures:
+  - getDebates_representatives_2026-06-23.78.2.json
+expect:
+  calls:
+    - id: first
+      tool: read_debate
+      args: {gid: "2026-06-23.78.2", house: representatives}
+    # The first page's next_offset.
+    - tool: read_debate
+      args: {gid: "2026-06-23.78.2", house: representatives, offset: 4000}
+      after: first
+  cites_url: true

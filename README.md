@@ -140,6 +140,20 @@ npx @modelcontextprotocol/inspector@latest uv run --env-file .env openaustralia-
 
 See [architecture.md](docs/architecture.md) for how the server is put together.
 
+### Running the evals
+
+The evals check that Claude picks the right tool with the right arguments. They call the Anthropic API, so they cost money, and they never run under `uv run pytest` or in CI. Put `ANTHROPIC_API_KEY` in `.env`, then:
+
+```bash
+# One case, one trial, on Haiku: well under a cent
+uv run --group evals --env-file .env python -m evals --models claude-haiku-5-5 --trials 1 --cases mp-3056 --max-cost-usd 0.10
+
+# Everything, as for the baseline
+uv run --group evals --env-file .env python -m evals --models claude-sonnet-5-5 claude-haiku-5-5 --trials 5 --max-cost-usd 5
+```
+
+`--max-cost-usd` is required. The runner stops starting trials once that much is spent. Results go to `evals/results/runs/<timestamp>/` (gitignored). A pull request that changes a tool's name, description or arguments compares its scores with [baseline.md](evals/results/baseline.md). See [evals.md](docs/evals.md).
+
 ## Roadmap
 
 1. Local stdio server with the OpenAustralia tools.

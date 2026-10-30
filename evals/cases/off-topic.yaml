@@ -1,0 +1,5 @@
+id: off-topic
+tags: [regression]
+question: What's the capital of Australia?
+expect:
+  max_calls: 0

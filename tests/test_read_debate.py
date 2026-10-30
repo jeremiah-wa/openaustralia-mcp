@@ -140,6 +140,18 @@ class TestSenate:
         assert content["url"] == "https://www.openaustralia.org.au/senate/?id=2026-10-15.117.1#g118.1"
         assert content["text"].startswith("Jenny McAllister:\n\n")
 
+    async def test_reads_the_senate_speech_for_a_gid_the_house_also_has(
+        self, connect: Connect, fake_api: FakeApi
+    ) -> None:
+        # In the House, 2026-06-23.80.1 is Peter Khalil's speech on housing.
+        fake_api.route("openaustralia/getDebates_senate_2026-06-23.80.1.json")
+        fake_api.route(KHALIL)
+
+        async with connect() as client:
+            result = await client.call_tool("read_debate", {"gid": "2026-06-23.80.1", "house": "senate"})
+
+        assert result.structured_content["text"].startswith("Lidia Thorpe:\n\n")
+
 
 class TestWholeDebate:
     async def test_reads_every_speech_under_a_heading_gid(self, connect: Connect, fake_api: FakeApi) -> None:

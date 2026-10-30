@@ -1,0 +1,9 @@
+id: mp-0000
+tags: [regression, members]
+question: My postcode is 0000, who's my MP?
+fixtures:
+  - getRepresentatives_postcode_0000.json
+expect:
+  calls:
+    - tool: get_members
+      args: {postcode: "0000"}
