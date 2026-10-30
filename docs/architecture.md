@@ -42,10 +42,14 @@ flowchart TB
     http -.-> factory
     factory --> tools
     tools --> shape
-    tools --> cache
-    cache --> oac
-    cache --> tvc
+    tools --> oac
+    tools --> tvc
+    tools -.-> cache
+    cache -.-> oac
+    cache -.-> tvc
 ```
+
+Dashed lines aren't built yet.
 
 | Component | Responsibility |
 |---|---|
@@ -53,7 +57,7 @@ flowchart TB
 | **Server factory** | The single construction point. It takes an HTTP client and the config, so tests can swap in fakes (see [Testing](#testing)). A clock parameter is added along with the cache. |
 | **Tool layer** | Registers the tools with the `mcp` SDK (`MCPServer`, called FastMCP before 2.x) and holds the descriptions and the server `instructions` that tell the model how to chain tools. |
 | **Result shaping** | Turns raw API responses into small, citable results (the result models in `models.py`). This is where most of the design work goes. |
-| **Cache** | Avoids repeat calls for data that rarely or never changes. |
+| **Cache** | Will avoid repeat calls for data that rarely or never changes. Not built yet. |
 | **API clients** | One per API. They build requests, attach the key, turn error responses into typed errors, and parse responses into pydantic models that keep the API's own field names (e.g. `Representative`). They don't know anything about MCP. The tool functions decide what to do with gaps in the data, and map API models onto result models. |
 
 ## Tools
@@ -119,7 +123,7 @@ sequenceDiagram
     C->>S: get_members(postcode="3056")
     S->>OA: getRepresentatives?postcode=3056
     OA-->>S: member list
-    S-->>C: person_id=10001, name, party (cached 24h)
+    S-->>C: person_id=10001, name, party
 
     C->>S: search_hansard(query="housing", person_id=10001)
     S->>OA: getHansard?search=housing&person=10001
@@ -129,7 +133,7 @@ sequenceDiagram
     C->>S: read_debate(gid="2026-09-10.42.1", house="representatives")
     S->>OA: getDebates?gid=...
     OA-->>S: full debate text
-    S-->>C: first 4,000 chars + next offset (text cached by gid)
+    S-->>C: first 4,000 chars + next offset
 
     C->>S: get_policies(person_id=10001, query="housing")
     S->>TV: /policies, /people/10001
@@ -180,29 +184,28 @@ These defaults are starting values, to be tuned once recorded responses show rea
 
 ## Caching
 
-The cache is in memory only, and is lost when the process exits.
+No cache is built yet, so every call goes to the API. This is the plan. The cache will be in memory only, and lost when the process exits.
 
 | Data | Policy | Why |
 |---|---|---|
 | Members, electorates | 24-hour TTL | Rarely change, and almost every question looks up a `person_id` |
 | TVFY policies | 24-hour TTL | Rarely change |
-| Debate text (by `gid` and house) | Bounded LRU (~50 items). Not built yet | Published Hansard never changes, and paging with `offset` would otherwise download the whole debate again for every page. The key needs the house, because gids repeat across houses |
+| Debate text (by `gid` and house) | Bounded LRU (~50 items) | Published Hansard never changes, and paging with `offset` would otherwise download the whole debate again for every page. The key needs the house, because gids repeat across houses |
 | Searches | Not cached | New sitting days change the results, and a stale search could silently miss today's debate |
 
 ## Testing
 
-The tests use a single seam, the MCP tool call, plus two dependencies the factory injects.
+The tests use a single seam, the MCP tool call, with a fake HTTP client passed to the factory.
 
 ```mermaid
 flowchart LR
     test["pytest"] -- "call_tool(name, args)" --> mc["In-memory MCP client"]
     mc --> srv["Server built by<br/>build_server(...)"]
     srv --> fakehttp["Fake HTTP client<br/>(recorded responses)"]
-    srv --> fakeclock["Fake clock"]
 ```
 
 - **Unit tests** call tools through an in-memory MCP client, the same way a real client does, and check the result: trimming, IDs, attribution and error messages. HTTP is served from recorded responses, so no key is needed and the tests run in CI. Each recorded response answers only the request it was recorded for (`RECORDED` in `tests/fake_api.py`), and any other request gets a 404.
-- **Cache tests** move the fake clock forward to check the TTL, and count HTTP calls to check that paging through one `gid` fetches it only once.
+- **Cache tests** will come with the cache. They'll move a fake clock forward to check the TTL, and count HTTP calls to check that paging through one `gid` fetches it only once.
 - **Live smoke tests** use the same tool-level seam with a real HTTP client. They run only when the key env vars are set. CI runs them in `live.yml` every Sunday at 20:17 UTC, by hand, and on pull requests that change them, and fails if the key secret is missing rather than letting them skip.
 - **Manual testing** uses MCP Inspector.
 - **Evals** check what the tests can't: whether Claude picks the right tool, fills in the right arguments and chains the calls. They run Claude against a server built the same way, with recorded responses routed by request. They cost money and aren't deterministic, so they live outside pytest. CI runs them only in `evals.yml`, by hand or when a pull request gets the `run-evals` label, and the job summary compares the run with the committed baseline. See [evals.md](evals.md).
