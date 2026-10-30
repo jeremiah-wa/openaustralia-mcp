@@ -1,0 +1,11 @@
+id: mp-3056
+tags: [regression, members]
+question: Who is my federal MP? I'm in postcode 3056.
+fixtures:
+  - getRepresentatives_postcode_3056.json
+expect:
+  calls:
+    - tool: get_members
+      args: {postcode: "3056"}
+  answer_contains: [Peter Khalil]
+  cites_url: true
