@@ -54,6 +54,26 @@ class TestLookupByPostcode:
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "postcode": "3056"}
 
 
+class TestWhatClaudeSees:
+    async def test_instructions_say_how_to_find_a_member(self, connect: Connect) -> None:
+        async with connect() as client:
+            instructions = client.instructions
+
+        assert (
+            "Start with get_members to find a member and their person_id, by postcode, name, party or state, "
+            "or to look up a person_id; later calls about that member use the person_id."
+        ) in (instructions or "")
+
+    async def test_description_covers_every_argument(self, connect: Connect) -> None:
+        async with connect() as client:
+            tools = (await client.list_tools()).tools
+
+        [tool] = [tool for tool in tools if tool.name == "get_members"]
+        assert [
+            argument for argument in tool.input_schema["properties"] if argument not in (tool.description or "")
+        ] == []
+
+
 class TestNoArguments:
     async def test_says_what_to_give(self, connect: Connect, fake_api: FakeApi) -> None:
         async with connect() as client:

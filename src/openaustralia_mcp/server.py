@@ -41,7 +41,8 @@ VERSION = version("openaustralia-mcp")
 INSTRUCTIONS = """\
 Answers questions about the federal Australian Parliament using OpenAustralia data.
 
-Start with get_members to find a member and their person_id; later calls about that member use the person_id.
+Start with get_members to find a member and their person_id, by postcode, name, party or state, \
+or to look up a person_id; later calls about that member use the person_id.
 To find what a member said in Parliament, pass their person_id to search_hansard, with or without a query.
 To read a speech in full, pass a hit's gid and house to read_debate; follow next_offset for more.
 Every result includes a url and a licence line: cite the url when you use the data.
@@ -98,10 +99,13 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             Field(description="Only members of this house: the House of Representatives (MPs) or the Senate."),
         ] = None,
     ) -> MemberLookupResult:
-        """Find the federal member of the House of Representatives (MP) for an Australian postcode.
+        """Find federal members of Parliament.
 
-        Returns each member's person_id, name, party, electorate and current positions. A postcode can
-        span more than one electorate, so there may be several members. Senators aren't covered yet.
+        By postcode, it finds the members of the House of Representatives (MPs) for that area. A postcode can
+        span more than one electorate, so there may be several. By person_id, it finds one person, current or
+        former, in either house. By name, party or state, it finds current members who match all of them, in
+        both houses unless house limits it to one. A state means Senators. Returns each member's person_id, name,
+        party, house, electorate or state, whether they're a current member, current positions and url.
         """
         if person_id is not None:
             if any(value is not None for value in (postcode, name, party, state, house)):
