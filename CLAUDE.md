@@ -2,7 +2,7 @@
 
 A learning side project: a local MCP server, written in Python, that lets Claude answer questions about the federal Australian Parliament (members, electorates, Hansard, votes). It is a thin layer over the OpenAustralia and They Vote For You APIs, which are both run by the OpenAustralia Foundation. The goal is to learn how MCP servers and Claude connectors work. Each user brings their own API keys.
 
-The project is in early building. `get_members` (postcode lookup of Representatives), `search_hansard` and `read_debate` work end to end. The other tools haven't been built yet.
+The project is in early building. [tools.md](docs/tools.md) says which tools work so far.
 
 ## Docs
 

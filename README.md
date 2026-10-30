@@ -7,7 +7,7 @@ It is a thin layer over two existing APIs run by the [OpenAustralia Foundation](
 - **[OpenAustralia](https://www.openaustralia.org.au/api/)**: members, electorates, Hansard and debates.
 - **[They Vote For You](https://theyvoteforyou.org.au/)**: votes in Parliament (divisions) and policy positions.
 
-> **Status: early build.** This README describes the planned first release. So far `get_members` (Representatives by postcode), `search_hansard` and `read_debate` work. The other tools haven't been built yet.
+> **Status: early build.** This README describes the planned first release. [tools.md](docs/tools.md) says which tools work so far.
 
 ## What you can ask
 
