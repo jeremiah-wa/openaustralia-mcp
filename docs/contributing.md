@@ -54,6 +54,7 @@ The evals measure whether Claude picks the right tool with the right arguments. 
 
 - Every change to a tool's name, description or arguments, or to the server `instructions`, adds or updates eval cases. Put the scores before and after the change in the pull request.
 - Evals call the Anthropic API, so they cost money and aren't deterministic. They never run in [ci.yml](../.github/workflows/ci.yml) or under `uv run pytest`.
+- The eval's own logic, such as the case format and the graders, is tested directly in `tests/test_eval_*.py`. Those tests are free and deterministic, so they do run under `uv run pytest` and in CI.
 
 ## Commits
 
@@ -74,7 +75,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 | `refactor` | Code changes with no change in behaviour |
 | `chore` | Dependencies, tooling, CI |
 
-Scopes, where one helps: `oa` (OpenAustralia client), `tvfy` (They Vote For You client), `tools`, `cache`, `server`.
+Scopes, where one helps: `oa` (OpenAustralia client), `tvfy` (They Vote For You client), `tools`, `cache`, `server`, `evals`.
 
 Examples:
 
