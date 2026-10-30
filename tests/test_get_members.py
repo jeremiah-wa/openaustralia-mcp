@@ -575,6 +575,18 @@ class TestApiUnavailable:
             "Error executing tool get_members: OpenAustralia couldn't be reached. Try again later."
         )
 
+    async def test_says_so_when_only_the_list_of_senators_fails(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Empty positions would say the Senator holds no office, so the lookup fails rather than guess.
+        fake_api.serve(_sharma_with(httpx2.Response(502)))
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10942"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia didn't respond normally (HTTP 502). Try again later."
+        )
+
 
 class TestPostcodeValidation:
     @pytest.mark.parametrize("postcode", ["30", "30560", "abcd", " 3056"])
