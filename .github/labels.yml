@@ -9,19 +9,27 @@
 #
 # Once the rename is on main, renamed_from can go.
 
-# What kind of work it is. `refactor` matches the commit type in contributing.md.
+# What kind of work it is, one per issue. Each matches a commit type in contributing.md, except research, whose
+# result is a decision rather than code.
 - name: bug
   color: d73a4a
   description: Something isn't working
-- name: enhancement
+- name: feature
+  renamed_from: [enhancement]
   color: a2eeef
-  description: New feature or request
+  description: A new tool, or a change in behaviour users can see
 - name: refactor
   color: c5def5
   description: Code changes with no change in behaviour
 - name: documentation
   color: 0075ca
   description: Improvements or additions to documentation
+- name: chore
+  color: fef2c0
+  description: Tooling, CI, packaging and the eval harness
+- name: research
+  color: "5319e7" # quoted, or YAML reads it as the number 5319 × 10^7
+  description: An experiment, measurement, design or investigation whose result is a decision
 
 # How soon. At most one per issue.
 - name: "priority: high"
