@@ -39,7 +39,7 @@ All tools are read-only.
 
 | You need | Why | How to get it |
 |---|---|---|
-| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Installs and runs the server. You don't need to install Python yourself: uv downloads a suitable version (3.12 or later) the first time. | macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Installs and runs the server. You don't need to install Python yourself: uv downloads a suitable version (3.13 or later) the first time. | macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
 | [Git](https://git-scm.com/downloads) | uv fetches the server straight from this repository. | Already installed on most developer machines. Check with `git --version`. |
 | An MCP client | Runs the server and talks to it. | [Claude Desktop](https://claude.ai/download), Claude Code, or another client that supports local (stdio) servers |
 | An OpenAustralia API key | Used by the member, electorate and Hansard tools | <https://www.openaustralia.org.au/api/key>. Free for low-volume, non-commercial use. |

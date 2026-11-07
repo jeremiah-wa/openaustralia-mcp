@@ -142,6 +142,7 @@ Nothing below the tool call is tested on its own ([ADR 0004](adr/0004-test-throu
 ## Stack
 
 - **Python, `uv` and the official `mcp` SDK (2.x).** Less boilerplate. The focus is MCP, not the language.
+- **Python 3.13 or later.** A tool's description is its function's docstring, exactly as Python gives it, and 3.13 is the first version to strip a docstring's indentation. On 3.12, Claude got every line of a description after the first indented by 8 spaces, which no eval measured ([#32](https://github.com/jeremiah-wa/openaustralia-mcp/issues/32)).
 - **`httpx2` for HTTP.** The `mcp` 2.x SDK already depends on it, so the server has one HTTP stack, not two.
 - **Distributed with `uvx --from git+…`.** No release process needed. PyPI later.
 - **MIT for the code.** The data has its own [licences](../README.md#data-and-licences).
