@@ -2,7 +2,7 @@
 
 import logging
 from importlib.metadata import version
-from typing import Annotated, Literal
+from typing import Annotated
 
 import httpx2
 from mcp.server.mcpserver import MCPServer
@@ -23,7 +23,6 @@ from openaustralia_mcp.models import (
     DebateResult,
     HansardHit,
     HansardSearchResult,
-    House,
     MemberLookupResult,
     MemberRecord,
 )
@@ -31,6 +30,7 @@ from openaustralia_mcp.openaustralia import (
     HANSARD_LICENCE,
     MEMBERS_LICENCE,
     SITE_URL,
+    House,
     OpenAustraliaClient,
     Representative,
     Senator,
@@ -169,7 +169,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             ),
         ],
         house: Annotated[
-            Literal["representatives", "senate"],
+            House,
             Field(description="The house the gid is from, as search_hansard gives it. gids repeat across houses."),
         ],
         offset: Annotated[

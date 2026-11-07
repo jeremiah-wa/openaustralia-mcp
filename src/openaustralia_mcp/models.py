@@ -2,7 +2,6 @@
 
 import html
 import re
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,15 +10,13 @@ from openaustralia_mcp.openaustralia import (
     SITE_URL,
     DebateEntry,
     HansardRow,
+    House,
     Representative,
     Senator,
 )
 
 # Characters of debate text per read_debate call.
 DEBATE_PAGE_SIZE = 4000
-
-
-House = Literal["representatives", "senate"]
 
 
 class MemberRecord(BaseModel):
@@ -79,7 +76,7 @@ class MemberLookupResult(BaseModel):
 class HansardHit(BaseModel):
     gid: str = Field(description="Identifies this speech in Hansard.")
     date: str
-    house: Literal["representatives", "senate"]
+    house: House
     speaker: str
     person_id: str = Field(description="The speaker's person_id. Pass it to other tools.")
     debate: str = Field(description="Title of the debate the speech was part of.")
@@ -114,7 +111,7 @@ class HansardSearchResult(BaseModel):
 
 class DebateResult(BaseModel):
     gid: str
-    house: Literal["representatives", "senate"]
+    house: House
     date: str
     debate: str = Field(description="Title of the debate.")
     url: str = Field(description="The speech or debate on OpenAustralia. Cite it.")
@@ -126,9 +123,7 @@ class DebateResult(BaseModel):
     licence: str
 
     @classmethod
-    def from_entries(
-        cls, entries: list[DebateEntry], gid: str, house: Literal["representatives", "senate"], offset: int
-    ) -> "DebateResult":
+    def from_entries(cls, entries: list[DebateEntry], gid: str, house: House, offset: int) -> "DebateResult":
         [requested] = [entry for entry in entries if entry.gid == gid]
         # A speech gid brings just that speech. A heading gid brings every speech under it.
         text = "\n\n".join(_speech_text(entry) for entry in entries if not entry.is_heading)
