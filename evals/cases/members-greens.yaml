@@ -1,0 +1,28 @@
+id: members-greens
+# Members of a party in both houses. The Greens have one MP, Elizabeth Watson-Brown, and ten Senators, including
+# Vanessa Bleyer, who took her seat in August 2026.
+tags: [regression, members]
+question: Who are the Greens members of federal Parliament?
+fixtures:
+  - file: getRepresentatives_party_Greens.json
+    part_of: {party: [Australian Greens]}
+  - file: getSenators_party_Greens.json
+    part_of: {party: [Australian Greens]}
+  # Greens MPs who lost their seats in 2025, whom Claude sometimes looks for. Name searches find no former member.
+  - file: getRepresentatives_search_Bandt.json
+    part_of: {search: [Adam Bandt]}
+  - file: getSenators_search_Bandt.json
+    part_of: {search: [Adam Bandt]}
+  - file: getRepresentatives_search_Chandler-Mather.json
+    part_of: {search: [Max Chandler-Mather]}
+  - file: getSenators_search_Chandler-Mather.json
+    part_of: {search: [Max Chandler-Mather]}
+  - file: getRepresentatives_search_Bates.json
+    part_of: {search: [Stephen Bates]}
+  - file: getSenators_search_Bates.json
+    part_of: {search: [Stephen Bates]}
+expect:
+  calls:
+    - tool: get_members
+      args_contain: {party: [Greens]}
+  answer_contains: [Elizabeth Watson-Brown, Vanessa Bleyer]

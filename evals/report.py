@@ -15,6 +15,8 @@ class TrialRecord(BaseModel):
     tags: list[str]
     model: str
     effort: str
+    # Which set of tools Claude had: the server's own, or a variant built for an experiment such as #8.
+    variant: str = "current"
     trial: Trial
     failures: list[str]
     stop_reason: str | None = None
@@ -32,6 +34,10 @@ class CaseScore:
     model: str
     trials: int
     passes: int
+    # Tool calls over all its trials. A failed call counts too: Claude spent a turn on it.
+    calls: int = 0
+    failed_calls: int = 0
+    input_tokens: int = 0
 
     @property
     def pass_rate(self) -> float:
@@ -49,7 +55,16 @@ def score_cases(records: list[TrialRecord]) -> list[CaseScore]:
     for record in records:
         grouped.setdefault((record.case_id, record.model), []).append(record)
     return [
-        CaseScore(case_id, group[0].tags, model, len(group), sum(record.passed for record in group))
+        CaseScore(
+            case_id,
+            group[0].tags,
+            model,
+            len(group),
+            sum(record.passed for record in group),
+            calls=sum(len(record.trial.calls) for record in group),
+            failed_calls=sum(call.error is not None for record in group for call in record.trial.calls),
+            input_tokens=sum(record.usage.get("input_tokens", 0) for record in group),
+        )
         for (case_id, model), group in grouped.items()
     ]
 
@@ -64,6 +79,10 @@ class TagScore:
     cases: int
     mean_pass_rate: float
     share_passed_all: float
+    calls_per_trial: float
+    failed_calls_per_trial: float
+    # Includes the tool definitions, which every turn sends again.
+    input_tokens_per_trial: float
 
 
 def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
@@ -72,12 +91,16 @@ def score_tags(scores: list[CaseScore], model: str) -> list[TagScore]:
     for tag in HEADLINE_TAGS:
         tagged = [score for score in scores if score.model == model and tag in score.tags]
         if tagged:
+            trials = sum(score.trials for score in tagged)
             tag_scores.append(
                 TagScore(
                     tag,
                     len(tagged),
                     sum(score.pass_rate for score in tagged) / len(tagged),
                     sum(score.passed_all for score in tagged) / len(tagged),
+                    sum(score.calls for score in tagged) / trials,
+                    sum(score.failed_calls for score in tagged) / trials,
+                    sum(score.input_tokens for score in tagged) / trials,
                 )
             )
     return tag_scores
@@ -96,15 +119,30 @@ def trial_cost_usd(model: str, usage: dict[str, Any]) -> float:
     return (usage.get("input_tokens", 0) * input_price + usage.get("output_tokens", 0) * output_price) / 1_000_000
 
 
+SCORE_COLUMNS = (
+    "Model",
+    "Tag",
+    "Cases",
+    "Mean pass rate",
+    "Passed every trial",
+    "Calls per trial",
+    "Failed calls per trial",
+    "Input tokens per trial",
+)
+
+
 def render_summary(records: list[TrialRecord], *, errors: int) -> str:
     """The markdown summary of a run."""
     scores = score_cases(records)
     models = list(dict.fromkeys(score.model for score in scores))
-    lines = ["## Scores", "", "| Model | Tag | Cases | Mean pass rate | Passed every trial |", "|---|---|---|---|---|"]
+    lines = ["## Scores", "", f"| {' | '.join(SCORE_COLUMNS)} |", "|" + "---|" * len(SCORE_COLUMNS)]
     for model in models:
         for tag in score_tags(scores, model):
             passed_all = round(tag.share_passed_all * tag.cases)
-            lines.append(f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} |")
+            lines.append(
+                f"| {model} | {tag.tag} | {tag.cases} | {tag.mean_pass_rate:.0%} | {passed_all}/{tag.cases} "
+                f"| {tag.calls_per_trial:.2f} | {tag.failed_calls_per_trial:.2f} | {tag.input_tokens_per_trial:,.0f} |"
+            )
     if errors:
         lines += ["", f"{errors} trials ended in an error and were run again. They aren't scored."]
     if records:
@@ -117,7 +155,7 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
         by_case.setdefault(score.case_id, {})[score.model] = score
     for case_id, by_model in by_case.items():
         tags = ", ".join(next(iter(by_model.values())).tags)
-        cells = [f"{by_model[m].passes}/{by_model[m].trials}" if m in by_model else "" for m in models]
+        cells = [_case_cell(by_model[m]) if m in by_model else "" for m in models]
         lines.append(f"| {case_id} | {tags} | {' | '.join(cells)} |")
 
     failures: dict[tuple[str, str, str], int] = {}
@@ -132,6 +170,11 @@ def render_summary(records: list[TrialRecord], *, errors: int) -> str:
             for (case_id, model, failure), count in failures.items()
         ]
     return "\n".join(lines) + "\n"
+
+
+def _case_cell(score: CaseScore) -> str:
+    """Passes, and calls per trial, so two runs can be compared case by case."""
+    return f"{score.passes}/{score.trials}, {score.calls / score.trials:.1f} calls"
 
 
 class ModelRun(BaseModel):
@@ -149,12 +192,15 @@ class CaseResult(BaseModel):
 class Scores(BaseModel):
     """A run's scores, saved as scores.json. The committed evals/results/baseline.json is one of these."""
 
+    # Files written before variants existed are the current tools.
+    variant: str = "current"
     models: dict[str, ModelRun]
     # By case id, then by model.
     cases: dict[str, dict[str, CaseResult]]
 
 
 def scores(records: list[TrialRecord]) -> Scores:
+    """A run's scores. Every trial in a run has the same variant."""
     models: dict[str, ModelRun] = {}
     for model in dict.fromkeys(record.model for record in records):
         mine = [record for record in records if record.model == model]
@@ -165,12 +211,19 @@ def scores(records: list[TrialRecord]) -> Scores:
         cases.setdefault(score.case_id, {})[score.model] = CaseResult(
             tags=score.tags, passes=score.passes, trials=score.trials
         )
-    return Scores(models=models, cases=cases)
+    variant = records[0].variant if records else "current"
+    return Scores(variant=variant, models=models, cases=cases)
 
 
 def render_comparison(baseline: Scores, run: Scores) -> str:
     """The markdown comparison of a run with the baseline, over the cases and models both have."""
     lines = ["## Compared with the baseline", ""]
+    if run.variant != baseline.variant:
+        # Still comparable: on the cases both have, this shows whether the variant broke what already worked.
+        lines += [
+            f"This run used the `{run.variant}` variant of the tools, and the baseline the `{baseline.variant}` one.",
+            "",
+        ]
     models = [model for model in run.models if model in baseline.models]
     for model in models:
         effort, baseline_effort = run.models[model].effort, baseline.models[model].effort

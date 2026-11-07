@@ -27,8 +27,8 @@ from evals.report import (
     scores,
     trial_cost_usd,
 )
+from evals.variants import VARIANTS
 from openaustralia_mcp.config import Config
-from openaustralia_mcp.server import build_server
 from tests.fake_api import FakeApi
 
 CASES = Path(__file__).parent / "cases"
@@ -67,20 +67,20 @@ class RecordingSession:
         return result
 
 
-def load_cases(pattern: str = "*") -> list[Case]:
-    return [
-        Case.model_validate(yaml.safe_load(path.read_text("utf-8"))) for path in sorted(CASES.glob(f"{pattern}.yaml"))
-    ]
+def load_cases(patterns: list[str] | None = None) -> list[Case]:
+    """The cases matching any of the globs, in file name order."""
+    paths = sorted({path for pattern in patterns or ["*"] for path in CASES.glob(f"{pattern}.yaml")})
+    return [Case.model_validate(yaml.safe_load(path.read_text("utf-8"))) for path in paths]
 
 
-async def run_trial(claude: anthropic.AsyncAnthropic, case: Case, model: str) -> TrialRecord:
+async def run_trial(claude: anthropic.AsyncAnthropic, case: Case, model: str, variant: str) -> TrialRecord:
     fake_api = FakeApi()
     for fixture in case.fixtures:
-        fake_api.route(fixture.path, search_contains=fixture.search_contains)
+        fake_api.route(fixture.path, search_contains=fixture.search_contains, part_of=fixture.part_of)
 
     async with (
         httpx2.AsyncClient(transport=httpx2.MockTransport(fake_api)) as http,
-        Client(build_server(http, CONFIG)) as client,
+        Client(VARIANTS[variant](http, CONFIG)) as client,
     ):
         tools = (await client.list_tools()).tools
         session = RecordingSession(client.session)
@@ -112,6 +112,7 @@ async def run_trial(claude: anthropic.AsyncAnthropic, case: Case, model: str) ->
         tags=case.tags,
         model=model,
         effort=EFFORT[model],
+        variant=variant,
         trial=trial,
         failures=grade(case, trial, schemas),
         stop_reason=last.stop_reason,
@@ -129,7 +130,9 @@ def measured_cost_per_trial(model: str) -> float | None:
     return None
 
 
-async def run(cases: list[Case], models: list[str], trials: int, max_cost_usd: float, concurrency: int) -> Path:
+async def run(
+    cases: list[Case], models: list[str], trials: int, max_cost_usd: float, concurrency: int, variant: str
+) -> Path:
     out = RUNS / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out.mkdir(parents=True)
     records: list[TrialRecord] = []
@@ -151,7 +154,7 @@ async def run(cases: list[Case], models: list[str], trials: int, max_cost_usd: f
                 return
             for attempt in range(1, ATTEMPTS + 1):
                 try:
-                    record = await run_trial(claude, case, model)
+                    record = await run_trial(claude, case, model, variant)
                 except WrongModelError:
                     raise
                 except Exception as error:  # noqa: BLE001 - API errors, timeouts and crashes are logged, not scored
@@ -187,10 +190,11 @@ async def run(cases: list[Case], models: list[str], trials: int, max_cost_usd: f
     # Trials finish in any order. Report them in case order, then model order.
     case_order = [case.id for case in cases]
     records.sort(key=lambda record: (case_order.index(record.case_id), models.index(record.model)))
+    on = ", ".join(f"{model} (effort {EFFORT[model]})" for model in models)
     header = [
         f"# Eval run {out.name}",
         "",
-        f"{len(cases)} cases, {trials} trials each, on {', '.join(f'{m} (effort {EFFORT[m]})' for m in models)}.",
+        f"{len(cases)} cases, {trials} trials each, on {on}, with the `{variant}` variant of the tools.",
         "",
     ]
     if stopped_at_cap:
@@ -219,17 +223,21 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m evals", description="Run the tool-use evals. See docs/evals.md.")
     parser.add_argument("--models", nargs="+", choices=list(EFFORT), default=["claude-sonnet-5-5"])
     parser.add_argument("--trials", type=int, default=5)
-    parser.add_argument("--cases", default="*", help="glob over evals/cases/*.yaml, without .yaml")
+    parser.add_argument(
+        "--cases", nargs="+", default=["*"], help="names or globs over evals/cases/*.yaml, without .yaml"
+    )
+    parser.add_argument("--variant", choices=list(VARIANTS), default="current", help="the set of tools to give Claude")
     parser.add_argument("--max-cost-usd", type=float, required=True, help="stop starting trials once this is spent")
     parser.add_argument("--concurrency", type=int, default=4)
     args = parser.parse_args(argv)
 
     cases = load_cases(args.cases)
     if not cases:
-        sys.exit(f"No cases match evals/cases/{args.cases}.yaml")
+        sys.exit(f"No cases match {', '.join(f'evals/cases/{pattern}.yaml' for pattern in args.cases)}")
+    print(f"{len(cases)} cases, with the {args.variant} variant of the tools.")
     expected = estimate(cases, args.models, args.trials)
     if expected is not None and expected > args.max_cost_usd:
         sys.exit(f"Not running: the estimate, ${expected:.2f}, is over --max-cost-usd ${args.max_cost_usd:.2f}.")
-    out = anyio.run(run, cases, args.models, args.trials, args.max_cost_usd, args.concurrency)
+    out = anyio.run(run, cases, args.models, args.trials, args.max_cost_usd, args.concurrency, args.variant)
     print(f"\nResults: {out}\n")
     print((out / "summary.md").read_text("utf-8"))

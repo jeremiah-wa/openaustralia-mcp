@@ -1,0 +1,16 @@
+id: members-by-person-id
+# Dave Sharma was the MP for Wentworth until 2022, and has been a Senator for NSW since 2023. getRepresentative
+# returns his old House record, so a lookup that stops at the House would call him a former MP.
+tags: [regression, members]
+question: Who is the member with person_id 10942, and which house of Parliament are they in now?
+fixtures:
+  - getRepresentative_id_10942.json
+  - getSenator_id_10942.json
+  - getSenators.json
+expect:
+  calls:
+    - tool: get_members
+      args: {person_id: "10942"}
+  # "Senat" matches Senate and Senator.
+  answer_contains: [Dave Sharma, Senat]
+  cites_url: true

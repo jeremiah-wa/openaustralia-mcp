@@ -6,7 +6,7 @@ How the evals measure whether Claude uses the tools well, and why they're built 
 
 The unit tests prove that a tool works once it's called. They can't show that Claude calls it: that it picks the right tool, fills in the right arguments and chains the calls. Tool names, descriptions, argument schemas and the server `instructions` are all written for the model, and the evals check them by measurement instead of by reading.
 
-The first question they answer is whether member lookup should be more tools or more parameters ([#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8)). After that, every change to a tool's name, description or arguments is measured before and after (see [contributing.md](contributing.md#evals)).
+The first question they answered was whether member lookup should be more tools or more parameters ([#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8)). The answer was more parameters (see [Member lookup](#member-lookup-8)). After that, every change to a tool's name, description or arguments is measured before and after (see [contributing.md](contributing.md#evals)).
 
 ## How a run works
 
@@ -28,13 +28,35 @@ flowchart LR
 4. The trial ends when Claude answers, or at the turn cap.
 5. The graders score the recorded calls and the final answer. This repeats for every trial and every model.
 
+## Running them
+
+Put `ANTHROPIC_API_KEY` in `.env`, then:
+
+```bash
+# One case, one trial, on Haiku: well under a cent
+uv run --group evals --env-file .env python -m evals --models claude-haiku-5-5 --trials 1 --cases mp-3056 --max-cost-usd 0.10
+
+# Everything, as for the baseline
+uv run --group evals --env-file .env python -m evals --models claude-sonnet-5-5 claude-haiku-5-5 --trials 5 --max-cost-usd 5
+```
+
+- `--cases` takes several names or globs, e.g. `--cases "mp-*" ndis-search`.
+- `--variant` picks the set of tools Claude gets: the server's own (`current`, the default) or an eval-only variant (see [Variants](#variants)).
+- `--max-cost-usd` caps the spend (see [Cost](#cost)).
+
+To run them in CI, add the `run-evals` label to a pull request, or run [evals.yml](../.github/workflows/evals.yml) from the Actions tab, where the models, trials and cost cap are inputs. [contributing.md](contributing.md#evals) says when.
+
 ## The seam
 
 The evals use the same seam as the tests (see [Testing](architecture.md#testing)): `build_server(http_client, config)` with an `httpx2.MockTransport`. There's no subprocess, no OpenAustralia key, and no network apart from the Anthropic API.
 
 Recorded fixtures are **routed by request**. A request is matched on the API function and its parameters, with the key ignored, to a fixture under `tests/fixtures/`. A fixture holds only the response, so `RECORDED` in [tests/fake_api.py](../tests/fake_api.py) lists the request each one answers, and `FakeApi.route(name)` serves it for that request only. The tests route their recorded results the same way. `FakeApi.serve_fixture`, which answers every request with one fixture, is kept for error fixtures such as a rejected key.
 
-Search queries are free text, so one exact `search` value would fail a reasonable call such as "NDIS Senate" instead of "NDIS". A case can therefore give a fixture a list of keywords (`FakeApi.route(name, search_contains=[...])`). The fixture then answers any `getHansard` request whose `search` contains one of them, ignoring case, with the other parameters still matched exactly.
+Search queries are free text, so one exact `search` value would fail a reasonable call such as "NDIS Senate" instead of "NDIS". A case can therefore give a fixture a list of keywords (`FakeApi.route(name, search_contains=[...])`). The fixture then answers any request whose `search` contains one of them, ignoring case, with the other parameters still matched exactly.
+
+A party works the other way round. OpenAustralia answers any `party` that is part of the party's name, ignoring case: "Greens" and "green" get the Australian Greens, but "The Greens" gets no one. `part_of={"party": ["Australian Greens"]}` makes a fixture answer the same values, and no others.
+
+A member's name works the same way: `getSenators?search=Pocock` gets Barbara and David Pocock, and `search=David Pocock` gets only David. A name fixture lists the names it holds, `part_of={"search": ["Barbara Pocock", "David Pocock"]}`, and answers a value that is part of every one of them. Fixtures are tried in the case's order, so "David Pocock" falls through to a fixture listing only David.
 
 A request with no matching fixture gets an HTTP 404. The server returns it to Claude as a tool error, and the run carries on. The trial is scored on its expected calls as usual, so a wrong call shows up as a missing expected one, or as one call too many.
 
@@ -56,6 +78,35 @@ Checked while building it (anthropic 2.3, mcp 2.3):
 - The tool runner has a turn limit, `max_iterations`, with no limit by default.
 - What Claude sees from a tool result: `async_mcp_tool` sends the result's `content` blocks, and the `structured_content` only when there are none. This server's tools return one text block that holds the same JSON as the structured content, so Claude gets the same data either way. **unverified**: whether Claude Code sends the text block, the structured content, or both. For this server's tools, that changes the format but not the data.
 - Refusal fallbacks are off. A fallback model answering would score the wrong model, and the runner stops the run if a response's `model` isn't the one it asked for.
+
+## Variants
+
+A variant is a set of tools to give Claude. `--variant current`, the default, is the server's own tools, built by `build_server`. Other variants are eval-only shapes, built to compare designs before one goes into the server. They're registered in `VARIANTS` in [evals/variants/__init__.py](../evals/variants/__init__.py), and each run's results record which variant it used.
+
+To compare two variants, run the same cases, trials and models on each, and compare the two summaries case by case. A run on a variant also compares with the baseline over the cases both have, which shows whether the variant broke what already worked.
+
+### Member lookup ([#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8))
+
+Member lookup was about to grow from postcodes to `person_id`, Senators, name and party. #8 measured which shape worked better before building either:
+
+| Variant | Member tools |
+|---|---|
+| `parameters` | `get_members(postcode?, person_id?, name?, party?, state?, house?)`, which explains argument combinations that make no sense |
+| `tools` | `get_members(postcode)`, `get_member(person_id)`, `get_senators(state?, party?)`, `search_members(name?, party?)` |
+
+Both were built from `build_server`, with `get_members` removed and their own member tools added. They called one shared lookup and returned one result model, so they returned the same results, and their arguments were described word for word alike. They differed only in tool names, tool descriptions, the instructions' line about finding members, and, in `tools`, `search_hansard`'s note on where a `person_id` comes from. Neither had a `date`: OpenAustralia ignores it with a postcode and returns `{}` without one.
+
+**How the winner was chosen.** This was settled before the full runs. The best variant lets Claude answer the questions reliably in the fewest tool calls.
+
+- The member cases are graded on the answer, not the path: facts from the recorded responses and a URL only the right lookup returns. So each case was the same for both variants. Which tool Claude picked and how it filled the arguments explain a failure, from `trials.jsonl`, but didn't score. An unknown argument still fails a trial, because the server drops it silently.
+- The rule:
+  1. The variant with more member cases passing every trial wins, if it's ahead by 2 or more cases on either model and breaks no `get_members` regression case. A gap of 1 case out of 7 is run-to-run noise.
+  2. Otherwise, the variant with fewer calls per trial on the member cases, on both models, wins.
+  3. Otherwise `parameters` wins: it has fewer tools, which is what the guidance in #8 favours, and it's what architecture.md already said.
+- The runs: both variants, Sonnet and Haiku, 5 trials, over the 7 member cases (`members-*`) and the regression cases that use `get_members` or chain from it (`mp-0000`, `mp-3056`, `mp-3181`, `mp-housing-3056`, `mp-housing-read-3056`, `mp-recent-3056`) plus `ndis-search`. `mp-3142` was left out, because its baseline failures come from the harness (no recorded response for 3141), not the tools.
+- The result: `parameters`, by rule 2. Both variants passed every trial on 5 of 7 member cases on Sonnet and 4 of 7 on Haiku, and `parameters` took fewer calls per trial on both models. See [evals/results/member-lookup.md](../evals/results/member-lookup.md).
+
+`parameters` went into the server in [#16](https://github.com/jeremiah-wa/openaustralia-mcp/issues/16), with the wording that was measured ([ADR 0007](adr/0007-one-get-members-tool.md)), so `current` is the only variant for now. The variants' own code stays on the `chore/member-lookup-experiment` branch.
 
 ## Cases
 
@@ -88,18 +139,18 @@ expect:
 | Field | Meaning |
 |---|---|
 | `question` | The user's message |
-| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords (see [The seam](#the-seam)) |
+| `fixtures` | The recorded responses this case can use. Any other request gets a 404. `search_contains` makes a search fixture answer any query containing one of its keywords. `part_of`, e.g. `{party: [Australian Greens]}`, makes a fixture answer any value that is part of every one of the texts (see [The seam](#the-seam)) |
 | `expect.calls` | Calls that must appear. `args` must match exactly. `args_contain` must contain one of the listed texts, ignoring case, e.g. `[NDIS, National Disability Insurance Scheme]`. Other arguments are free |
 | `after` | This call needs the output of the named call, so it must come after it. Only for real dependencies, not for a preferred order |
 | `forbidden` | Calls that must not appear. Give the `tool` alone, `args` that must not have those values, or `args_missing`, arguments that must not all be missing |
 | `max_calls` | Optional cap on the number of tool calls. `0` means Claude should answer without a tool |
 | `answer_contains` | Text the final answer must contain, ignoring case. Use it for facts from the fixtures, such as a member's name, not for phrasing |
-| `cites_url` | The final answer must include a `url` from a tool result |
+| `cites_url` | The final answer must include a `url` from a tool result. Set it where one result backs the answer, such as a member or a speech. A list of members isn't expected to link each one, and how often an answer links is up to the client, so expected calls, not urls, show that the right lookup happened |
 | `tags` | `regression` or `capability`, plus any free labels |
 
-**Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as Senators or a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
+**Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
 
-The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. The cases for member lookup by name and Senators (17 to 19 in that list) belong to [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8), because their expected calls depend on the tool shape it picks.
+The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. Cases 17 to 19 in that list (a member by name, a Senator's speeches on housing, and Tasmania's Senators), and four more member cases, came with [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8) as `members-*`. #8 graded them on the answer alone, so the same case could run on each shape of member tools (see [Member lookup](#member-lookup-8)). They became regression cases, with expected calls, when that lookup went into the server.
 
 ## Graders
 
@@ -127,6 +178,7 @@ An LLM judge for answer quality, such as whether Hansard is quoted as it is, can
 - Each case runs **5 trials** per model, because answers vary from run to run. Sonnet 5.5 and Haiku 5.5 accept only the default sampling settings, so there's no `temperature` to turn down.
 - **Per case:** the pass rate (passing trials out of 5) and pass^k (whether all 5 passed). pass^k matters for regression cases, where consistency is the point: a case that passes 75% of the time passes all of 3 trials only about 42% of the time.
 - **Per model and overall:** the mean pass rate and the share of cases passing every trial, split by tag. The regression score is the headline. Capability cases are reported separately.
+- **Efficiency, per model and tag:** tool calls per trial, failed calls per trial, and input tokens per trial. A failed call counts as a call, since Claude spent a turn on it. Input tokens include the tool definitions, which every turn sends again. Each case's cell also shows its calls per trial, e.g. `5/5, 1.2 calls`.
 - **Noise:** at 20 cases × 5 trials, the overall pass rate moves by about ±10 points between runs for no reason (roughly 1/√(cases × trials)). Smaller differences aren't a signal. To compare two variants, such as the two member-lookup shapes in #8, run both on the same cases, trials and model, and compare case by case.
 
 ## Models
@@ -152,15 +204,15 @@ API errors that remain after the SDK's retries, timeouts, and runner crashes go 
 | Trials that ended in an error | Same folder, `errors.jsonl` | No |
 | A markdown summary per run: scores by model and tag, cases by model, failure reasons, cost | Same folder, `summary.md` | No |
 | The run's scores: passes per case and model, and each model's effort and cost per trial | Same folder, `scores.json` | No |
-| The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have. A pull request that changes a tool updates both when it merges |
+| The baseline: a run's `summary.md` and `scores.json` | `evals/results/baseline.md` and `baseline.json` | Yes. Every run's summary ends with a comparison with `baseline.json`, over the cases both have |
 
 Pull requests compare with the baseline without committing every run. CI reads the scores and the cost per trial from `baseline.json`, not from the markdown.
 
 ## Where it lives
 
-- `evals/` at the top level, outside pytest's `testpaths`. Evals cost money and aren't deterministic, so `uv run pytest` never runs them.
+- `evals/` at the top level, outside pytest's `testpaths`, so `uv run pytest` doesn't run them.
 - An `evals` dependency group with `anthropic[mcp]`. It's not a runtime dependency.
-- They're run by hand, with the command in the README, and in CI only in [evals.yml](../.github/workflows/evals.yml): by hand from the Actions tab (models, trials and cost cap as inputs), or when a pull request gets the `run-evals` label. Never on a push, because each run costs money (see [Cost](#cost)), and never in `ci.yml`, which keeps the Anthropic key out of the jobs that run on every push. The job writes the summary and the comparison with the baseline to the job summary, uploads the run's files as an artifact, and doesn't fail on the scores. There's no threshold until there are a few runs to compare.
+- [evals.yml](../.github/workflows/evals.yml) in CI. The job writes the summary and the comparison with the baseline to the job summary, and uploads the run's files as an artifact.
 
 ## Keys
 
@@ -172,9 +224,9 @@ Pull requests compare with the baseline without committing every run. CI reads t
 
 A run costs cases × trials × models × the cost of one trial. The cost of a trial is measured from the token usage in the results and priced per model. In October 2026, Sonnet 5.5 costs $2 per million input tokens and $10 per million output tokens, and Haiku 5.5 costs $0.10 and $0.50.
 
-Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. `--max-cost-usd` is required. The runner refuses a run whose estimate is over it, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
+Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. The runner refuses a run whose estimate is over `--max-cost-usd`, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
-Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average.
+Measured in the [baseline](../evals/results/baseline.md), across the 23 cases: $0.0282 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 23 cases × 5 trials on both models, cost $3.42, which is under the workflow's default $5 cap. A one-call case such as `mp-3056` costs about two fifths of the Sonnet average.
 
 ## Later
 

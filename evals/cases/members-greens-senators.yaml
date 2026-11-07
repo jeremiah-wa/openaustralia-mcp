@@ -1,0 +1,14 @@
+id: members-greens-senators
+# Members of a party in one house. Both houses' fixtures are here, since a lookup by party alone asks both.
+tags: [regression, members]
+question: Who are the Greens Senators?
+fixtures:
+  - file: getSenators_party_Greens.json
+    part_of: {party: [Australian Greens]}
+  - file: getRepresentatives_party_Greens.json
+    part_of: {party: [Australian Greens]}
+expect:
+  calls:
+    - tool: get_members
+      args_contain: {party: [Greens]}
+  answer_contains: [Vanessa Bleyer, Barbara Pocock]

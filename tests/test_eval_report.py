@@ -2,7 +2,7 @@
 
 import pytest
 
-from evals.graders import Trial
+from evals.graders import Call, Trial
 from evals.report import (
     Scores,
     TrialRecord,
@@ -105,8 +105,8 @@ class TestSummary:
         summary = render_summary(RUN, errors=0)
 
         assert "| Case | Tags | claude-sonnet-5-5 | claude-haiku-5-5 |" in summary
-        assert "| mp-3056 | regression | 2/2 | 1/2 |" in summary
-        assert "| senators | capability | 0/2 |  |" in summary
+        assert "| mp-3056 | regression | 2/2, 0.0 calls | 1/2, 0.0 calls |" in summary
+        assert "| senators | capability | 0/2, 0.0 calls |  |" in summary
 
     def test_counts_each_failure_reason(self) -> None:
         summary = render_summary(RUN, errors=0)
@@ -117,6 +117,34 @@ class TestSummary:
         summary = render_summary(RUN, errors=3)
 
         assert "3 trials ended in an error and were run again. They aren't scored." in summary
+
+
+class TestCalls:
+    def test_summary_shows_calls_and_failed_calls_per_trial(self) -> None:
+        # A failed call counts as a call: Claude spent a turn on it.
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(2)]
+        records[0].trial.calls = [
+            Call(tool="get_members", input={"postcode": "3141"}, error="Error executing tool get_members: …"),
+            Call(tool="get_members", input={"postcode": "3142"}),
+        ]
+        records[1].trial.calls = [Call(tool="get_members", input={"postcode": "3142"})]
+
+        summary = render_summary(records, errors=0)
+
+        header = (
+            "| Model | Tag | Cases | Mean pass rate | Passed every trial | Calls per trial | Failed calls per trial |"
+        )
+        assert header in summary
+        assert "| claude-haiku-5-5 | regression | 1 | 100% | 1/1 | 1.50 | 0.50 |" in summary
+
+    def test_summary_shows_calls_per_trial_for_each_case(self) -> None:
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(2)]
+        records[0].trial.calls = [Call(tool="get_members", input={"postcode": "3056"}) for _ in range(2)]
+        records[1].trial.calls = [Call(tool="get_members", input={"postcode": "3056"})]
+
+        summary = render_summary(records, errors=0)
+
+        assert "| mp-3056 | regression | 2/2, 1.5 calls |" in summary
 
 
 class TestCost:
@@ -134,6 +162,17 @@ class TestCost:
         summary = render_summary(records, errors=0)
 
         assert "Cost: $0.0060 for 4 trials, $0.0015 per trial." in summary
+
+    def test_summary_shows_input_tokens_per_trial(self) -> None:
+        # Input tokens include the tool definitions, which each turn sends again.
+        records = [record("mp-3056", True, model=HAIKU) for _ in range(2)]
+        records[0].usage = {"input_tokens": 10_000, "output_tokens": 500}
+        records[1].usage = {"input_tokens": 20_000, "output_tokens": 500}
+
+        summary = render_summary(records, errors=0)
+
+        assert "| Passed every trial | Calls per trial | Failed calls per trial | Input tokens per trial |" in summary
+        assert "| claude-haiku-5-5 | regression | 1 | 100% | 1/1 | 0.00 | 0.00 | 15,000 |" in summary
 
 
 class TestScoresFile:
@@ -153,6 +192,18 @@ class TestScoresFile:
         run = scores([record("mp-3056", True)])
 
         assert Scores.model_validate_json(run.model_dump_json()) == run
+
+    def test_holds_the_variant_of_the_tools(self) -> None:
+        item = record("mp-3056", True)
+        item.variant = "tools"
+
+        assert scores([item]).variant == "tools"
+
+    def test_a_file_without_a_variant_is_the_current_tools(self) -> None:
+        # baseline.json was written before variants existed.
+        saved = scores([record("mp-3056", True)]).model_dump(exclude={"variant"})
+
+        assert Scores.model_validate(saved).variant == "current"
 
 
 def run_of(
@@ -200,6 +251,14 @@ class TestComparison:
             "claude-sonnet-5-5 ran at effort low, and the baseline at high, so the scores aren't comparable."
             in comparison
         )
+
+    def test_names_the_variants_when_they_differ(self) -> None:
+        now = run_of(("mp-3056", 5))
+        now.variant = "parameters"
+
+        comparison = render_comparison(run_of(("mp-3056", 5)), now)
+
+        assert "This run used the `parameters` variant of the tools, and the baseline the `current` one." in comparison
 
 
 class TestEstimate:

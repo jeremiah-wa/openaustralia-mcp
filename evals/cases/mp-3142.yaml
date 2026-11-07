@@ -4,11 +4,19 @@ question: Who's the federal MP for 3142?
 fixtures:
   # OpenAustralia has no current member for this postcode.
   - getRepresentatives_postcode_3142.json
-  # The error suggests a neighbouring postcode. 3143 and 3144 have no current member either, and 3146 is
-  # partly Kooyong (Monique Ryan). Other neighbours get a 404.
+  # The error suggests a neighbouring postcode. 3143 and 3144 have no current member either, 3141 and 3145 are
+  # partly Macnamara (Josh Burns), and 3146 is partly Kooyong (Monique Ryan). Other neighbours get a 404, which
+  # reads as a temporary error, so Claude retries it.
+  - getRepresentatives_postcode_3141.json
   - getRepresentatives_postcode_3143.json
   - getRepresentatives_postcode_3144.json
+  - getRepresentatives_postcode_3145.json
   - getRepresentatives_postcode_3146.json
+  # Claude sometimes looks up Kooyong's MP by name after 3146.
+  - file: getRepresentatives_search_Monique_Ryan.json
+    part_of: {search: [Monique Ryan]}
+  - file: getSenators_search_Monique_Ryan.json
+    part_of: {search: [Monique Ryan]}
 expect:
   calls:
     - tool: get_members

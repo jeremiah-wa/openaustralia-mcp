@@ -1,0 +1,15 @@
+id: members-by-name
+# Case 17 from #6. A lookup that doesn't say the house asks both.
+tags: [regression, members]
+question: Which electorate does Peter Khalil represent?
+fixtures:
+  - file: getRepresentatives_search_Khalil.json
+    part_of: {search: [Peter Khalil]}
+  - file: getSenators_search_Khalil.json
+    part_of: {search: [Peter Khalil]}
+expect:
+  calls:
+    - tool: get_members
+      args_contain: {name: [Khalil]}
+  answer_contains: [Wills]
+  cites_url: true

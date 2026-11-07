@@ -26,14 +26,69 @@ RECORDED = {
     "openaustralia/getRepresentatives_postcode_3142.json": RecordedRequest("getRepresentatives", {"postcode": "3142"}),
     "openaustralia/getRepresentatives_postcode_3181.json": RecordedRequest("getRepresentatives", {"postcode": "3181"}),
     # Neighbours of 3142, which Claude tries when 3142 has no current member.
+    "openaustralia/getRepresentatives_postcode_3141.json": RecordedRequest("getRepresentatives", {"postcode": "3141"}),
     "openaustralia/getRepresentatives_postcode_3143.json": RecordedRequest("getRepresentatives", {"postcode": "3143"}),
     "openaustralia/getRepresentatives_postcode_3144.json": RecordedRequest("getRepresentatives", {"postcode": "3144"}),
+    "openaustralia/getRepresentatives_postcode_3145.json": RecordedRequest("getRepresentatives", {"postcode": "3145"}),
     "openaustralia/getRepresentatives_postcode_3146.json": RecordedRequest("getRepresentatives", {"postcode": "3146"}),
+    # Kooyong's MP, whom Claude sometimes looks up by name after 3146.
+    "openaustralia/getRepresentatives_search_Monique_Ryan.json": RecordedRequest(
+        "getRepresentatives", {"search": "Monique Ryan"}
+    ),
+    "openaustralia/getSenators_search_Monique_Ryan.json": RecordedRequest("getSenators", {"search": "Monique Ryan"}),
+    "openaustralia/getRepresentatives_search_Khalil.json": RecordedRequest("getRepresentatives", {"search": "Khalil"}),
+    # Name searches that find no one get `{}`.
+    "openaustralia/getSenators_search_Khalil.json": RecordedRequest("getSenators", {"search": "Khalil"}),
+    "openaustralia/getRepresentatives_search_Pocock.json": RecordedRequest("getRepresentatives", {"search": "Pocock"}),
+    "openaustralia/getRepresentatives_party_Greens.json": RecordedRequest("getRepresentatives", {"party": "Greens"}),
+    # Name searches find current members only, so these get `{}` for Keith Wolahan, a former MP.
+    "openaustralia/getRepresentatives_search_Wolahan.json": RecordedRequest(
+        "getRepresentatives", {"search": "Wolahan"}
+    ),
+    "openaustralia/getSenators_search_Wolahan.json": RecordedRequest("getSenators", {"search": "Wolahan"}),
+    # Greens MPs who lost their seats in 2025. Claude sometimes checks for them when told there's only one Greens MP.
+    "openaustralia/getRepresentatives_search_Bandt.json": RecordedRequest("getRepresentatives", {"search": "Bandt"}),
+    "openaustralia/getSenators_search_Bandt.json": RecordedRequest("getSenators", {"search": "Bandt"}),
+    "openaustralia/getRepresentatives_search_Chandler-Mather.json": RecordedRequest(
+        "getRepresentatives", {"search": "Chandler-Mather"}
+    ),
+    "openaustralia/getSenators_search_Chandler-Mather.json": RecordedRequest(
+        "getSenators", {"search": "Chandler-Mather"}
+    ),
+    "openaustralia/getRepresentatives_search_Bates.json": RecordedRequest("getRepresentatives", {"search": "Bates"}),
+    "openaustralia/getSenators_search_Bates.json": RecordedRequest("getSenators", {"search": "Bates"}),
+    "openaustralia/getRepresentative_id_10990.json": RecordedRequest("getRepresentative", {"id": "10990"}),
+    # The wrong house gets {"error": "Unknown person ID"}.
+    "openaustralia/getSenator_id_10990.json": RecordedRequest("getSenator", {"id": "10990"}),
+    # OpenAustralia takes TAS or Tasmania, but QLD fails where Queensland works, and NSW works where New South Wales
+    # fails. The member tools send one spelling that works for each state.
+    "openaustralia/getSenators_state_Tasmania.json": RecordedRequest("getSenators", {"state": "Tasmania"}),
+    "openaustralia/getSenators_state_ACT.json": RecordedRequest("getSenators", {"state": "ACT"}),
+    "openaustralia/getSenators_party_Greens.json": RecordedRequest("getSenators", {"party": "Greens"}),
+    "openaustralia/getSenators_search_Pocock.json": RecordedRequest("getSenators", {"search": "Pocock"}),
+    "openaustralia/getSenators_search_David_Pocock.json": RecordedRequest("getSenators", {"search": "David Pocock"}),
+    # Dave Sharma was the MP for Wentworth, and is now a Senator for NSW: each house has its own record.
+    "openaustralia/getRepresentative_id_10942.json": RecordedRequest("getRepresentative", {"id": "10942"}),
+    "openaustralia/getSenator_id_10942.json": RecordedRequest("getSenator", {"id": "10942"}),
+    # Every current Senator, with the offices getSenator leaves out.
+    "openaustralia/getSenators.json": RecordedRequest("getSenators", {}),
+    # Don Farrell left the Senate in 2014 and came back in 2016: he has a former and a current Senate record.
+    "openaustralia/getRepresentative_id_10708.json": RecordedRequest("getRepresentative", {"id": "10708"}),
+    "openaustralia/getSenator_id_10708.json": RecordedRequest("getSenator", {"id": "10708"}),
+    # Kristina Keneally was a Senator until 2022, and never in the House.
+    "openaustralia/getRepresentative_id_10906.json": RecordedRequest("getRepresentative", {"id": "10906"}),
+    "openaustralia/getSenator_id_10906.json": RecordedRequest("getSenator", {"id": "10906"}),
+    "openaustralia/getRepresentative_id_99999.json": RecordedRequest("getRepresentative", {"id": "99999"}),
+    "openaustralia/getSenator_id_99999.json": RecordedRequest("getSenator", {"id": "99999"}),
     "openaustralia/getHansard_person_10887.json": RecordedRequest("getHansard", {"person": "10887"}),
     "openaustralia/getHansard_search_housing_person_10887.json": RecordedRequest(
         "getHansard", {"search": "housing", "person": "10887"}
     ),
+    "openaustralia/getHansard_search_housing_person_11009.json": RecordedRequest(
+        "getHansard", {"search": "housing", "person": "11009"}
+    ),
     "openaustralia/getHansard_search_ndis.json": RecordedRequest("getHansard", {"search": "NDIS"}),
+    "openaustralia/getHansard_search_ruby_princess.json": RecordedRequest("getHansard", {"search": "Ruby Princess"}),
     "openaustralia/getHansard_search_no_results.json": RecordedRequest(
         "getHansard", {"search": "xyzzyplughnonsenseword"}
     ),
@@ -49,6 +104,13 @@ RECORDED = {
     "openaustralia/getDebates_senate_2026-10-15.118.1.json": RecordedRequest(
         "getDebates", {"type": "senate", "gid": "2026-10-15.118.1"}
     ),
+    # David Pocock on the Commonwealth Land (Affordable Housing) Bill 2026.
+    "openaustralia/getDebates_senate_2026-07-02.63.1.json": RecordedRequest(
+        "getDebates", {"type": "senate", "gid": "2026-07-02.63.1"}
+    ),
+    "openaustralia/getDebates_senate_2026-07-02.63.2.json": RecordedRequest(
+        "getDebates", {"type": "senate", "gid": "2026-07-02.63.2"}
+    ),
 }
 
 
@@ -58,21 +120,29 @@ class FakeApi:
     def __init__(self) -> None:
         self.requests: list[httpx2.Request] = []
         self._handler: Handler = lambda request: httpx2.Response(599)
-        self._routes: list[tuple[RecordedRequest, list[str] | None, bytes]] = []
+        self._routes: list[tuple[RecordedRequest, list[str] | None, dict[str, list[str]], bytes]] = []
 
     def serve_fixture(self, name: str) -> None:
         """Answers every request with this recorded response."""
         body = (FIXTURES / name).read_bytes()
         self._handler = lambda request: httpx2.Response(200, content=body, headers=OA_HEADERS)
 
-    def route(self, name: str, *, search_contains: list[str] | None = None) -> None:
+    def route(
+        self,
+        name: str,
+        *,
+        search_contains: list[str] | None = None,
+        part_of: dict[str, list[str]] | None = None,
+    ) -> None:
         """Answers the request this response was recorded for (see `RECORDED`). Can be called once per fixture.
 
-        With `search_contains`, it answers any `search` that contains one of the keywords, ignoring case,
-        instead of only the recorded one. The other parameters must still match exactly.
+        With `search_contains`, it answers any `search` that contains one of the keywords, ignoring case.
+        With `part_of`, it answers any value of each listed parameter that is part of every one of its texts,
+        ignoring case, as OpenAustralia matches a party or a member's name: list the names the response holds.
+        Either way, the other parameters must still match exactly.
         Any request without a routed fixture gets an HTTP 404.
         """
-        self._routes.append((RECORDED[name], search_contains, (FIXTURES / name).read_bytes()))
+        self._routes.append((RECORDED[name], search_contains, part_of or {}, (FIXTURES / name).read_bytes()))
         self._handler = self._answer_routed
 
     def serve(self, handler: Handler) -> None:
@@ -85,21 +155,28 @@ class FakeApi:
     def _answer_routed(self, request: httpx2.Request) -> httpx2.Response:
         function = request.url.path.rsplit("/", 1)[-1]
         params = {name: value for name, value in request.url.params.items() if name not in ("key", "output")}
-        for recorded, search_contains, body in self._routes:
-            if recorded.function == function and _matches(recorded.params, params, search_contains):
+        for recorded, search_contains, part_of, body in self._routes:
+            if recorded.function == function and _matches(recorded.params, params, search_contains, part_of):
                 return httpx2.Response(200, content=body, headers=OA_HEADERS)
         # The server reports it as a tool error and Claude carries on, as for an unknown gid.
         return httpx2.Response(404)
 
 
-def _matches(recorded: dict[str, str], params: dict[str, str], search_contains: list[str] | None) -> bool:
-    if search_contains is None:
-        return recorded == params
-    search = params.get("search", "").lower()
-    return _without_search(recorded) == _without_search(params) and any(
-        keyword.lower() in search for keyword in search_contains
+def _matches(
+    recorded: dict[str, str], params: dict[str, str], search_contains: list[str] | None, part_of: dict[str, list[str]]
+) -> bool:
+    loose = set(part_of) | ({"search"} if search_contains is not None else set())
+    if _without(recorded, loose) != _without(params, loose):
+        return False
+    if search_contains is not None:
+        search = params.get("search", "").lower()
+        if not any(keyword.lower() in search for keyword in search_contains):
+            return False
+    return all(
+        (value := params.get(name, "").lower()) and all(value in text.lower() for text in texts)
+        for name, texts in part_of.items()
     )
 
 
-def _without_search(params: dict[str, str]) -> dict[str, str]:
-    return {name: value for name, value in params.items() if name != "search"}
+def _without(params: dict[str, str], names: set[str]) -> dict[str, str]:
+    return {name: value for name, value in params.items() if name not in names}
