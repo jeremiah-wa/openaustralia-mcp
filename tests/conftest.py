@@ -35,7 +35,7 @@ def connect(fake_api: FakeApi) -> Connect:
     """Connects an in-memory MCP client to a server whose HTTP goes to `fake_api`."""
 
     @asynccontextmanager
-    async def _connect(config: Config = TEST_CONFIG) -> AsyncGenerator[Client, None]:
+    async def _connect(config: Config = TEST_CONFIG) -> AsyncGenerator[Client]:
         async with (
             httpx2.AsyncClient(transport=httpx2.MockTransport(fake_api)) as http,
             Client(build_server(http, config)) as client,
