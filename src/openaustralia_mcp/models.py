@@ -7,76 +7,15 @@ from pydantic import BaseModel, Field
 
 from openaustralia_mcp.openaustralia import (
     HANSARD_LICENCE,
-    MEMBERS_LICENCE,
     SITE_URL,
     DebateEntry,
     HansardRow,
     HansardSearch,
     House,
-    Representative,
-    Senator,
 )
 
 # Characters of debate text per read_debate call.
 DEBATE_PAGE_SIZE = 4000
-
-
-class MemberRecord(BaseModel):
-    """One person's membership of one house. Someone who sat in both houses has a record for each."""
-
-    person_id: str = Field(description="Stable ID for this person. Pass it to other tools.")
-    name: str
-    party: str
-    house: House
-    electorate: str | None = Field(default=None, description="For a member of the House of Representatives.")
-    state: str | None = Field(default=None, description="For a Senator: the state or territory they represent.")
-    current: bool = Field(description="False for a former member of this house.")
-    left: str | None = Field(default=None, description="The date a former member left this house.")
-    positions: list[str] = Field(description="Current ministerial or other offices, if any.")
-    url: str = Field(description="The member's page on OpenAustralia. Cite it.")
-
-    @classmethod
-    def from_representative(cls, representative: Representative) -> "MemberRecord":
-        current = representative.is_current
-        return cls(
-            person_id=representative.person_id,
-            name=representative.full_name,
-            party=representative.party or "",
-            house="representatives",
-            electorate=representative.constituency,
-            current=current,
-            left=None if current else representative.left_house,
-            # OpenAustralia attaches a person's offices to each of their records, even a former one.
-            positions=representative.current_positions if current else [],
-            url=representative.url,
-        )
-
-    @classmethod
-    def from_senator(cls, senator: Senator) -> "MemberRecord":
-        current = senator.is_current
-        return cls(
-            person_id=senator.person_id,
-            name=senator.full_name,
-            party=senator.party or "",
-            house="senate",
-            state=senator.state,
-            current=current,
-            left=None if current else senator.left_house,
-            # A person's offices belong on their current record, as for a Representative.
-            positions=senator.current_positions if current else [],
-            url=senator.url,
-        )
-
-
-class MemberLookupResult(BaseModel):
-    members: list[MemberRecord]
-    note: str | None = Field(default=None, description="A caveat to pass on to the user, if any.")
-    source_url: str
-    licence: str
-
-    @classmethod
-    def from_members(cls, members: list[MemberRecord], note: str | None = None) -> "MemberLookupResult":
-        return cls(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
 
 
 class HansardHit(BaseModel):

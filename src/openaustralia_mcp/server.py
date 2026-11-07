@@ -7,31 +7,13 @@ from typing import Annotated
 import httpx2
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from openaustralia_mcp.config import Config
-from openaustralia_mcp.errors import (
-    ApiClientError,
-    ApiError,
-    ApiUnavailableError,
-    KeyRejectedError,
-    MissingKeyError,
-    NotFoundError,
-)
-from openaustralia_mcp.models import (
-    DebateResult,
-    HansardSearchResult,
-    MemberLookupResult,
-    MemberRecord,
-)
-from openaustralia_mcp.openaustralia import (
-    House,
-    OpenAustraliaClient,
-    Representative,
-    Senator,
-    State,
-)
+from openaustralia_mcp.errors import ApiClientError, NotFoundError
+from openaustralia_mcp.models import DebateResult, HansardSearchResult
+from openaustralia_mcp.openaustralia import House, OpenAustraliaClient
+from openaustralia_mcp.tools import READ_ONLY, _describe, members
 
 VERSION = version("openaustralia-mcp")
 
@@ -46,15 +28,8 @@ Every result includes a url and a licence line: cite the url when you use the da
 Hansard excerpts are Commonwealth copyright (no derivatives): quote them as they are, and summarise in your own words.\
 """
 
-READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
-
 # The HTTP library logs every request URL at INFO and below, and the URL contains the API key.
 HTTP_LOGGERS = ("httpx2", "httpcore2")
-
-PARTIAL_MATCH_NOTE = (
-    "OpenAustralia couldn't match part of this postcode to a current member, so this list may be incomplete. "
-    "Its postcode data can lag behind changes to electorate boundaries."
-)
 
 
 def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
@@ -64,65 +39,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
 
     openaustralia = OpenAustraliaClient(http_client, config.openaustralia_api_key)
     server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION)
-
-    @server.tool(annotations=READ_ONLY)
-    async def get_members(
-        postcode: Annotated[
-            str | None, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')
-        ] = None,
-        person_id: Annotated[
-            str | None,
-            Field(
-                pattern=r"^\d+$",
-                description="A member's person_id, current or former, e.g. from a search_hansard hit.",
-            ),
-        ] = None,
-        name: Annotated[
-            str | None,
-            Field(
-                min_length=2,
-                description='Part or all of a current member\'s name, e.g. "Khalil" or "Peter Khalil", without a title.',
-            ),
-        ] = None,
-        party: Annotated[
-            str | None, Field(min_length=2, description='Part of a party\'s name, e.g. "Greens" or "Labor".')
-        ] = None,
-        state: Annotated[
-            State | None,
-            Field(description="A state or territory, e.g. TAS. Senators represent a whole state or territory."),
-        ] = None,
-        house: Annotated[
-            House | None,
-            Field(description="Only members of this house: the House of Representatives (MPs) or the Senate."),
-        ] = None,
-    ) -> MemberLookupResult:
-        """Find federal members of Parliament.
-
-        By postcode, it finds the members of the House of Representatives (MPs) for that area. A postcode can
-        span more than one electorate, so there may be several. By person_id, it finds one person, current or
-        former, in either house. By name, party or state, it finds current members who match all of them, in
-        both houses unless house limits it to one. A state means Senators. Returns each member's person_id, name,
-        party, house, electorate or state, whether they're a current member, current positions and url.
-        """
-        if person_id is not None:
-            if any(value is not None for value in (postcode, name, party, state, house)):
-                raise ToolError("A person_id finds one person in both houses by itself. Give it on its own.")
-            return await _member_by_person_id(openaustralia, person_id)
-        if postcode is not None:
-            if any(value is not None for value in (name, party, state)) or house == "senate":
-                raise ToolError(
-                    "A postcode finds the MPs for that area by itself. Give it on its own, "
-                    "or search by name, party, state and house instead."
-                )
-            return await _members_by_postcode(openaustralia, postcode)
-        if state is not None and house == "representatives":
-            raise ToolError(
-                "A state means Senators: they represent a whole state or territory. "
-                "MPs represent electorates, so for MPs give a postcode or a name instead."
-            )
-        if any(value is not None for value in (name, party, state, house)):
-            return await _search_members(openaustralia, name=name, party=party, state=state, house=house)
-        raise ToolError("Give a postcode, a person_id, or any of name, party, state and house.")
+    members.register(server, openaustralia)
 
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
@@ -187,95 +104,3 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         return result
 
     return server
-
-
-async def _members_by_postcode(openaustralia: OpenAustraliaClient, postcode: str) -> MemberLookupResult:
-    """The MPs whose electorates cover the postcode."""
-    try:
-        representatives = await openaustralia.get_representatives(postcode)
-    except ApiClientError as exc:
-        raise ToolError(_describe(exc, postcode=postcode)) from None
-
-    # A division OpenAustralia can't match to a current member comes back as `false`.
-    found = [member for member in representatives if isinstance(member, Representative)]
-    if not found:
-        raise ToolError(
-            f"OpenAustralia has no current member on record for postcode {postcode}. Its postcode data can lag "
-            "behind changes to electorate boundaries, so try a neighbouring postcode."
-        )
-    note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
-    return MemberLookupResult.from_members([MemberRecord.from_representative(member) for member in found], note)
-
-
-async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> MemberLookupResult:
-    """Every record the person has, in both houses: someone can move from one house to the other."""
-    try:
-        representative = await openaustralia.get_representative(person_id)
-        senator = await _with_offices(openaustralia, await openaustralia.get_senator(person_id))
-    except ApiClientError as exc:
-        raise ToolError(_describe(exc, person_id=person_id)) from None
-    if not representative and not senator:
-        raise ToolError(f"OpenAustralia has no member of either house with person_id {person_id}.")
-    return MemberLookupResult.from_members(
-        [MemberRecord.from_representative(record) for record in representative]
-        + [MemberRecord.from_senator(record) for record in senator]
-    )
-
-
-async def _with_offices(openaustralia: OpenAustraliaClient, records: list[Senator]) -> list[Senator]:
-    """The same records with their offices: getSenator sends none, and getSenators does."""
-    if not any(record.is_current for record in records):
-        return records
-    listed = {senator.person_id: senator for senator in await openaustralia.get_senators()}
-    return [listed.get(record.person_id, record) if record.is_current else record for record in records]
-
-
-async def _search_members(
-    openaustralia: OpenAustraliaClient,
-    *,
-    name: str | None = None,
-    party: str | None = None,
-    state: State | None = None,
-    house: House | None = None,
-) -> MemberLookupResult:
-    """Current members who match every filter given, in both houses unless a house or a state limits it."""
-    filters = {"name": name, "party": party, "state": state, "house": house}
-    # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
-    house = "senate" if state else house
-    try:
-        representatives = [] if house == "senate" else await openaustralia.get_representatives(party=party, search=name)
-        senators = (
-            []
-            if house == "representatives"
-            else await openaustralia.get_senators(state=state, party=party, search=name)
-        )
-    except ApiClientError as exc:
-        raise ToolError(_describe(exc, **filters)) from None
-    members = [
-        MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)
-    ] + [MemberRecord.from_senator(senator) for senator in senators]
-    if not members:
-        matching = ", ".join(f"{key}={value}" for key, value in filters.items() if value is not None)
-        raise ToolError(
-            f"OpenAustralia has no current member matching {matching}. Searches find current members only. "
-            "For a former member, find their person_id, for example on a search_hansard hit, and look them up by that."
-        )
-    return MemberLookupResult.from_members(members)
-
-
-def _describe(exc: ApiClientError, **arguments: str | None) -> str:
-    """A message Claude can relay to the user. Never includes the key or a request URL."""
-    match exc:
-        case MissingKeyError():
-            return f"No {exc.api} key set. Get one at {exc.key_url}, then set {exc.env_var} in your MCP client config."
-        case KeyRejectedError():
-            return f"The {exc.api} key was rejected. Check it or get a new one at {exc.key_url}."
-        case ApiError():
-            args = ", ".join(f"{name}={value}" for name, value in arguments.items() if value is not None)
-            return f"{exc.api} returned an error for {args}: {exc.message}"
-        case ApiUnavailableError(status=None):
-            return f"{exc.api} couldn't be reached. Try again later."
-        case ApiUnavailableError():
-            return f"{exc.api} didn't respond normally (HTTP {exc.status}). Try again later."
-        case _:
-            return f"{exc.api} request failed."
