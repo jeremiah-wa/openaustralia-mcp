@@ -7,9 +7,11 @@ from pydantic import BaseModel, Field
 
 from openaustralia_mcp.openaustralia import (
     HANSARD_LICENCE,
+    MEMBERS_LICENCE,
     SITE_URL,
     DebateEntry,
     HansardRow,
+    HansardSearch,
     House,
     Representative,
     Senator,
@@ -72,6 +74,10 @@ class MemberLookupResult(BaseModel):
     source_url: str
     licence: str
 
+    @classmethod
+    def from_members(cls, members: list[MemberRecord], note: str | None = None) -> "MemberLookupResult":
+        return cls(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
+
 
 class HansardHit(BaseModel):
     gid: str = Field(description="Identifies this speech in Hansard.")
@@ -107,6 +113,15 @@ class HansardSearchResult(BaseModel):
     total_results: int = Field(description="How many speeches matched in all, including those not returned.")
     source_url: str
     licence: str
+
+    @classmethod
+    def from_search(cls, search: HansardSearch) -> "HansardSearchResult":
+        return cls(
+            hits=[HansardHit.from_row(row) for row in search.rows],
+            total_results=search.info.total_results,
+            source_url=SITE_URL,
+            licence=HANSARD_LICENCE,
+        )
 
 
 class DebateResult(BaseModel):

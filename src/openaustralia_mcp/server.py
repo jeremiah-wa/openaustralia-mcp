@@ -21,15 +21,11 @@ from openaustralia_mcp.errors import (
 )
 from openaustralia_mcp.models import (
     DebateResult,
-    HansardHit,
     HansardSearchResult,
     MemberLookupResult,
     MemberRecord,
 )
 from openaustralia_mcp.openaustralia import (
-    HANSARD_LICENCE,
-    MEMBERS_LICENCE,
-    SITE_URL,
     House,
     OpenAustraliaClient,
     Representative,
@@ -149,12 +145,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
             search = await openaustralia.search_hansard(query, person_id)
         except ApiClientError as exc:
             raise ToolError(_describe(exc, query=query, person_id=person_id)) from None
-        return HansardSearchResult(
-            hits=[HansardHit.from_row(row) for row in search.rows],
-            total_results=search.info.total_results,
-            source_url=SITE_URL,
-            licence=HANSARD_LICENCE,
-        )
+        return HansardSearchResult.from_search(search)
 
     @server.tool(annotations=READ_ONLY)
     async def read_debate(
@@ -213,7 +204,7 @@ async def _members_by_postcode(openaustralia: OpenAustraliaClient, postcode: str
             "behind changes to electorate boundaries, so try a neighbouring postcode."
         )
     note = PARTIAL_MATCH_NOTE if len(found) < len(representatives) else None
-    return _member_lookup_result([MemberRecord.from_representative(member) for member in found], note)
+    return MemberLookupResult.from_members([MemberRecord.from_representative(member) for member in found], note)
 
 
 async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: str) -> MemberLookupResult:
@@ -225,7 +216,7 @@ async def _member_by_person_id(openaustralia: OpenAustraliaClient, person_id: st
         raise ToolError(_describe(exc, person_id=person_id)) from None
     if not representative and not senator:
         raise ToolError(f"OpenAustralia has no member of either house with person_id {person_id}.")
-    return _member_lookup_result(
+    return MemberLookupResult.from_members(
         [MemberRecord.from_representative(record) for record in representative]
         + [MemberRecord.from_senator(record) for record in senator]
     )
@@ -269,11 +260,7 @@ async def _search_members(
             f"OpenAustralia has no current member matching {matching}. Searches find current members only. "
             "For a former member, find their person_id, for example on a search_hansard hit, and look them up by that."
         )
-    return _member_lookup_result(members)
-
-
-def _member_lookup_result(members: list[MemberRecord], note: str | None = None) -> MemberLookupResult:
-    return MemberLookupResult(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
+    return MemberLookupResult.from_members(members)
 
 
 def _describe(exc: ApiClientError, **arguments: str | None) -> str:
