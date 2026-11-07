@@ -26,6 +26,17 @@
   color: f143ab
   description: Barrier affecting people with disabilities
 
+# How soon. At most one per issue.
+- name: "priority: high"
+  color: b60205
+  description: Do next, or it blocks the next stage of the roadmap
+- name: "priority: medium"
+  color: d93f0b
+  description: Planned, after the high-priority work
+- name: "priority: low"
+  color: c2e0c6
+  description: Do when next working in that area
+
 # Triage.
 - name: duplicate
   color: cfd3d7
