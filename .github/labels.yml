@@ -9,7 +9,8 @@
 #
 # Once the rename is on main, renamed_from can go.
 
-# What kind of work it is, one per issue. Each matches a commit type in contributing.md.
+# What kind of work it is, one per issue. Each matches a commit type in contributing.md, except research, whose
+# result is a decision rather than code.
 - name: bug
   color: d73a4a
   description: Something isn't working
@@ -26,6 +27,9 @@
 - name: chore
   color: fef2c0
   description: Tooling, CI, packaging and the eval harness
+- name: research
+  color: 5319e7
+  description: An experiment, measurement, design or investigation whose result is a decision
 
 # How soon. At most one per issue.
 - name: "priority: high"
