@@ -226,7 +226,7 @@ A run costs cases × trials × models × the cost of one trial. The cost of a tr
 
 Before starting, the runner prints an estimate from the cost per trial in the latest local run that used each model, or else in `baseline.json`, which is what a CI runner has. The runner refuses a run whose estimate is over `--max-cost-usd`, before any API call, and stops starting new trials once it's spent. Trials already running finish, so a run can go slightly over.
 
-Measured in the [baseline](../evals/results/baseline.md), across the 16 cases: $0.0281 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 16 cases × 5 trials on both models, cost $2.37. A one-call case such as `mp-3056` costs about a third of the Sonnet average. The 7 member cases from #8 bring a full run to 23 cases, about $3.40 at those rates, which is under the workflow's default $5 cap.
+Measured in the [baseline](../evals/results/baseline.md), across the 23 cases: $0.0282 a trial on Sonnet 5.5 and $0.0015 on Haiku 5.5. The full baseline, 23 cases × 5 trials on both models, cost $3.42, which is under the workflow's default $5 cap. A one-call case such as `mp-3056` costs about two fifths of the Sonnet average.
 
 ## Later
 

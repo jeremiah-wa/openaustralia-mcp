@@ -1,14 +1,15 @@
 {
+  "variant": "current",
   "models": {
     "claude-sonnet-5-5": {
       "effort": "high",
-      "trials": 80,
-      "cost_per_trial_usd": 0.028089025
+      "trials": 115,
+      "cost_per_trial_usd": 0.02824798260869565
     },
     "claude-haiku-5-5": {
       "effort": "medium",
-      "trials": 80,
-      "cost_per_trial_usd": 0.0014898875
+      "trials": 115,
+      "cost_per_trial_usd": 0.0015235565217391305
     }
   },
   "cases": {
@@ -25,6 +26,136 @@
         "tags": [
           "regression",
           "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-by-name": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-by-person-id": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-former-from-hansard": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-greens-senators": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-greens": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-senator-housing": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members",
+          "search"
+        ],
+        "passes": 5,
+        "trials": 5
+      }
+    },
+    "members-senators-tas": {
+      "claude-sonnet-5-5": {
+        "tags": [
+          "regression",
+          "members"
+        ],
+        "passes": 5,
+        "trials": 5
+      },
+      "claude-haiku-5-5": {
+        "tags": [
+          "regression",
+          "members"
         ],
         "passes": 5,
         "trials": 5
@@ -72,7 +203,7 @@
           "regression",
           "members"
         ],
-        "passes": 4,
+        "passes": 5,
         "trials": 5
       },
       "claude-haiku-5-5": {
@@ -80,7 +211,7 @@
           "regression",
           "members"
         ],
-        "passes": 0,
+        "passes": 2,
         "trials": 5
       }
     },
@@ -152,7 +283,7 @@
           "regression",
           "search"
         ],
-        "passes": 4,
+        "passes": 5,
         "trials": 5
       }
     },
@@ -240,7 +371,7 @@
           "capability",
           "read"
         ],
-        "passes": 5,
+        "passes": 3,
         "trials": 5
       }
     },
@@ -276,7 +407,7 @@
           "regression",
           "read"
         ],
-        "passes": 4,
+        "passes": 5,
         "trials": 5
       }
     },
