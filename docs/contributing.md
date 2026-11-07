@@ -129,15 +129,17 @@ fix(cache): stop caching responses that contain an API error
 docs: record person_id check result in api-notes.md
 ```
 
-- Keep each commit to one logical change, small enough to revert without losing other work. A tool is usually several commits: one per behaviour, each with its test and the code that makes it pass, e.g. "add get_members lookup by postcode", then "explain a missing OpenAustralia key".
+- Keep each commit on a branch to one logical change, so the pull request can be reviewed a step at a time. A tool is usually several commits: one per behaviour, each with its test and the code that makes it pass, e.g. "add get_members lookup by postcode", then "explain a missing OpenAustralia key".
 - Code, its tests and any doc updates for it go in the same commit.
-- Mark breaking changes to a tool's name or arguments with `!` (e.g. `feat(tools)!: rename get_members query argument`) and explain the change in the body.
+- Mark breaking changes to a tool's name or arguments with `!` (e.g. `feat(tools)!: rename get_members query argument`) and explain the change in the body. A pull request with a breaking change carries the `!` in its title too, because the title becomes the commit on `main`.
 
 ## Branches and pull requests
 
 - `main` is always in a working state. Do your work on a short-lived branch named `<type>/<short-description>`, e.g. `feat/search-hansard`.
 - Open a pull request into `main`. The description says what changed and why, and how you tested it, including any manual checks in MCP Inspector or Claude Desktop.
-- Merge with a merge commit, not a squash, so each commit stays on `main` and can be reverted on its own.
+- Squash-merge into `main`, so each pull request is one commit there. Some pull requests have dozens of commits, which would make `main`'s history noisy. So a pull request is what gets reverted, not a commit within it: keep each pull request to one change, which could be reverted without losing other work. The repository allows only squash-merging, and deletes a branch once its pull request is merged.
+- The pull request's title becomes that commit's summary, so write it as a commit summary (see [Commits](#commits)), with the type of its most significant change: a tool built with `test` and `feat` commits is `feat`. The branch's commit messages become the commit's body.
+- A branch made from another branch has to be rebased once the first is squash-merged, because its commits are no longer on `main`: `git rebase --onto main <first branch> <your branch>`, then force-push it.
 
 ## Labels
 
