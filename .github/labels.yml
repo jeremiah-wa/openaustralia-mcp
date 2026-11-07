@@ -22,9 +22,6 @@
 - name: documentation
   color: 0075ca
   description: Improvements or additions to documentation
-- name: accessibility
-  color: f143ab
-  description: Barrier affecting people with disabilities
 
 # How soon. At most one per issue.
 - name: "priority: high"
