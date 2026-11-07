@@ -26,9 +26,16 @@ RECORDED = {
     "openaustralia/getRepresentatives_postcode_3142.json": RecordedRequest("getRepresentatives", {"postcode": "3142"}),
     "openaustralia/getRepresentatives_postcode_3181.json": RecordedRequest("getRepresentatives", {"postcode": "3181"}),
     # Neighbours of 3142, which Claude tries when 3142 has no current member.
+    "openaustralia/getRepresentatives_postcode_3141.json": RecordedRequest("getRepresentatives", {"postcode": "3141"}),
     "openaustralia/getRepresentatives_postcode_3143.json": RecordedRequest("getRepresentatives", {"postcode": "3143"}),
     "openaustralia/getRepresentatives_postcode_3144.json": RecordedRequest("getRepresentatives", {"postcode": "3144"}),
+    "openaustralia/getRepresentatives_postcode_3145.json": RecordedRequest("getRepresentatives", {"postcode": "3145"}),
     "openaustralia/getRepresentatives_postcode_3146.json": RecordedRequest("getRepresentatives", {"postcode": "3146"}),
+    # Kooyong's MP, whom Claude sometimes looks up by name after 3146.
+    "openaustralia/getRepresentatives_search_Monique_Ryan.json": RecordedRequest(
+        "getRepresentatives", {"search": "Monique Ryan"}
+    ),
+    "openaustralia/getSenators_search_Monique_Ryan.json": RecordedRequest("getSenators", {"search": "Monique Ryan"}),
     "openaustralia/getRepresentatives_search_Khalil.json": RecordedRequest("getRepresentatives", {"search": "Khalil"}),
     # Name searches that find no one get `{}`.
     "openaustralia/getSenators_search_Khalil.json": RecordedRequest("getSenators", {"search": "Khalil"}),
