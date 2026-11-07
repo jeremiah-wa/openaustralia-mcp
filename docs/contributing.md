@@ -40,7 +40,10 @@ These protect users' keys and keep the project within the data licences. Don't b
 1. Check [api-notes.md](api-notes.md) for what the API does. Make live calls for anything it doesn't cover, and add what they show.
 2. Record the responses the tests need (see [Recording a response](#recording-a-response)).
 3. Build it test-first, in small commits (see [Tests](#tests)), keeping to the [house rules](#house-rules).
-4. Add the tool to the server `instructions`, so Claude knows where it fits in the chain of calls.
+   - Put the tool and its result models in its family's module in `src/openaustralia_mcp/tools/`: `members.py` for members, `hansard.py` for Hansard. A new family, such as the They Vote For You tools, gets its own module, with a `register` function that adds its tools to the server. Call it from `build_server`, in the order the tools should be listed.
+   - Every tool uses `READ_ONLY` and `_describe`, from `tools/__init__.py`.
+   - The result model's `from_…` constructor sets `source_url` and `licence`, for the API the data comes from.
+4. Add the tool to the server `instructions` in `server.py`, so Claude knows where it fits in the chain of calls.
 5. Add eval cases, and put the scores before and after in the pull request (see [Evals](#evals)).
 6. Set the tool's status in [tools.md](tools.md), and record any naming or shaping decision there. Add an ADR if one qualifies (see [Design changes](#design-changes)).
 

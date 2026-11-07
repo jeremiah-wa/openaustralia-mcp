@@ -59,6 +59,7 @@ Representatives = list[Representative | Literal[False]]
 _representatives = TypeAdapter(Representatives)
 _representative_records = TypeAdapter(list[Representative])
 
+House = Literal["representatives", "senate"]
 State = Literal["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"]
 # A spelling of each state that getSenators' `state` accepts. It takes TAS or Tasmania and VIC or Victoria, but only
 # Queensland, not QLD, and only NSW, WA, SA, ACT and NT, not their full names.
@@ -223,11 +224,10 @@ class OpenAustraliaClient:
 
     async def search_hansard(self, search: str | None = None, person: str | None = None) -> HansardSearch:
         """Speeches in either house that match the search and/or are by the person, newest first, 20 to a page."""
-        params = {"search": search, "person": person}
-        given = {name: value for name, value in params.items() if value is not None}
+        given = _given(search=search, person=person)
         return HansardSearch.model_validate(await self._call("getHansard", **given))
 
-    async def get_debates(self, type: Literal["representatives", "senate"], gid: str) -> list[DebateEntry]:
+    async def get_debates(self, type: House, gid: str) -> list[DebateEntry]:
         """The headings and speech(es) for a gid. gids repeat across houses, so the type picks the house."""
         return _debate_entries.validate_python(await self._call("getDebates", type=type, gid=gid))
 
