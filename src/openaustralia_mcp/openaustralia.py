@@ -224,8 +224,7 @@ class OpenAustraliaClient:
 
     async def search_hansard(self, search: str | None = None, person: str | None = None) -> HansardSearch:
         """Speeches in either house that match the search and/or are by the person, newest first, 20 to a page."""
-        params = {"search": search, "person": person}
-        given = {name: value for name, value in params.items() if value is not None}
+        given = _given(search=search, person=person)
         return HansardSearch.model_validate(await self._call("getHansard", **given))
 
     async def get_debates(self, type: House, gid: str) -> list[DebateEntry]:

@@ -148,10 +148,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         try:
             search = await openaustralia.search_hansard(query, person_id)
         except ApiClientError as exc:
-            given = {"query": query, "person_id": person_id}
-            raise ToolError(
-                _describe(exc, **{name: value for name, value in given.items() if value is not None})
-            ) from None
+            raise ToolError(_describe(exc, query=query, person_id=person_id)) from None
         return HansardSearchResult(
             hits=[HansardHit.from_row(row) for row in search.rows],
             total_results=search.info.total_results,
@@ -252,7 +249,6 @@ async def _search_members(
 ) -> MemberLookupResult:
     """Current members who match every filter given, in both houses unless a house or a state limits it."""
     filters = {"name": name, "party": party, "state": state, "house": house}
-    given = {key: value for key, value in filters.items() if value is not None}
     # Senators represent a state. Members of the House represent an electorate, and OpenAustralia has no state for it.
     house = "senate" if state else house
     try:
@@ -263,12 +259,12 @@ async def _search_members(
             else await openaustralia.get_senators(state=state, party=party, search=name)
         )
     except ApiClientError as exc:
-        raise ToolError(_describe(exc, **given)) from None
+        raise ToolError(_describe(exc, **filters)) from None
     members = [
         MemberRecord.from_representative(member) for member in representatives if isinstance(member, Representative)
     ] + [MemberRecord.from_senator(senator) for senator in senators]
     if not members:
-        matching = ", ".join(f"{key}={value}" for key, value in given.items())
+        matching = ", ".join(f"{key}={value}" for key, value in filters.items() if value is not None)
         raise ToolError(
             f"OpenAustralia has no current member matching {matching}. Searches find current members only. "
             "For a former member, find their person_id, for example on a search_hansard hit, and look them up by that."
@@ -280,7 +276,7 @@ def _member_lookup_result(members: list[MemberRecord], note: str | None = None) 
     return MemberLookupResult(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
 
 
-def _describe(exc: ApiClientError, **arguments: str) -> str:
+def _describe(exc: ApiClientError, **arguments: str | None) -> str:
     """A message Claude can relay to the user. Never includes the key or a request URL."""
     match exc:
         case MissingKeyError():
@@ -288,7 +284,7 @@ def _describe(exc: ApiClientError, **arguments: str) -> str:
         case KeyRejectedError():
             return f"The {exc.api} key was rejected. Check it or get a new one at {exc.key_url}."
         case ApiError():
-            args = ", ".join(f"{name}={value}" for name, value in arguments.items())
+            args = ", ".join(f"{name}={value}" for name, value in arguments.items() if value is not None)
             return f"{exc.api} returned an error for {args}: {exc.message}"
         case ApiUnavailableError(status=None):
             return f"{exc.api} couldn't be reached. Try again later."
