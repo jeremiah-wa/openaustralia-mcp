@@ -23,6 +23,9 @@
 - name: documentation
   color: 0075ca
   description: Improvements or additions to documentation
+- name: chore
+  color: fef2c0
+  description: Tooling, CI, packaging and the eval harness
 
 # How soon. At most one per issue.
 - name: "priority: high"
