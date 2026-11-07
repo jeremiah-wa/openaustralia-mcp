@@ -6,7 +6,7 @@ Notes:
 
 - The member cases are graded on their expected calls, not on a link in the answer, and the list cases don't need a link (see [evals.md](../../docs/evals.md#cases)).
 - `mp-3142` on Haiku: the harness no longer sends a 404 for the neighbours Claude asks for most. The failures are Claude checking more neighbours after 3141 and 3145 already gave Josh Burns, or trying postcodes further away, past the 4 calls the case allows.
-- `pasted-link` on Haiku: both failing trials read the whole speech but didn't link it.
+- `pasted-link` on Haiku: both failing trials read the right speech and linked it, but with the url the user pasted. `cites_url` counts only urls from tool results.
 - Cost per trial: Sonnet 5.5 $0.0282, Haiku 5.5 $0.0015.
 
 23 cases, 5 trials each, on claude-sonnet-5-5 (effort high), claude-haiku-5-5 (effort medium), with the `current` variant of the tools.
