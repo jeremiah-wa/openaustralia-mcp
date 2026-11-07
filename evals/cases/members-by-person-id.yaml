@@ -8,6 +8,9 @@ fixtures:
   - getSenator_id_10942.json
   - getSenators.json
 expect:
+  calls:
+    - tool: get_members
+      args: {person_id: "10942"}
   # "Senat" matches Senate and Senator.
   answer_contains: [Dave Sharma, Senat]
   cites_url: true

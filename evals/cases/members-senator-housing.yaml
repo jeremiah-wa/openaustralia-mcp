@@ -1,6 +1,6 @@
 id: members-senator-housing
-# Case 18 from #6. Two Senators are called Pocock: Barbara (11008) and David (11009). Only David's housing search is
-# recorded, so a Senate speech url in the answer shows Claude found his person_id and searched with it.
+# Case 18 from #6. Two Senators are called Pocock: Barbara (11008) and David (11009). Claude has to find David's
+# person_id and search with it. His housing speeches include one on the Commonwealth Land (Affordable Housing) Bill.
 tags: [regression, members, search]
 question: What has Senator David Pocock said about housing?
 fixtures:
@@ -14,11 +14,18 @@ fixtures:
   - file: getHansard_search_housing_person_11009.json
     search_contains: [housing]
   # Requests Haiku made in the #8 runs that had no fixture, so they got a 404 the real API wouldn't send:
-  # the ACT's Senators, and David Pocock's speech in full. A housing search without his person_id still gets a 404:
-  # its hits include other Senators' speeches, whose urls would pass this case without finding him.
+  # the ACT's Senators, and David Pocock's speech in full. A housing search without his person_id still gets a 404.
   - getSenators_state_ACT.json
   - getDebates_senate_2026-07-02.63.1.json
   - getDebates_senate_2026-07-02.63.2.json
 expect:
-  answer_contains: ["https://www.openaustralia.org.au/senate/?id="]
+  calls:
+    # By name or by the ACT's Senators: either finds his person_id.
+    - id: members
+      tool: get_members
+    - tool: search_hansard
+      args: {person_id: "11009"}
+      args_contain: {query: [housing]}
+      after: members
+  answer_contains: [Commonwealth Land]
   cites_url: true

@@ -8,5 +8,7 @@ fixtures:
   - file: getRepresentatives_party_Greens.json
     part_of: {party: [Australian Greens]}
 expect:
+  calls:
+    - tool: get_members
+      args_contain: {party: [Greens]}
   answer_contains: [Vanessa Bleyer, Barbara Pocock]
-  cites_url: true

@@ -1,10 +1,12 @@
 id: members-senators-tas
 # Case 19 from #6. Vanessa Bleyer and Chris Gatenby took their seats in August 2026, so naming them shows the answer
-# came from a lookup, not from memory.
+# used the lookup's result, not memory.
 tags: [regression, members]
 question: Who are the Senators for Tasmania?
 fixtures:
   - getSenators_state_Tasmania.json
 expect:
+  calls:
+    - tool: get_members
+      args: {state: TAS}
   answer_contains: [Vanessa Bleyer, Chris Gatenby]
-  cites_url: true

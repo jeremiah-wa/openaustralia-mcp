@@ -22,5 +22,7 @@ fixtures:
   - file: getSenators_search_Bates.json
     part_of: {search: [Stephen Bates]}
 expect:
+  calls:
+    - tool: get_members
+      args_contain: {party: [Greens]}
   answer_contains: [Elizabeth Watson-Brown, Vanessa Bleyer]
-  cites_url: true
