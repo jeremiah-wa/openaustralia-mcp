@@ -138,3 +138,12 @@ docs: record person_id check result in api-notes.md
 - `main` is always in a working state. Do your work on a short-lived branch named `<type>/<short-description>`, e.g. `feat/search-hansard`.
 - Open a pull request into `main`. The description says what changed and why, and how you tested it, including any manual checks in MCP Inspector or Claude Desktop.
 - Merge with a merge commit, not a squash, so each commit stays on `main` and can be reverted on its own.
+
+## Labels
+
+- The labels are listed in [.github/labels.yml](../.github/labels.yml). Add, change or remove a label there, not on GitHub: when the file changes on `main`, the [Labels workflow](../.github/workflows/labels.yml) makes GitHub's labels match it, and deletes any that aren't listed. A label made on GitHub instead is deleted at the next sync.
+- A pull request that changes the file shows what will change in the Labels job's summary. Check it before merging, especially for deletions: deleting a label takes it off every issue and pull request, and recreating it doesn't put it back.
+- The workflow won't delete a label that's still on an issue or a pull request, and fails instead. Take the label off them first, or keep it in the file.
+- To rename a label, change its name in the file and list the old name in `renamed_from`, so its issues keep it. Once the rename is on `main`, `renamed_from` can go.
+- Give each issue one kind: `bug`, `enhancement` or `documentation`.
+- `run-evals` runs the evals on a pull request (see [Evals](#evals)). Don't rename it: [evals.yml](../.github/workflows/evals.yml) matches it by name.

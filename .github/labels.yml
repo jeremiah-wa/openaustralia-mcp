@@ -1,0 +1,49 @@
+# The repository's labels. When this file changes on main, the Labels workflow (workflows/labels.yml) makes GitHub's
+# labels match it: it creates and updates labels, and deletes any that aren't here. A pull request that changes the
+# file shows what will change. The workflow won't delete a label that's still on an issue or a pull request.
+#
+# To rename a label, change its name and list the old one, so its issues keep it:
+#
+#   - name: feature
+#     renamed_from: [enhancement]
+#
+# Once the rename is on main, renamed_from can go.
+
+# What kind of work it is.
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+- name: accessibility
+  color: f143ab
+  description: Barrier affecting people with disabilities
+
+# Triage.
+- name: duplicate
+  color: cfd3d7
+  description: This issue or pull request already exists
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+- name: help wanted
+  color: "008672"
+  description: Extra attention is needed
+- name: invalid
+  color: e4e669
+  description: This doesn't seem right
+- name: question
+  color: d876e3
+  description: Further information is requested
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on
+
+# evals.yml runs the evals when a pull request gets this label, so it mustn't be renamed.
+- name: run-evals
+  color: FBCA04
+  description: Run the tool-use evals in CI (costs about $2.40 a run)
