@@ -90,7 +90,7 @@ Then add the request to `RECORDED` (see [Tests](#tests)), and check the diff for
 - Take expected values from an independent source, such as a recorded response or the API docs. Never work them out the same way the code does.
 - When you record a response, add the request it answers to `RECORDED` in [tests/fake_api.py](../tests/fake_api.py), and serve it with `fake_api.route(...)`. Use `serve_fixture` only for error responses that would answer any request.
 - Group related tests in classes named after the behaviour, e.g. `TestMissingKey` and `TestKeyNeverLeaks`.
-- Every new tool gets a test for its normal result, for a missing key, for an API error and for never leaking the key (`TestKeyNeverLeaks`).
+- Every new tool gets a row in `EVERY_CALL`, in [tests/test_every_tool.py](../tests/test_every_tool.py), and the recorded responses that answer it go in `EVERY_ANSWER`. That file checks what every tool must do: explain a missing or rejected key, pass on an API error with its arguments, say when OpenAustralia is unavailable, and never leak the key (`TestKeyNeverLeaks`). A test fails if the server lists a tool that has no row. The tool's own test file covers its normal result and anything else only it does.
 - `uv run pytest` must pass before you commit. CI ([ci.yml](../.github/workflows/ci.yml)) also runs it, with ruff, on every pull request and every push to `main`. Live smoke tests run only when the key env vars are set. In CI they run only in [live.yml](../.github/workflows/live.yml), weekly, by hand and on pull requests that change them, with the key from the `OPENAUSTRALIA_API_KEY` repository secret. Don't add a live call to any other workflow.
 
 ## Evals

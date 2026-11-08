@@ -25,6 +25,7 @@ class Call(NamedTuple):
 
 
 # One call per tool, and per kind of member lookup. Each reaches OpenAustralia, so each has to handle what comes back.
+# A new tool gets a row here, not its own copies of these tests.
 EVERY_CALL = [
     Call("get_members", {"postcode": "3056"}, "postcode=3056"),
     Call("get_members", {"person_id": "10942"}, "person_id=10942"),
@@ -195,6 +196,12 @@ class TestKeyNeverLeaks:
 
 
 class TestEveryCall:
+    async def test_covers_every_tool_the_server_lists(self, connect: Connect) -> None:
+        async with connect() as client:
+            tools = (await client.list_tools()).tools
+
+        assert {tool.name for tool in tools} == {call.tool for call in EVERY_CALL}
+
     @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
     async def test_succeeds_with_the_recorded_answers(self, connect: Connect, fake_api: FakeApi, call: Call) -> None:
         # So the success case in TestKeyNeverLeaks checks a result, not an error.
