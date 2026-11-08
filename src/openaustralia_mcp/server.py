@@ -1,6 +1,8 @@
 """Builds the MCP server: the instructions, which span the tools, and the tools from their modules in tools/."""
 
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from importlib.metadata import version
 
 import httpx2
@@ -8,7 +10,7 @@ from mcp.server.mcpserver import MCPServer
 
 from openaustralia_mcp.config import Config
 from openaustralia_mcp.openaustralia import OpenAustraliaClient
-from openaustralia_mcp.tools import hansard, members
+from openaustralia_mcp.tools import Clients, hansard, members
 
 VERSION = version("openaustralia-mcp")
 
@@ -32,9 +34,15 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     for name in HTTP_LOGGERS:
         logging.getLogger(name).setLevel(logging.WARNING)
 
-    openaustralia = OpenAustraliaClient(http_client, config.openaustralia_api_key)
-    server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION)
+    clients = Clients(openaustralia=OpenAustraliaClient(http_client, config.openaustralia_api_key))
+
+    # Each server gets its own clients, in its lifespan context.
+    @asynccontextmanager
+    async def lifespan(_: MCPServer[Clients]) -> AsyncGenerator[Clients]:
+        yield clients
+
+    server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION, lifespan=lifespan)
     # The tools are listed in the order they're registered.
-    members.register(server, openaustralia)
-    hansard.register(server, openaustralia)
+    members.register(server, clients.openaustralia)
+    hansard.register(server, clients.openaustralia)
     return server
