@@ -10,6 +10,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 OA_HEADERS = {"content-type": "text/javascript; charset=iso-8859-1"}
 
 Handler = Callable[[httpx2.Request], httpx2.Response]
+Respond = Callable[[], httpx2.Response]
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,7 @@ class FakeApi:
     def __init__(self) -> None:
         self.requests: list[httpx2.Request] = []
         self._handler: Handler = lambda request: httpx2.Response(599)
-        self._routes: list[tuple[RecordedRequest, list[str] | None, dict[str, list[str]], bytes]] = []
+        self._routes: list[tuple[RecordedRequest, list[str] | None, dict[str, list[str]], Respond]] = []
 
     def serve_fixture(self, name: str) -> None:
         """Answers every request with this recorded response."""
@@ -140,9 +141,25 @@ class FakeApi:
         With `part_of`, it answers any value of each listed parameter that is part of every one of its texts,
         ignoring case, as OpenAustralia matches a party or a member's name: list the names the response holds.
         Either way, the other parameters must still match exactly.
-        Any request without a routed fixture gets an HTTP 404.
+        Any request without a route gets an HTTP 404.
         """
-        self._routes.append((RECORDED[name], search_contains, part_of or {}, (FIXTURES / name).read_bytes()))
+        body = (FIXTURES / name).read_bytes()
+        self._routes.append(
+            (
+                RECORDED[name],
+                search_contains,
+                part_of or {},
+                lambda: httpx2.Response(200, content=body, headers=OA_HEADERS),
+            )
+        )
+        self._handler = self._answer_routed
+
+    def answer(self, function: str, params: dict[str, str], response: httpx2.Response) -> None:
+        """Answers this request with the response given, for one that can't be recorded, such as a failure.
+
+        `params` leaves out `key` and `output`, and must match exactly. It works alongside `route`.
+        """
+        self._routes.append((RecordedRequest(function, params), None, {}, lambda: response))
         self._handler = self._answer_routed
 
     def serve(self, handler: Handler) -> None:
@@ -155,9 +172,9 @@ class FakeApi:
     def _answer_routed(self, request: httpx2.Request) -> httpx2.Response:
         function = request.url.path.rsplit("/", 1)[-1]
         params = {name: value for name, value in request.url.params.items() if name not in ("key", "output")}
-        for recorded, search_contains, part_of, body in self._routes:
+        for recorded, search_contains, part_of, respond in self._routes:
             if recorded.function == function and _matches(recorded.params, params, search_contains, part_of):
-                return httpx2.Response(200, content=body, headers=OA_HEADERS)
+                return respond()
         # The server reports it as a tool error and Claude carries on, as for an unknown gid.
         return httpx2.Response(404)
 
