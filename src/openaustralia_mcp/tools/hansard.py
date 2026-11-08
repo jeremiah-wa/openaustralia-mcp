@@ -4,7 +4,7 @@ import html
 import re
 from typing import Annotated
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
@@ -16,9 +16,8 @@ from openaustralia_mcp.openaustralia import (
     HansardRow,
     HansardSearch,
     House,
-    OpenAustraliaClient,
 )
-from openaustralia_mcp.tools import READ_ONLY, _describe
+from openaustralia_mcp.tools import READ_ONLY, Clients, _describe
 
 # Characters of debate text per read_debate call.
 DEBATE_PAGE_SIZE = 4000
@@ -112,9 +111,10 @@ def _speech_text(entry: DebateEntry) -> str:
     return f"{entry.speaker.first_name} {entry.speaker.last_name}:\n\n{text}"
 
 
-def register(server: MCPServer, openaustralia: OpenAustraliaClient) -> None:
+def register(server: MCPServer) -> None:
     @server.tool(annotations=READ_ONLY)
     async def search_hansard(
+        ctx: Context[Clients],
         query: Annotated[
             str | None, Field(min_length=1, description='Words to search for, e.g. "housing affordability".')
         ] = None,
@@ -128,6 +128,7 @@ def register(server: MCPServer, openaustralia: OpenAustraliaClient) -> None:
         Returns the 20 most recent matching speeches, each with the speaker, date, debate title, a short
         excerpt, a gid and a url to the full speech.
         """
+        openaustralia = ctx.request_context.lifespan_context.openaustralia
         if query is None and person_id is None:
             raise ToolError("Give a query, a person_id, or both.")
         try:
@@ -138,6 +139,7 @@ def register(server: MCPServer, openaustralia: OpenAustraliaClient) -> None:
 
     @server.tool(annotations=READ_ONLY)
     async def read_debate(
+        ctx: Context[Clients],
         gid: Annotated[
             str,
             Field(
@@ -158,6 +160,7 @@ def register(server: MCPServer, openaustralia: OpenAustraliaClient) -> None:
         Each speech starts with the speaker's name on its own line. Returns up to 4,000 characters at a
         time. Pass next_offset as offset to read on.
         """
+        openaustralia = ctx.request_context.lifespan_context.openaustralia
         try:
             entries = await openaustralia.get_debates(house, gid)
         except NotFoundError:

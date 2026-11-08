@@ -44,5 +44,5 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
     server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION, lifespan=lifespan)
     # The tools are listed in the order they're registered.
     members.register(server)
-    hansard.register(server, clients.openaustralia)
+    hansard.register(server)
     return server
