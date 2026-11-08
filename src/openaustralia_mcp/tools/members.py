@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ from openaustralia_mcp.openaustralia import (
     Senator,
     State,
 )
-from openaustralia_mcp.tools import READ_ONLY, _describe
+from openaustralia_mcp.tools import READ_ONLY, Clients, _describe
 
 PARTIAL_MATCH_NOTE = (
     "OpenAustralia couldn't match part of this postcode to a current member, so this list may be incomplete. "
@@ -82,9 +82,10 @@ class MemberLookupResult(BaseModel):
         return cls(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
 
 
-def register(server: MCPServer, openaustralia: OpenAustraliaClient) -> None:
+def register(server: MCPServer) -> None:
     @server.tool(annotations=READ_ONLY)
     async def get_members(
+        ctx: Context[Clients],
         postcode: Annotated[
             str | None, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')
         ] = None,
@@ -122,6 +123,7 @@ def register(server: MCPServer, openaustralia: OpenAustraliaClient) -> None:
         both houses unless house limits it to one. A state means Senators. Returns each member's person_id, name,
         party, house, electorate or state, whether they're a current member, current positions and url.
         """
+        openaustralia = ctx.request_context.lifespan_context.openaustralia
         if person_id is not None:
             if any(value is not None for value in (postcode, name, party, state, house)):
                 raise ToolError("A person_id finds one person in both houses by itself. Give it on its own.")
