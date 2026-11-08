@@ -3,6 +3,7 @@
 The messages come from the shared error handling, so they're the same for every tool apart from its name.
 """
 
+import logging
 from typing import NamedTuple
 
 import httpx2
@@ -10,7 +11,7 @@ import pytest
 
 from openaustralia_mcp.config import Config
 
-from .conftest import Connect, result_text
+from .conftest import TEST_KEY, Connect, result_text
 from .fake_api import FakeApi, Handler
 
 pytestmark = pytest.mark.anyio
@@ -38,6 +39,21 @@ EVERY_CALL = [
     ),
 ]
 EVERY_CALL_IDS = ["-".join([call.tool, *call.args]) for call in EVERY_CALL]
+
+# The recorded responses that answer every call in EVERY_CALL.
+EVERY_ANSWER = [
+    "openaustralia/getRepresentatives_postcode_3056.json",
+    "openaustralia/getRepresentative_id_10942.json",
+    "openaustralia/getSenator_id_10942.json",
+    "openaustralia/getSenators.json",
+    "openaustralia/getRepresentatives_search_Pocock.json",
+    "openaustralia/getSenators_search_Pocock.json",
+    "openaustralia/getRepresentatives_party_Greens.json",
+    "openaustralia/getSenators_party_Greens.json",
+    "openaustralia/getSenators_state_Tasmania.json",
+    "openaustralia/getHansard_search_housing_person_10887.json",
+    "openaustralia/getDebates_representatives_2026-06-23.80.1.json",
+]
 
 # OpenAustralia rejects a bad key the same way, whichever function is called.
 BAD_KEY = "openaustralia/getRepresentatives_bad_key.json"
@@ -128,3 +144,64 @@ class TestApiUnavailable:
 
         assert result.is_error
         assert result_text(result) == f"Error executing tool {call.tool}: {message}"
+
+
+def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
+    # Real HTTP errors mention the URL, and the URL contains the key.
+    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
+
+
+# The recorded responses that answer every call, a recorded response that answers any call, or a handler.
+LEAK_CASES: dict[str, list[str] | str | Handler] = {
+    "success": EVERY_ANSWER,
+    "rejected-key": BAD_KEY,
+    "api-error": API_ERROR,
+    # What OpenAustralia sends for a gid it doesn't have, with the URL in it.
+    "not-found": lambda request: httpx2.Response(404, text=f"<html>{request.url}</html>"),
+    "connection-error": _connection_refused_naming_the_url,
+    "server-error": lambda request: httpx2.Response(500),
+}
+
+
+class TestKeyNeverLeaks:
+    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
+    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
+        if isinstance(request.param, list):
+            for name in request.param:
+                fake_api.route(name)
+        elif isinstance(request.param, str):
+            fake_api.serve_fixture(request.param)
+        else:
+            fake_api.serve(request.param)
+
+    @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
+    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None, call: Call) -> None:
+        async with connect() as client:
+            result = await client.call_tool(call.tool, call.args)
+
+        assert TEST_KEY not in result_text(result)
+
+    @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
+    async def test_not_in_the_logs(
+        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture, call: Call
+    ) -> None:
+        caplog.set_level(logging.DEBUG)
+
+        async with connect() as client:
+            await client.call_tool(call.tool, call.args)
+
+        assert caplog.records, "expected some log output to check"
+        assert TEST_KEY not in caplog.text
+
+
+class TestEveryCall:
+    @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
+    async def test_succeeds_with_the_recorded_answers(self, connect: Connect, fake_api: FakeApi, call: Call) -> None:
+        # So the success case in TestKeyNeverLeaks checks a result, not an error.
+        for name in EVERY_ANSWER:
+            fake_api.route(name)
+
+        async with connect() as client:
+            result = await client.call_tool(call.tool, call.args)
+
+        assert not result.is_error, result_text(result)

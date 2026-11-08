@@ -17,7 +17,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff format --check
       - run: uv run ruff check
-      # No API keys are set here, so the live smoke tests skip. The TestKeyNeverLeaks classes run against a sentinel key.
+      # No API keys are set here, so the live smoke tests skip. TestKeyNeverLeaks runs against a sentinel key.
       - run: uv run pytest
 
   secrets:

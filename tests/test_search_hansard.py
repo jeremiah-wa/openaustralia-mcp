@@ -1,7 +1,5 @@
-import logging
 from unittest.mock import ANY
 
-import httpx2
 import pytest
 
 from .conftest import TEST_KEY, Connect, result_text
@@ -161,43 +159,3 @@ class TestExcerpt:
             "the shadow Treasurer talked a lot about small business—very passionately, very "
             "aggressively—and how much he loves..."
         )
-
-
-def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
-    # Real HTTP errors mention the URL, and the URL contains the key.
-    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
-
-
-LEAK_CASES = {
-    "success": HOUSING_BY_10887,
-    "rejected-key": "openaustralia/getHansard_bad_key.json",
-    "api-error": "openaustralia/getHansard_no_parameters.json",
-    "connection-error": _connection_refused_naming_the_url,
-    "server-error": lambda request: httpx2.Response(500),
-}
-
-
-class TestKeyNeverLeaks:
-    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
-    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
-        if isinstance(request.param, str):
-            fake_api.serve_fixture(request.param)
-        else:
-            fake_api.serve(request.param)
-
-    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None) -> None:
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
-
-        assert TEST_KEY not in result_text(result)
-
-    async def test_not_in_the_logs(
-        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        caplog.set_level(logging.DEBUG)
-
-        async with connect() as client:
-            await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
-
-        assert caplog.records, "expected some log output to check"
-        assert TEST_KEY not in caplog.text

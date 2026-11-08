@@ -1,5 +1,3 @@
-import logging
-
 import httpx2
 import pytest
 
@@ -468,17 +466,6 @@ class TestArgumentsThatDontGoTogether:
         assert fake_api.requests == []
 
 
-# One call per kind of lookup. Each reaches OpenAustralia, so each has to handle what comes back.
-EVERY_LOOKUP = [
-    {"postcode": "3056"},
-    {"person_id": "10942"},
-    {"name": "Pocock"},
-    {"party": "Greens"},
-    {"state": "TAS"},
-]
-EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
-
-
 class TestPostcodeValidation:
     @pytest.mark.parametrize("postcode", ["30", "30560", "abcd", " 3056"])
     async def test_rejects_a_malformed_postcode_without_a_request(
@@ -492,48 +479,6 @@ class TestPostcodeValidation:
         assert result.is_error
         assert "postcode" in result_text(result)
         assert fake_api.requests == []
-
-
-def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
-    # Real HTTP errors mention the URL, and the URL contains the key.
-    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
-
-
-LEAK_CASES = {
-    "success": "openaustralia/getRepresentatives_postcode_3056.json",
-    "rejected-key": "openaustralia/getRepresentatives_bad_key.json",
-    "api-error": "openaustralia/getRepresentatives_postcode_0000.json",
-    "connection-error": _connection_refused_naming_the_url,
-    "server-error": lambda request: httpx2.Response(500),
-}
-
-
-class TestKeyNeverLeaks:
-    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
-    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
-        if isinstance(request.param, str):
-            fake_api.serve_fixture(request.param)
-        else:
-            fake_api.serve(request.param)
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None, args: dict[str, str]) -> None:
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert TEST_KEY not in result_text(result)
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_not_in_the_logs(
-        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture, args: dict[str, str]
-    ) -> None:
-        caplog.set_level(logging.DEBUG)
-
-        async with connect() as client:
-            await client.call_tool("get_members", args)
-
-        assert caplog.records, "expected some log output to check"
-        assert TEST_KEY not in caplog.text
 
 
 class TestPostcodeWithoutCurrentMember:
