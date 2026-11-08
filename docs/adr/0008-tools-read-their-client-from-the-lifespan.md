@@ -1,0 +1,20 @@
+# Tools read their client from the lifespan context
+
+Each server that `build_server` makes needs its own API client. The tests build servers around their own fake API or config, the evals run 4 trials at once with a fake API each, and an eval variant changes its own server's tools. So the shape in the SDK's tutorials, one module-level `MCPServer` with `@mcp.tool()` functions, doesn't fit: one client would serve every server, and a trial could be answered from another case's fixtures without anything failing.
+
+The tools are plain module-level functions, and each family's module lists them in its `TOOLS`. `build_server` gives each server a lifespan that yields its own `Clients`, and adds every tool in `TOOLS` with the SDK's `add_tool` and `READ_ONLY`, in the order Claude sees them. A tool takes `ctx: Context[Clients]` and reads its client from `ctx.request_context.lifespan_context`. That's the pattern the SDK's [Lifespan docs](https://py.sdk.modelcontextprotocol.io/handlers/lifespan/) give for "a database pool, an HTTP client". It's typed, and the SDK leaves `ctx` out of the input schema, so Claude never sees it.
+
+It changed nothing a client receives. After the move, `list_tools()`, the instructions and the results of 10 tool calls, `_meta` included, were byte-identical to the closures' in both of the in-process client's modes, and the tests passed unchanged. The tools worked over stdio, and two servers called at the same time each used only their own client. Two prototypes, on `chore/context-prototype` and `chore/resolve-prototype`, checked the same before the move.
+
+## Considered options
+
+- **Closures in a factory,** as after #27: each family's `register(server, openaustralia)` defined its tools inside it, closing over the client. The SDK's [Deploy & scale docs](https://py.sdk.modelcontextprotocol.io/run/deploy/) build a server that needs something per instance the same way, and it cost nothing to keep. Module-level functions read more simply, and each family's `TOOLS` makes the order Claude sees explicit.
+- **The client injected by `Resolve`,** the SDK's [dependency injection](https://py.sdk.modelcontextprotocol.io/handlers/dependencies/), with a resolver that reads the lifespan context. The tool bodies wouldn't change, and its tool results were byte-identical to this design's. But the docs aim `Resolve` at per-call values the model must not supply, send a long-lived resource such as an HTTP client to the lifespan, and count a tool with a `Resolve` parameter as a multi-round-trip tool. It also needs a resolver and an `Annotated` type of our own. It's the likely next step at the remote stage, where each request brings its own key and the client becomes a value built for each call. Each tool would then swap its `ctx` for the resolved client, and lose one line.
+- **A `ToolSet` that collects each family's tools with a decorator,** as both prototypes did: it's our own code, it registers tools as a side effect of importing a module, and the order Claude sees would follow the order the functions are defined in.
+- **Every tool listed in `build_server`:** adding a tool would mean editing server.py as well as its family's module.
+- **One server and client per process, as in the tutorials:** see above. The SDK has no way to override a dependency in tests.
+- **A `ContextVar` that holds the client:** it works only while the SDK starts its request handlers inside the lifespan's context, which it doesn't promise.
+- **`functools.partial`, or a wrapper that hides the client parameter:** the SDK takes a tool's name and description from `fn.__name__` and `fn.__doc__`, which a partial doesn't carry, and a wrapper depends on how the SDK reads signatures.
+- **Extensions, middleware, or tool methods on a class:** an extension advertises itself to clients as an opt-in protocol feature, the SDK docs mark middleware as provisional, and methods aren't an SDK pattern and sit at the same indentation as closures.
+
+The options and what the prototypes found are compared in [#33](https://github.com/jeremiah-wa/openaustralia-mcp/issues/33).

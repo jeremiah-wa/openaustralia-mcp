@@ -40,8 +40,10 @@ These protect users' keys and keep the project within the data licences. Don't b
 1. Check [api-notes.md](api-notes.md) for what the API does. Make live calls for anything it doesn't cover, and add what they show.
 2. Record the responses the tests need (see [Recording a response](#recording-a-response)).
 3. Build it test-first, in small commits (see [Tests](#tests)), keeping to the [house rules](#house-rules).
-   - Put the tool and its result models in its family's module in `src/openaustralia_mcp/tools/`: `members.py` for members, `hansard.py` for Hansard. A new family, such as the They Vote For You tools, gets its own module, with a `register` function that adds its tools to the server. Call it from `build_server`, in the order the tools should be listed.
-   - Every tool uses `READ_ONLY` and `_describe`, from `tools/__init__.py`.
+   - Write the tool as a plain function, and put it and its result models in its family's module in `src/openaustralia_mcp/tools/`: `members.py` for members, `hansard.py` for Hansard. Add it to the module's `TOOLS`, in the order Claude should see it. `build_server` adds every tool in `TOOLS`, with `READ_ONLY`.
+   - A new family, such as the They Vote For You tools, gets its own module and `TOOLS`. Add its `TOOLS` to the loop in `build_server`.
+   - A tool gets its API client from its server's lifespan. Take `ctx: Context[Clients]` as its first parameter, and read the client from `ctx.request_context.lifespan_context`, as in the SDK's [Lifespan docs](https://py.sdk.modelcontextprotocol.io/handlers/lifespan/). A new API's client gets a field on `Clients`, in `tools/__init__.py`.
+   - Describe API errors with `_describe`, from `tools/__init__.py`.
    - The result model's `from_…` constructor sets `source_url` and `licence`, for the API the data comes from.
 4. Add the tool to the server `instructions` in `server.py`, so Claude knows where it fits in the chain of calls.
 5. Add eval cases, and put the scores before and after in the pull request (see [Evals](#evals)).

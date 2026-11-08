@@ -1,4 +1,9 @@
-"""The tools, a module per family. Here, what every tool shares: its annotations and the messages for API errors."""
+"""The tools, a module per family.
+
+Here, what every tool shares: its server's API clients, its annotations and the messages for API errors.
+"""
+
+from dataclasses import dataclass
 
 from mcp.types import ToolAnnotations
 
@@ -9,8 +14,16 @@ from openaustralia_mcp.errors import (
     KeyRejectedError,
     MissingKeyError,
 )
+from openaustralia_mcp.openaustralia import OpenAustraliaClient
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
+
+
+@dataclass(frozen=True)
+class Clients:
+    """One server's API clients. Its lifespan yields them, so each server that build_server makes has its own."""
+
+    openaustralia: OpenAustraliaClient
 
 
 def _describe(exc: ApiClientError, **arguments: str | None) -> str:
