@@ -20,8 +20,8 @@ MEMBER_3056 = Call(
 HOUSING_BY_10887 = Call(tool="search_hansard", input={"query": "housing", "person_id": "10887"})
 
 
-def case(**expect: Any) -> Case:
-    return Case.model_validate({"id": "test", "tags": ["regression"], "question": "?", "expect": expect})
+def case(question: str = "?", **expect: Any) -> Case:
+    return Case.model_validate({"id": "test", "tags": ["regression"], "question": question, "expect": expect})
 
 
 def trial(*calls: Call, answer: str = "") -> Trial:
@@ -189,6 +189,18 @@ class TestCitesUrl:
         hits = Call(tool="search_hansard", input={"query": "housing"}, result={"hits": [{"gid": "1", "url": url}]})
 
         assert grade(case(cites_url=True), trial(hits, answer=f"[speech]({url})"), SCHEMAS) == []
+
+    def test_pass_when_the_answer_has_the_url_the_user_pasted(self) -> None:
+        # The tool links the speech within its debate, and the user's link is to the same speech.
+        pasted = "https://www.openaustralia.org.au/debates/?id=2026-06-23.80.1"
+        read = Call(
+            tool="read_debate",
+            input={"gid": "2026-06-23.80.1", "house": "representatives"},
+            result={"url": "https://www.openaustralia.org.au/debates/?id=2026-06-23.78.2#g80.1"},
+        )
+
+        with_link = case(question=f"Can you read this speech? {pasted}", cites_url=True)
+        assert grade(with_link, trial(read, answer=f"Peter Khalil's speech: {pasted}"), SCHEMAS) == []
 
 
 class TestTurnCap:

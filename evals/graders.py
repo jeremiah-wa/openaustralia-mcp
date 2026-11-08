@@ -1,5 +1,6 @@
 """Deterministic graders: score one trial's tool calls and answer against its case. See docs/evals.md#graders."""
 
+import re
 from typing import Any
 
 from pydantic import BaseModel
@@ -56,7 +57,8 @@ def grade(case: Case, trial: Trial, schemas: dict[str, dict[str, Any]]) -> list[
     failures += [f"answer is missing: {text}" for text in case.expect.answer_contains if text.lower() not in answer]
 
     if case.expect.cites_url:
-        urls = [url for call in trial.calls for url in _urls(call.result)]
+        # A link the user pasted counts too: the expected calls show the tool read it.
+        urls = [url for call in trial.calls for url in _urls(call.result)] + re.findall(r"https?://\S+", case.question)
         if not any(url in trial.answer for url in urls):
             failures.append("answer cites no url from a tool result")
     return failures

@@ -145,12 +145,12 @@ expect:
 | `forbidden` | Calls that must not appear. Give the `tool` alone, `args` that must not have those values, or `args_missing`, arguments that must not all be missing |
 | `max_calls` | Optional cap on the number of tool calls. `0` means Claude should answer without a tool |
 | `answer_contains` | Text the final answer must contain, ignoring case. Use it for facts from the fixtures, such as a member's name, not for phrasing |
-| `cites_url` | The final answer must include a `url` from a tool result. Set it where one result backs the answer, such as a member or a speech. A list of members isn't expected to link each one, and how often an answer links is up to the client, so expected calls, not urls, show that the right lookup happened |
+| `cites_url` | The final answer must include a `url` from a tool result, or a link from the question, such as one the user pasted. Set it where one result backs the answer, such as a member or a speech. A list of members isn't expected to link each one, and how often an answer links is up to the client, so expected calls, not urls, show that the right lookup happened |
 | `tags` | `regression` or `capability`, plus any free labels |
 
-**Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as a pasted OpenAustralia link. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score.
+**Regression** cases cover what the tools already do, and should pass close to every time. **Capability** cases cover what they can't do yet, such as a question for a tool that isn't built. They're expected to fail until the feature lands, and are reported separately so they don't pull down the regression score. There are none at the moment.
 
-The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. Cases 17 to 19 in that list (a member by name, a Senator's speeches on housing, and Tasmania's Senators), and four more member cases, came with [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8) as `members-*`. #8 graded them on the answer alone, so the same case could run on each shape of member tools (see [Member lookup](#member-lookup-8)). They became regression cases, with expected calls, when that lookup went into the server.
+The first 16 cases, from [the list on #6](https://github.com/jeremiah-wa/openaustralia-mcp/issues/6#issuecomment-6412375709), are in [evals/cases/](../evals/cases/). They cover the current tools: 15 regression cases and a pasted OpenAustralia link as a capability case. `read_debate` turned out to read the link already, so it's a regression case too. Cases 17 to 19 in that list (a member by name, a Senator's speeches on housing, and Tasmania's Senators), and four more member cases, came with [#8](https://github.com/jeremiah-wa/openaustralia-mcp/issues/8) as `members-*`. #8 graded them on the answer alone, so the same case could run on each shape of member tools (see [Member lookup](#member-lookup-8)). They became regression cases, with expected calls, when that lookup went into the server.
 
 ## Graders
 
@@ -164,7 +164,7 @@ All graders are deterministic. A trial passes when every check passes.
 | Unknown arguments | A call has an argument that isn't in the tool's schema, such as `person=` instead of `person_id=` |
 | Number of calls | There are more tool calls than `max_calls` |
 | Answer content | The answer is missing any of the `answer_contains` texts |
-| Citation | `cites_url` is set and the answer has no `url` from a tool result. `source_url` doesn't count, because every result has the same one |
+| Citation | `cites_url` is set and the answer has no `url` from a tool result, and no link from the question. `source_url` doesn't count, because every result has the same one |
 | Turn cap | The trial reached the turn cap without a final answer |
 
 The graders check dependencies, not an exact sequence. Requiring one fixed order rejects other valid paths ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)), and an extra harmless call, such as a second search, is fine unless the case sets `max_calls`.
