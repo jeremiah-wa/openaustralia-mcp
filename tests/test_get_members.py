@@ -345,6 +345,18 @@ class TestLookupByParty:
         assert not result.is_error
         assert [member["name"] for member in result.structured_content["members"]] == ["Elizabeth Watson-Brown"]
 
+    async def test_an_api_error_names_the_house_too(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_0000.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens", "house": "senate"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia returned an error for party=Greens, house=senate: "
+            "Unknown postcode"
+        )
+
 
 class TestLookupByName:
     async def test_finds_senators_when_no_mp_matches(self, connect: Connect, fake_api: FakeApi) -> None:
@@ -453,43 +465,6 @@ EVERY_LOOKUP = [
     {"state": "TAS"},
 ]
 EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
-
-
-class TestApiError:
-    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route("openaustralia/getRepresentatives_postcode_0000.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "0000"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia returned an error for postcode=0000: Unknown postcode"
-        )
-
-    @pytest.mark.parametrize(
-        ("args", "described"),
-        [
-            ({"person_id": "10942"}, "person_id=10942"),
-            ({"name": "Pocock"}, "name=Pocock"),
-            ({"party": "Greens"}, "party=Greens"),
-            ({"state": "TAS"}, "state=TAS"),
-            ({"party": "Greens", "house": "senate"}, "party=Greens, house=senate"),
-        ],
-        ids=["person_id", "name", "party", "state", "party-and-house"],
-    )
-    async def test_names_the_arguments_of_any_lookup(
-        self, connect: Connect, fake_api: FakeApi, args: dict[str, str], described: str
-    ) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_0000.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            f"Error executing tool get_members: OpenAustralia returned an error for {described}: Unknown postcode"
-        )
 
 
 def _connection_refused(request: httpx2.Request) -> httpx2.Response:

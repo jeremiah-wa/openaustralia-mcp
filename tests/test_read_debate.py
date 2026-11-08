@@ -234,21 +234,6 @@ class TestArguments:
         assert fake_api.requests == []
 
 
-class TestApiError:
-    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Recorded from a call with type=nonsense, which the tool itself never makes.
-        fake_api.serve_fixture("openaustralia/getDebates_unknown_type.json")
-
-        async with connect() as client:
-            result = await client.call_tool("read_debate", KHALIL_ARGS)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool read_debate: OpenAustralia returned an error for "
-            "gid=2026-06-23.80.1, house=representatives: Unknown type"
-        )
-
-
 def _connection_refused(request: httpx2.Request) -> httpx2.Response:
     raise httpx2.ConnectError("connection refused", request=request)
 

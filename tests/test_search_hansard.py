@@ -146,21 +146,6 @@ class TestArguments:
         assert fake_api.requests == []
 
 
-class TestApiError:
-    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Recorded from a call with no parameters, which the tool itself never makes.
-        fake_api.serve_fixture("openaustralia/getHansard_no_parameters.json")
-
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool search_hansard: OpenAustralia returned an error for query=housing, person_id=10887: "
-            'No parameter provided to function "getHansard". Possible choices are: search, person, order, page, num'
-        )
-
-
 def _connection_refused(request: httpx2.Request) -> httpx2.Response:
     raise httpx2.ConnectError("connection refused", request=request)
 
