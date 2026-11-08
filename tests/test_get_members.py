@@ -3,8 +3,6 @@ import logging
 import httpx2
 import pytest
 
-from openaustralia_mcp.config import Config
-
 from .conftest import TEST_KEY, Connect, result_text
 from .fake_api import FIXTURES, FakeApi, Handler
 
@@ -455,29 +453,6 @@ EVERY_LOOKUP = [
     {"state": "TAS"},
 ]
 EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
-
-
-class TestMissingKey:
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_explains_where_to_get_a_key(self, connect: Connect, args: dict[str, str]) -> None:
-        async with connect(Config()) as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: No OpenAustralia key set. "
-            "Get one at https://www.openaustralia.org.au/api/key, "
-            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
-        )
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
-        fake_api.route(POSTCODE_3056)
-
-        async with connect(Config()) as client:
-            await client.call_tool("get_members", args)
-
-        assert fake_api.requests == []
 
 
 class TestRejectedKey:

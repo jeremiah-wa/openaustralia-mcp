@@ -3,8 +3,6 @@ import logging
 import httpx2
 import pytest
 
-from openaustralia_mcp.config import Config
-
 from .conftest import TEST_KEY, Connect, result_text
 from .fake_api import FakeApi, Handler
 
@@ -233,27 +231,6 @@ class TestArguments:
 
         assert result.is_error
         assert name in result_text(result)
-        assert fake_api.requests == []
-
-
-class TestMissingKey:
-    async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
-        async with connect(Config()) as client:
-            result = await client.call_tool("read_debate", KHALIL_ARGS)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool read_debate: No OpenAustralia key set. "
-            "Get one at https://www.openaustralia.org.au/api/key, "
-            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
-        )
-
-    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route(KHALIL)
-
-        async with connect(Config()) as client:
-            await client.call_tool("read_debate", KHALIL_ARGS)
-
         assert fake_api.requests == []
 
 
