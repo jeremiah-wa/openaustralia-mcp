@@ -15,7 +15,7 @@ These protect users' keys and keep the project within the data licences. Don't b
    - Remove the key before committing a fixture.
    - Check with `git diff --staged` before every commit that adds or changes fixtures.
    - Run `uv run pre-commit install` once per clone. A pre-commit hook then runs [gitleaks](https://github.com/gitleaks/gitleaks) on what's staged, using the rule in [.gitleaks.toml](../.gitleaks.toml), and blocks a commit that contains a key. Don't bypass it with `--no-verify`.
-   - CI scans every commit with the same rule and fails if it finds a key. Both are backstops, not a reason to skip the check.
+   - CI scans the commits each pull request and each push to `main` adds, with the same rule, and fails if it finds a key. Both are backstops, not a reason to skip the check.
 3. **Keys never appear in logs, tool results, error messages or eval results.**
 4. **Read-only.** No tool changes data anywhere.
 5. **Cut Hansard text, never rewrite it.**
