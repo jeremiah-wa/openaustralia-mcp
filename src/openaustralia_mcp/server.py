@@ -42,8 +42,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
         yield clients
 
     server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION, lifespan=lifespan)
-    # The tools are listed in the order they're registered.
-    for tool in members.TOOLS:
+    # Each family's TOOLS, in the order Claude sees them. Every tool is read-only (contributing.md, house rule 4).
+    for tool in (*members.TOOLS, *hansard.TOOLS):
         server.add_tool(tool, annotations=READ_ONLY)
-    hansard.register(server)
     return server
