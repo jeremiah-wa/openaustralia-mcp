@@ -121,3 +121,44 @@ class TestPartOfAValue:
 
         assert senators("pocock") == ["Barbara Pocock", "David Pocock"]
         assert senators("David Pocock") == ["David Pocock"]
+
+
+class TestGivenResponse:
+    # For a response that can't be recorded, such as a failure. These call the fake API directly.
+    def test_answers_its_request(self, fake_api: FakeApi) -> None:
+        fake_api.answer("getSenators", {}, httpx2.Response(502))
+
+        response = fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "output": "js"}))
+
+        assert response.status_code == 502
+
+    def test_needs_the_parameters_to_match(self, fake_api: FakeApi) -> None:
+        fake_api.answer("getSenators", {}, httpx2.Response(502))
+
+        response = fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k", "state": "Tasmania"}))
+
+        assert response.status_code == 404
+
+    def test_works_alongside_recorded_responses(self, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getSenator_id_10942.json")
+        fake_api.answer("getSenators", {}, httpx2.Response(502))
+
+        senator = fake_api(httpx2.Request("GET", f"{API}/getSenator", params={"key": "k", "id": "10942"}))
+        senators = fake_api(httpx2.Request("GET", f"{API}/getSenators", params={"key": "k"}))
+
+        assert (senator.status_code, senator.json()[0]["full_name"]) == (200, "Dave Sharma")
+        assert senators.status_code == 502
+
+    async def test_answers_every_time_it_is_asked(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.answer("getSenators", {"state": "Tasmania"}, httpx2.Response(200, json=[]))
+
+        async with connect() as client:
+            first = await client.call_tool("get_members", {"state": "TAS"})
+            second = await client.call_tool("get_members", {"state": "TAS"})
+
+        no_one = (
+            "Error executing tool get_members: OpenAustralia has no current member matching state=TAS. "
+            "Searches find current members only. For a former member, find their person_id, for example on a "
+            "search_hansard hit, and look them up by that."
+        )
+        assert [result_text(first), result_text(second)] == [no_one, no_one]
