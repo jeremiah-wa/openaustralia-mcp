@@ -206,6 +206,18 @@ class TestLookupByPersonId:
         [_, senator] = result.structured_content["members"]
         assert (senator["state"], senator["current"], senator["positions"]) == ("NSW", True, [])
 
+    async def test_fails_when_only_the_list_of_senators_fails(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Empty positions would say the Senator holds no office, so the lookup fails rather than guess.
+        fake_api.serve(_sharma_with(httpx2.Response(502)))
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10942"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia didn't respond normally (HTTP 502). Try again later."
+        )
+
     async def test_asks_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
         fake_api.route("openaustralia/getSenator_id_10990.json")
@@ -465,62 +477,6 @@ EVERY_LOOKUP = [
     {"state": "TAS"},
 ]
 EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
-
-
-def _connection_refused(request: httpx2.Request) -> httpx2.Response:
-    raise httpx2.ConnectError("connection refused", request=request)
-
-
-class TestApiUnavailable:
-    @pytest.mark.parametrize(
-        ("handler", "message"),
-        [
-            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
-            (
-                lambda request: httpx2.Response(502, text="Bad gateway"),
-                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
-            ),
-            (
-                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
-                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
-            ),
-        ],
-        ids=["connection-error", "server-error", "not-json"],
-    )
-    async def test_says_to_try_again_later(
-        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
-    ) -> None:
-        fake_api.serve(handler)
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "3056"})
-
-        assert result.is_error
-        assert result_text(result) == f"Error executing tool get_members: {message}"
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_any_lookup_says_so(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
-        fake_api.serve(_connection_refused)
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia couldn't be reached. Try again later."
-        )
-
-    async def test_says_so_when_only_the_list_of_senators_fails(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Empty positions would say the Senator holds no office, so the lookup fails rather than guess.
-        fake_api.serve(_sharma_with(httpx2.Response(502)))
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"person_id": "10942"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia didn't respond normally (HTTP 502). Try again later."
-        )
 
 
 class TestPostcodeValidation:

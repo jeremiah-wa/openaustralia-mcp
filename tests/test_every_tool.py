@@ -5,12 +5,13 @@ The messages come from the shared error handling, so they're the same for every 
 
 from typing import NamedTuple
 
+import httpx2
 import pytest
 
 from openaustralia_mcp.config import Config
 
 from .conftest import Connect, result_text
-from .fake_api import FakeApi
+from .fake_api import FakeApi, Handler
 
 pytestmark = pytest.mark.anyio
 
@@ -94,3 +95,36 @@ class TestApiError:
         assert result_text(result) == (
             f"Error executing tool {call.tool}: OpenAustralia returned an error for {call.described}: Unknown postcode"
         )
+
+
+def _connection_refused(request: httpx2.Request) -> httpx2.Response:
+    raise httpx2.ConnectError("connection refused", request=request)
+
+
+class TestApiUnavailable:
+    @pytest.mark.parametrize(
+        ("handler", "message"),
+        [
+            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
+            (
+                lambda request: httpx2.Response(502, text="Bad gateway"),
+                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
+            ),
+            (
+                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
+                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
+            ),
+        ],
+        ids=["connection-error", "server-error", "not-json"],
+    )
+    @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
+    async def test_says_to_try_again_later(
+        self, connect: Connect, fake_api: FakeApi, call: Call, handler: Handler, message: str
+    ) -> None:
+        fake_api.serve(handler)
+
+        async with connect() as client:
+            result = await client.call_tool(call.tool, call.args)
+
+        assert result.is_error
+        assert result_text(result) == f"Error executing tool {call.tool}: {message}"

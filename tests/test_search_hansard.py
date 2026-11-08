@@ -5,7 +5,7 @@ import httpx2
 import pytest
 
 from .conftest import TEST_KEY, Connect, result_text
-from .fake_api import FakeApi, Handler
+from .fake_api import FakeApi
 
 pytestmark = pytest.mark.anyio
 
@@ -144,38 +144,6 @@ class TestArguments:
         assert "person_id" in result_text(result)
         assert "Input should be a valid string" in result_text(result)
         assert fake_api.requests == []
-
-
-def _connection_refused(request: httpx2.Request) -> httpx2.Response:
-    raise httpx2.ConnectError("connection refused", request=request)
-
-
-class TestApiUnavailable:
-    @pytest.mark.parametrize(
-        ("handler", "message"),
-        [
-            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
-            (
-                lambda request: httpx2.Response(502, text="Bad gateway"),
-                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
-            ),
-            (
-                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
-                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
-            ),
-        ],
-        ids=["connection-error", "server-error", "not-json"],
-    )
-    async def test_says_to_try_again_later(
-        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
-    ) -> None:
-        fake_api.serve(handler)
-
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing"})
-
-        assert result.is_error
-        assert result_text(result) == f"Error executing tool search_hansard: {message}"
 
 
 class TestExcerpt:
