@@ -10,7 +10,7 @@ from mcp.server.mcpserver import MCPServer
 
 from openaustralia_mcp.config import Config
 from openaustralia_mcp.openaustralia import OpenAustraliaClient
-from openaustralia_mcp.tools import Clients, hansard, members
+from openaustralia_mcp.tools import READ_ONLY, Clients, hansard, members
 
 VERSION = version("openaustralia-mcp")
 
@@ -43,6 +43,7 @@ def build_server(http_client: httpx2.AsyncClient, config: Config) -> MCPServer:
 
     server = MCPServer("openaustralia", instructions=INSTRUCTIONS, version=VERSION, lifespan=lifespan)
     # The tools are listed in the order they're registered.
-    members.register(server)
+    for tool in members.TOOLS:
+        server.add_tool(tool, annotations=READ_ONLY)
     hansard.register(server)
     return server

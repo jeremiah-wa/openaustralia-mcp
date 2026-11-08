@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ from openaustralia_mcp.openaustralia import (
     Senator,
     State,
 )
-from openaustralia_mcp.tools import READ_ONLY, Clients, _describe
+from openaustralia_mcp.tools import Clients, _describe
 
 PARTIAL_MATCH_NOTE = (
     "OpenAustralia couldn't match part of this postcode to a current member, so this list may be incomplete. "
@@ -82,67 +82,67 @@ class MemberLookupResult(BaseModel):
         return cls(members=members, note=note, source_url=SITE_URL, licence=MEMBERS_LICENCE)
 
 
-def register(server: MCPServer) -> None:
-    @server.tool(annotations=READ_ONLY)
-    async def get_members(
-        ctx: Context[Clients],
-        postcode: Annotated[
-            str | None, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')
-        ] = None,
-        person_id: Annotated[
-            str | None,
-            Field(
-                pattern=r"^\d+$",
-                description="A member's person_id, current or former, e.g. from a search_hansard hit.",
-            ),
-        ] = None,
-        name: Annotated[
-            str | None,
-            Field(
-                min_length=2,
-                description='Part or all of a current member\'s name, e.g. "Khalil" or "Peter Khalil", without a title.',
-            ),
-        ] = None,
-        party: Annotated[
-            str | None, Field(min_length=2, description='Part of a party\'s name, e.g. "Greens" or "Labor".')
-        ] = None,
-        state: Annotated[
-            State | None,
-            Field(description="A state or territory, e.g. TAS. Senators represent a whole state or territory."),
-        ] = None,
-        house: Annotated[
-            House | None,
-            Field(description="Only members of this house: the House of Representatives (MPs) or the Senate."),
-        ] = None,
-    ) -> MemberLookupResult:
-        """Find federal members of Parliament.
+async def get_members(
+    ctx: Context[Clients],
+    postcode: Annotated[str | None, Field(pattern=r"^\d{4}$", description='Australian postcode, e.g. "3056".')] = None,
+    person_id: Annotated[
+        str | None,
+        Field(
+            pattern=r"^\d+$",
+            description="A member's person_id, current or former, e.g. from a search_hansard hit.",
+        ),
+    ] = None,
+    name: Annotated[
+        str | None,
+        Field(
+            min_length=2,
+            description='Part or all of a current member\'s name, e.g. "Khalil" or "Peter Khalil", without a title.',
+        ),
+    ] = None,
+    party: Annotated[
+        str | None, Field(min_length=2, description='Part of a party\'s name, e.g. "Greens" or "Labor".')
+    ] = None,
+    state: Annotated[
+        State | None,
+        Field(description="A state or territory, e.g. TAS. Senators represent a whole state or territory."),
+    ] = None,
+    house: Annotated[
+        House | None,
+        Field(description="Only members of this house: the House of Representatives (MPs) or the Senate."),
+    ] = None,
+) -> MemberLookupResult:
+    """Find federal members of Parliament.
 
-        By postcode, it finds the members of the House of Representatives (MPs) for that area. A postcode can
-        span more than one electorate, so there may be several. By person_id, it finds one person, current or
-        former, in either house. By name, party or state, it finds current members who match all of them, in
-        both houses unless house limits it to one. A state means Senators. Returns each member's person_id, name,
-        party, house, electorate or state, whether they're a current member, current positions and url.
-        """
-        openaustralia = ctx.request_context.lifespan_context.openaustralia
-        if person_id is not None:
-            if any(value is not None for value in (postcode, name, party, state, house)):
-                raise ToolError("A person_id finds one person in both houses by itself. Give it on its own.")
-            return await _member_by_person_id(openaustralia, person_id)
-        if postcode is not None:
-            if any(value is not None for value in (name, party, state)) or house == "senate":
-                raise ToolError(
-                    "A postcode finds the MPs for that area by itself. Give it on its own, "
-                    "or search by name, party, state and house instead."
-                )
-            return await _members_by_postcode(openaustralia, postcode)
-        if state is not None and house == "representatives":
+    By postcode, it finds the members of the House of Representatives (MPs) for that area. A postcode can
+    span more than one electorate, so there may be several. By person_id, it finds one person, current or
+    former, in either house. By name, party or state, it finds current members who match all of them, in
+    both houses unless house limits it to one. A state means Senators. Returns each member's person_id, name,
+    party, house, electorate or state, whether they're a current member, current positions and url.
+    """
+    openaustralia = ctx.request_context.lifespan_context.openaustralia
+    if person_id is not None:
+        if any(value is not None for value in (postcode, name, party, state, house)):
+            raise ToolError("A person_id finds one person in both houses by itself. Give it on its own.")
+        return await _member_by_person_id(openaustralia, person_id)
+    if postcode is not None:
+        if any(value is not None for value in (name, party, state)) or house == "senate":
             raise ToolError(
-                "A state means Senators: they represent a whole state or territory. "
-                "MPs represent electorates, so for MPs give a postcode or a name instead."
+                "A postcode finds the MPs for that area by itself. Give it on its own, "
+                "or search by name, party, state and house instead."
             )
-        if any(value is not None for value in (name, party, state, house)):
-            return await _search_members(openaustralia, name=name, party=party, state=state, house=house)
-        raise ToolError("Give a postcode, a person_id, or any of name, party, state and house.")
+        return await _members_by_postcode(openaustralia, postcode)
+    if state is not None and house == "representatives":
+        raise ToolError(
+            "A state means Senators: they represent a whole state or territory. "
+            "MPs represent electorates, so for MPs give a postcode or a name instead."
+        )
+    if any(value is not None for value in (name, party, state, house)):
+        return await _search_members(openaustralia, name=name, party=party, state=state, house=house)
+    raise ToolError("Give a postcode, a person_id, or any of name, party, state and house.")
+
+
+# The tools build_server adds to each server, in the order Claude sees them.
+TOOLS = (get_members,)
 
 
 async def _members_by_postcode(openaustralia: OpenAustraliaClient, postcode: str) -> MemberLookupResult:
