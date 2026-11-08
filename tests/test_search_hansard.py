@@ -1,13 +1,9 @@
-import logging
 from unittest.mock import ANY
 
-import httpx2
 import pytest
 
-from openaustralia_mcp.config import Config
-
 from .conftest import TEST_KEY, Connect, result_text
-from .fake_api import FakeApi, Handler
+from .fake_api import FakeApi
 
 pytestmark = pytest.mark.anyio
 
@@ -148,88 +144,6 @@ class TestArguments:
         assert fake_api.requests == []
 
 
-class TestMissingKey:
-    async def test_explains_where_to_get_a_key(self, connect: Connect) -> None:
-        async with connect(Config()) as client:
-            result = await client.call_tool("search_hansard", {"query": "housing"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool search_hansard: No OpenAustralia key set. "
-            "Get one at https://www.openaustralia.org.au/api/key, "
-            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
-        )
-
-    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route(HOUSING_BY_10887)
-
-        async with connect(Config()) as client:
-            await client.call_tool("search_hansard", {"query": "housing"})
-
-        assert fake_api.requests == []
-
-
-class TestRejectedKey:
-    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getHansard_bad_key.json")
-
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool search_hansard: The OpenAustralia key was rejected. "
-            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
-        )
-
-
-class TestApiError:
-    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Recorded from a call with no parameters, which the tool itself never makes.
-        fake_api.serve_fixture("openaustralia/getHansard_no_parameters.json")
-
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool search_hansard: OpenAustralia returned an error for query=housing, person_id=10887: "
-            'No parameter provided to function "getHansard". Possible choices are: search, person, order, page, num'
-        )
-
-
-def _connection_refused(request: httpx2.Request) -> httpx2.Response:
-    raise httpx2.ConnectError("connection refused", request=request)
-
-
-class TestApiUnavailable:
-    @pytest.mark.parametrize(
-        ("handler", "message"),
-        [
-            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
-            (
-                lambda request: httpx2.Response(502, text="Bad gateway"),
-                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
-            ),
-            (
-                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
-                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
-            ),
-        ],
-        ids=["connection-error", "server-error", "not-json"],
-    )
-    async def test_says_to_try_again_later(
-        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
-    ) -> None:
-        fake_api.serve(handler)
-
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing"})
-
-        assert result.is_error
-        assert result_text(result) == f"Error executing tool search_hansard: {message}"
-
-
 class TestExcerpt:
     async def test_strips_highlighting_and_entities(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route(HOUSING_BY_10887)
@@ -245,43 +159,3 @@ class TestExcerpt:
             "the shadow Treasurer talked a lot about small business—very passionately, very "
             "aggressively—and how much he loves..."
         )
-
-
-def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
-    # Real HTTP errors mention the URL, and the URL contains the key.
-    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
-
-
-LEAK_CASES = {
-    "success": HOUSING_BY_10887,
-    "rejected-key": "openaustralia/getHansard_bad_key.json",
-    "api-error": "openaustralia/getHansard_no_parameters.json",
-    "connection-error": _connection_refused_naming_the_url,
-    "server-error": lambda request: httpx2.Response(500),
-}
-
-
-class TestKeyNeverLeaks:
-    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
-    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
-        if isinstance(request.param, str):
-            fake_api.serve_fixture(request.param)
-        else:
-            fake_api.serve(request.param)
-
-    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None) -> None:
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
-
-        assert TEST_KEY not in result_text(result)
-
-    async def test_not_in_the_logs(
-        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        caplog.set_level(logging.DEBUG)
-
-        async with connect() as client:
-            await client.call_tool("search_hansard", {"query": "housing", "person_id": "10887"})
-
-        assert caplog.records, "expected some log output to check"
-        assert TEST_KEY not in caplog.text

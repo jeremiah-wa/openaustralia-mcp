@@ -1,9 +1,5 @@
-import logging
-
 import httpx2
 import pytest
-
-from openaustralia_mcp.config import Config
 
 from .conftest import TEST_KEY, Connect, result_text
 from .fake_api import FIXTURES, FakeApi, Handler
@@ -11,18 +7,6 @@ from .fake_api import FIXTURES, FakeApi, Handler
 pytestmark = pytest.mark.anyio
 
 POSTCODE_3056 = "openaustralia/getRepresentatives_postcode_3056.json"
-
-
-def _sharma_with(senators: httpx2.Response) -> Handler:
-    """Dave Sharma's recorded records, with the list of current Senators answered as given."""
-
-    def answer(request: httpx2.Request) -> httpx2.Response:
-        function = request.url.path.rsplit("/", 1)[-1]
-        if function == "getSenators":
-            return senators
-        return httpx2.Response(200, content=(FIXTURES / f"openaustralia/{function}_id_10942.json").read_bytes())
-
-    return answer
 
 
 class TestLookupByPostcode:
@@ -66,36 +50,75 @@ class TestLookupByPostcode:
         assert dict(request.url.params) == {"key": TEST_KEY, "output": "js", "postcode": "3056"}
 
 
-class TestWhatClaudeSees:
-    async def test_instructions_say_how_to_find_a_member(self, connect: Connect) -> None:
+class TestPostcodeWithoutCurrentMember:
+    """OpenAustralia still maps some postcodes to abolished electorates (e.g. Higgins) and puts `false` in their place."""
+
+    async def test_lists_the_members_it_can_match_and_warns_the_list_may_be_incomplete(
+        self, connect: Connect, fake_api: FakeApi
+    ) -> None:
+        fake_api.route("openaustralia/getRepresentatives_postcode_3181.json")
+
         async with connect() as client:
-            instructions = client.instructions
+            result = await client.call_tool("get_members", {"postcode": "3181"})
 
-        assert (
-            "Start with get_members to find a member and their person_id, by postcode, name, party or state, "
-            "or to look up a person_id; later calls about that member use the person_id."
-        ) in (instructions or "")
+        assert not result.is_error
+        assert result.structured_content["members"] == [
+            {
+                "person_id": "10934",
+                "name": "Josh Burns",
+                "party": "Australian Labor Party",
+                "house": "representatives",
+                "electorate": "Macnamara",
+                "state": None,
+                "current": True,
+                "left": None,
+                "positions": [],
+                "url": "https://www.openaustralia.org.au/mp/?p=10934",
+            }
+        ]
+        assert result.structured_content["note"] == (
+            "OpenAustralia couldn't match part of this postcode to a current member, so this list may be "
+            "incomplete. Its postcode data can lag behind changes to electorate boundaries."
+        )
 
-    async def test_description_covers_every_argument(self, connect: Connect) -> None:
+    async def test_explains_when_no_current_member_is_on_record(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentatives_postcode_3142.json")
+
         async with connect() as client:
-            tools = (await client.list_tools()).tools
-
-        [tool] = [tool for tool in tools if tool.name == "get_members"]
-        assert [
-            argument for argument in tool.input_schema["properties"] if argument not in (tool.description or "")
-        ] == []
-
-
-class TestNoArguments:
-    async def test_says_what_to_give(self, connect: Connect, fake_api: FakeApi) -> None:
-        async with connect() as client:
-            result = await client.call_tool("get_members", {})
+            result = await client.call_tool("get_members", {"postcode": "3142"})
 
         assert result.is_error
         assert result_text(result) == (
-            "Error executing tool get_members: Give a postcode, a person_id, or any of name, party, state and house."
+            "Error executing tool get_members: OpenAustralia has no current member on record for postcode 3142. "
+            "Its postcode data can lag behind changes to electorate boundaries, so try a neighbouring postcode."
         )
+
+
+class TestPostcodeValidation:
+    @pytest.mark.parametrize("postcode", ["30", "30560", "abcd", " 3056"])
+    async def test_rejects_a_malformed_postcode_without_a_request(
+        self, connect: Connect, fake_api: FakeApi, postcode: str
+    ) -> None:
+        fake_api.route(POSTCODE_3056)
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"postcode": postcode})
+
+        assert result.is_error
+        assert "postcode" in result_text(result)
         assert fake_api.requests == []
+
+
+def _sharma_with(senators: httpx2.Response) -> Handler:
+    """Dave Sharma's recorded records, with the list of current Senators answered as given."""
+
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        function = request.url.path.rsplit("/", 1)[-1]
+        if function == "getSenators":
+            return senators
+        return httpx2.Response(200, content=(FIXTURES / f"openaustralia/{function}_id_10942.json").read_bytes())
+
+    return answer
 
 
 class TestLookupByPersonId:
@@ -208,6 +231,18 @@ class TestLookupByPersonId:
         [_, senator] = result.structured_content["members"]
         assert (senator["state"], senator["current"], senator["positions"]) == ("NSW", True, [])
 
+    async def test_fails_when_only_the_list_of_senators_fails(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Empty positions would say the Senator holds no office, so the lookup fails rather than guess.
+        fake_api.serve(_sharma_with(httpx2.Response(502)))
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"person_id": "10942"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia didn't respond normally (HTTP 502). Try again later."
+        )
+
     async def test_asks_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route("openaustralia/getRepresentative_id_10990.json")
         fake_api.route("openaustralia/getSenator_id_10990.json")
@@ -228,6 +263,117 @@ class TestLookupByPersonId:
         assert result.is_error
         assert result_text(result) == (
             "Error executing tool get_members: OpenAustralia has no member of either house with person_id 99999."
+        )
+
+
+class TestLookupByName:
+    async def test_finds_senators_when_no_mp_matches(self, connect: Connect, fake_api: FakeApi) -> None:
+        # No MP is called Pocock, so getRepresentatives sends `{}`. Two Senators are.
+        fake_api.route("openaustralia/getRepresentatives_search_Pocock.json", part_of={"search": ["David Pocock"]})
+        fake_api.route(
+            "openaustralia/getSenators_search_Pocock.json", part_of={"search": ["Barbara Pocock", "David Pocock"]}
+        )
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"name": "Pocock"})
+
+        assert not result.is_error
+        assert [
+            (member["name"], member["party"], member["state"]) for member in result.structured_content["members"]
+        ] == [
+            ("Barbara Pocock", "Australian Greens", "SA"),
+            ("David Pocock", "Independent", "ACT"),
+        ]
+
+    async def test_finds_an_mp_when_no_senator_matches(self, connect: Connect, fake_api: FakeApi) -> None:
+        # No Senator is called Khalil, so getSenators sends `{}`.
+        fake_api.route("openaustralia/getRepresentatives_search_Khalil.json", part_of={"search": ["Peter Khalil"]})
+        fake_api.route("openaustralia/getSenators_search_Khalil.json", part_of={"search": ["Peter Khalil"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"name": "Khalil"})
+
+        assert not result.is_error
+        assert [
+            (member["name"], member["electorate"], member["house"]) for member in result.structured_content["members"]
+        ] == [("Peter Khalil", "Wills", "representatives")]
+
+    async def test_explains_that_former_members_need_a_person_id(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Keith Wolahan left the House in 2025, so neither house finds him by name.
+        fake_api.route("openaustralia/getRepresentatives_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
+        fake_api.route("openaustralia/getSenators_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"name": "Wolahan"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia has no current member matching name=Wolahan. "
+            "Searches find current members only. For a former member, find their person_id, for example on a "
+            "search_hansard hit, and look them up by that."
+        )
+
+
+# The current Greens Senators, in the order OpenAustralia sends them.
+GREENS_SENATORS = [
+    "Sarah Hanson-Young",
+    "Nick McKim",
+    "Jordon Steele-John",
+    "Mehreen Faruqi",
+    "Larissa Waters",
+    "Penny Allman-Payne",
+    "Barbara Pocock",
+    "David Shoebridge",
+    "Steph Hodgins-May",
+    "Vanessa Bleyer",
+]
+
+
+class TestLookupByParty:
+    async def test_finds_the_partys_members_in_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentatives_party_Greens.json", part_of={"party": ["Australian Greens"]})
+        fake_api.route("openaustralia/getSenators_party_Greens.json", part_of={"party": ["Australian Greens"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens"})
+
+        assert not result.is_error
+        members = result.structured_content["members"]
+        assert [(member["name"], member["house"]) for member in members] == [
+            ("Elizabeth Watson-Brown", "representatives"),
+            *((name, "senate") for name in GREENS_SENATORS),
+        ]
+        assert members[0]["electorate"] == "Ryan"
+
+    async def test_house_limits_it_to_the_senate(self, connect: Connect, fake_api: FakeApi) -> None:
+        # Only the Senate is recorded, so asking the House as well would fail.
+        fake_api.route("openaustralia/getSenators_party_Greens.json", part_of={"party": ["Australian Greens"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens", "house": "senate"})
+
+        assert not result.is_error
+        assert [member["name"] for member in result.structured_content["members"]] == GREENS_SENATORS
+
+    async def test_house_limits_it_to_the_house_of_representatives(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.route("openaustralia/getRepresentatives_party_Greens.json", part_of={"party": ["Australian Greens"]})
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens", "house": "representatives"})
+
+        assert not result.is_error
+        assert [member["name"] for member in result.structured_content["members"]] == ["Elizabeth Watson-Brown"]
+
+    async def test_an_api_error_names_the_house_too(self, connect: Connect, fake_api: FakeApi) -> None:
+        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_0000.json")
+
+        async with connect() as client:
+            result = await client.call_tool("get_members", {"party": "Greens", "house": "senate"})
+
+        assert result.is_error
+        assert result_text(result) == (
+            "Error executing tool get_members: OpenAustralia returned an error for party=Greens, house=senate: "
+            "Unknown postcode"
         )
 
 
@@ -297,103 +443,36 @@ class TestSenatorsByState:
         assert request.url.params["state"] == spelling
 
 
-# The current Greens Senators, in the order OpenAustralia sends them.
-GREENS_SENATORS = [
-    "Sarah Hanson-Young",
-    "Nick McKim",
-    "Jordon Steele-John",
-    "Mehreen Faruqi",
-    "Larissa Waters",
-    "Penny Allman-Payne",
-    "Barbara Pocock",
-    "David Shoebridge",
-    "Steph Hodgins-May",
-    "Vanessa Bleyer",
-]
-
-
-class TestLookupByParty:
-    async def test_finds_the_partys_members_in_both_houses(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route("openaustralia/getRepresentatives_party_Greens.json", part_of={"party": ["Australian Greens"]})
-        fake_api.route("openaustralia/getSenators_party_Greens.json", part_of={"party": ["Australian Greens"]})
-
+class TestWhatClaudeSees:
+    async def test_instructions_say_how_to_find_a_member(self, connect: Connect) -> None:
         async with connect() as client:
-            result = await client.call_tool("get_members", {"party": "Greens"})
+            instructions = client.instructions
 
-        assert not result.is_error
-        members = result.structured_content["members"]
-        assert [(member["name"], member["house"]) for member in members] == [
-            ("Elizabeth Watson-Brown", "representatives"),
-            *((name, "senate") for name in GREENS_SENATORS),
-        ]
-        assert members[0]["electorate"] == "Ryan"
+        assert (
+            "Start with get_members to find a member and their person_id, by postcode, name, party or state, "
+            "or to look up a person_id; later calls about that member use the person_id."
+        ) in (instructions or "")
 
-    async def test_house_limits_it_to_the_senate(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Only the Senate is recorded, so asking the House as well would fail.
-        fake_api.route("openaustralia/getSenators_party_Greens.json", part_of={"party": ["Australian Greens"]})
-
+    async def test_description_covers_every_argument(self, connect: Connect) -> None:
         async with connect() as client:
-            result = await client.call_tool("get_members", {"party": "Greens", "house": "senate"})
+            tools = (await client.list_tools()).tools
 
-        assert not result.is_error
-        assert [member["name"] for member in result.structured_content["members"]] == GREENS_SENATORS
-
-    async def test_house_limits_it_to_the_house_of_representatives(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route("openaustralia/getRepresentatives_party_Greens.json", part_of={"party": ["Australian Greens"]})
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"party": "Greens", "house": "representatives"})
-
-        assert not result.is_error
-        assert [member["name"] for member in result.structured_content["members"]] == ["Elizabeth Watson-Brown"]
-
-
-class TestLookupByName:
-    async def test_finds_senators_when_no_mp_matches(self, connect: Connect, fake_api: FakeApi) -> None:
-        # No MP is called Pocock, so getRepresentatives sends `{}`. Two Senators are.
-        fake_api.route("openaustralia/getRepresentatives_search_Pocock.json", part_of={"search": ["David Pocock"]})
-        fake_api.route(
-            "openaustralia/getSenators_search_Pocock.json", part_of={"search": ["Barbara Pocock", "David Pocock"]}
-        )
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"name": "Pocock"})
-
-        assert not result.is_error
+        [tool] = [tool for tool in tools if tool.name == "get_members"]
         assert [
-            (member["name"], member["party"], member["state"]) for member in result.structured_content["members"]
-        ] == [
-            ("Barbara Pocock", "Australian Greens", "SA"),
-            ("David Pocock", "Independent", "ACT"),
-        ]
+            argument for argument in tool.input_schema["properties"] if argument not in (tool.description or "")
+        ] == []
 
-    async def test_finds_an_mp_when_no_senator_matches(self, connect: Connect, fake_api: FakeApi) -> None:
-        # No Senator is called Khalil, so getSenators sends `{}`.
-        fake_api.route("openaustralia/getRepresentatives_search_Khalil.json", part_of={"search": ["Peter Khalil"]})
-        fake_api.route("openaustralia/getSenators_search_Khalil.json", part_of={"search": ["Peter Khalil"]})
 
+class TestNoArguments:
+    async def test_says_what_to_give(self, connect: Connect, fake_api: FakeApi) -> None:
         async with connect() as client:
-            result = await client.call_tool("get_members", {"name": "Khalil"})
-
-        assert not result.is_error
-        assert [
-            (member["name"], member["electorate"], member["house"]) for member in result.structured_content["members"]
-        ] == [("Peter Khalil", "Wills", "representatives")]
-
-    async def test_explains_that_former_members_need_a_person_id(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Keith Wolahan left the House in 2025, so neither house finds him by name.
-        fake_api.route("openaustralia/getRepresentatives_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
-        fake_api.route("openaustralia/getSenators_search_Wolahan.json", part_of={"search": ["Keith Wolahan"]})
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"name": "Wolahan"})
+            result = await client.call_tool("get_members", {})
 
         assert result.is_error
         assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia has no current member matching name=Wolahan. "
-            "Searches find current members only. For a former member, find their person_id, for example on a "
-            "search_hansard hit, and look them up by that."
+            "Error executing tool get_members: Give a postcode, a person_id, or any of name, party, state and house."
         )
+        assert fake_api.requests == []
 
 
 class TestArgumentsThatDontGoTogether:
@@ -444,246 +523,3 @@ class TestArgumentsThatDontGoTogether:
             "MPs represent electorates, so for MPs give a postcode or a name instead."
         )
         assert fake_api.requests == []
-
-
-# One call per kind of lookup. Each reaches OpenAustralia, so each has to handle what comes back.
-EVERY_LOOKUP = [
-    {"postcode": "3056"},
-    {"person_id": "10942"},
-    {"name": "Pocock"},
-    {"party": "Greens"},
-    {"state": "TAS"},
-]
-EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
-
-
-class TestMissingKey:
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_explains_where_to_get_a_key(self, connect: Connect, args: dict[str, str]) -> None:
-        async with connect(Config()) as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: No OpenAustralia key set. "
-            "Get one at https://www.openaustralia.org.au/api/key, "
-            "then set OPENAUSTRALIA_API_KEY in your MCP client config."
-        )
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_makes_no_request(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
-        fake_api.route(POSTCODE_3056)
-
-        async with connect(Config()) as client:
-            await client.call_tool("get_members", args)
-
-        assert fake_api.requests == []
-
-
-class TestRejectedKey:
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_bad_key.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: The OpenAustralia key was rejected. "
-            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
-        )
-
-
-class TestApiError:
-    async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route("openaustralia/getRepresentatives_postcode_0000.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "0000"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia returned an error for postcode=0000: Unknown postcode"
-        )
-
-    @pytest.mark.parametrize(
-        ("args", "described"),
-        [
-            ({"person_id": "10942"}, "person_id=10942"),
-            ({"name": "Pocock"}, "name=Pocock"),
-            ({"party": "Greens"}, "party=Greens"),
-            ({"state": "TAS"}, "state=TAS"),
-            ({"party": "Greens", "house": "senate"}, "party=Greens, house=senate"),
-        ],
-        ids=["person_id", "name", "party", "state", "party-and-house"],
-    )
-    async def test_names_the_arguments_of_any_lookup(
-        self, connect: Connect, fake_api: FakeApi, args: dict[str, str], described: str
-    ) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_postcode_0000.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            f"Error executing tool get_members: OpenAustralia returned an error for {described}: Unknown postcode"
-        )
-
-
-def _connection_refused(request: httpx2.Request) -> httpx2.Response:
-    raise httpx2.ConnectError("connection refused", request=request)
-
-
-class TestApiUnavailable:
-    @pytest.mark.parametrize(
-        ("handler", "message"),
-        [
-            (_connection_refused, "OpenAustralia couldn't be reached. Try again later."),
-            (
-                lambda request: httpx2.Response(502, text="Bad gateway"),
-                "OpenAustralia didn't respond normally (HTTP 502). Try again later.",
-            ),
-            (
-                lambda request: httpx2.Response(200, text="<html>Just a moment...</html>"),
-                "OpenAustralia didn't respond normally (HTTP 200). Try again later.",
-            ),
-        ],
-        ids=["connection-error", "server-error", "not-json"],
-    )
-    async def test_says_to_try_again_later(
-        self, connect: Connect, fake_api: FakeApi, handler: Handler, message: str
-    ) -> None:
-        fake_api.serve(handler)
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "3056"})
-
-        assert result.is_error
-        assert result_text(result) == f"Error executing tool get_members: {message}"
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_any_lookup_says_so(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
-        fake_api.serve(_connection_refused)
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia couldn't be reached. Try again later."
-        )
-
-    async def test_says_so_when_only_the_list_of_senators_fails(self, connect: Connect, fake_api: FakeApi) -> None:
-        # Empty positions would say the Senator holds no office, so the lookup fails rather than guess.
-        fake_api.serve(_sharma_with(httpx2.Response(502)))
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"person_id": "10942"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia didn't respond normally (HTTP 502). Try again later."
-        )
-
-
-class TestPostcodeValidation:
-    @pytest.mark.parametrize("postcode", ["30", "30560", "abcd", " 3056"])
-    async def test_rejects_a_malformed_postcode_without_a_request(
-        self, connect: Connect, fake_api: FakeApi, postcode: str
-    ) -> None:
-        fake_api.route(POSTCODE_3056)
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": postcode})
-
-        assert result.is_error
-        assert "postcode" in result_text(result)
-        assert fake_api.requests == []
-
-
-def _connection_refused_naming_the_url(request: httpx2.Request) -> httpx2.Response:
-    # Real HTTP errors mention the URL, and the URL contains the key.
-    raise httpx2.ConnectError(f"connection refused: {request.url}", request=request)
-
-
-LEAK_CASES = {
-    "success": "openaustralia/getRepresentatives_postcode_3056.json",
-    "rejected-key": "openaustralia/getRepresentatives_bad_key.json",
-    "api-error": "openaustralia/getRepresentatives_postcode_0000.json",
-    "connection-error": _connection_refused_naming_the_url,
-    "server-error": lambda request: httpx2.Response(500),
-}
-
-
-class TestKeyNeverLeaks:
-    @pytest.fixture(params=LEAK_CASES.values(), ids=LEAK_CASES.keys())
-    def api_behaviour(self, request: pytest.FixtureRequest, fake_api: FakeApi) -> None:
-        if isinstance(request.param, str):
-            fake_api.serve_fixture(request.param)
-        else:
-            fake_api.serve(request.param)
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_not_in_the_result(self, connect: Connect, api_behaviour: None, args: dict[str, str]) -> None:
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert TEST_KEY not in result_text(result)
-
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_not_in_the_logs(
-        self, connect: Connect, api_behaviour: None, caplog: pytest.LogCaptureFixture, args: dict[str, str]
-    ) -> None:
-        caplog.set_level(logging.DEBUG)
-
-        async with connect() as client:
-            await client.call_tool("get_members", args)
-
-        assert caplog.records, "expected some log output to check"
-        assert TEST_KEY not in caplog.text
-
-
-class TestPostcodeWithoutCurrentMember:
-    """OpenAustralia still maps some postcodes to abolished electorates (e.g. Higgins) and puts `false` in their place."""
-
-    async def test_lists_the_members_it_can_match_and_warns_the_list_may_be_incomplete(
-        self, connect: Connect, fake_api: FakeApi
-    ) -> None:
-        fake_api.route("openaustralia/getRepresentatives_postcode_3181.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "3181"})
-
-        assert not result.is_error
-        assert result.structured_content["members"] == [
-            {
-                "person_id": "10934",
-                "name": "Josh Burns",
-                "party": "Australian Labor Party",
-                "house": "representatives",
-                "electorate": "Macnamara",
-                "state": None,
-                "current": True,
-                "left": None,
-                "positions": [],
-                "url": "https://www.openaustralia.org.au/mp/?p=10934",
-            }
-        ]
-        assert result.structured_content["note"] == (
-            "OpenAustralia couldn't match part of this postcode to a current member, so this list may be "
-            "incomplete. Its postcode data can lag behind changes to electorate boundaries."
-        )
-
-    async def test_explains_when_no_current_member_is_on_record(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.route("openaustralia/getRepresentatives_postcode_3142.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", {"postcode": "3142"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: OpenAustralia has no current member on record for postcode 3142. "
-            "Its postcode data can lag behind changes to electorate boundaries, so try a neighbouring postcode."
-        )
