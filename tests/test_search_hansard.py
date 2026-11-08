@@ -146,20 +146,6 @@ class TestArguments:
         assert fake_api.requests == []
 
 
-class TestRejectedKey:
-    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi) -> None:
-        fake_api.serve_fixture("openaustralia/getHansard_bad_key.json")
-
-        async with connect() as client:
-            result = await client.call_tool("search_hansard", {"query": "housing"})
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool search_hansard: The OpenAustralia key was rejected. "
-            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
-        )
-
-
 class TestApiError:
     async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
         # Recorded from a call with no parameters, which the tool itself never makes.

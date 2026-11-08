@@ -455,21 +455,6 @@ EVERY_LOOKUP = [
 EVERY_LOOKUP_IDS = [next(iter(args)) for args in EVERY_LOOKUP]
 
 
-class TestRejectedKey:
-    @pytest.mark.parametrize("args", EVERY_LOOKUP, ids=EVERY_LOOKUP_IDS)
-    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi, args: dict[str, str]) -> None:
-        fake_api.serve_fixture("openaustralia/getRepresentatives_bad_key.json")
-
-        async with connect() as client:
-            result = await client.call_tool("get_members", args)
-
-        assert result.is_error
-        assert result_text(result) == (
-            "Error executing tool get_members: The OpenAustralia key was rejected. "
-            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
-        )
-
-
 class TestApiError:
     async def test_passes_on_the_api_error_with_the_arguments(self, connect: Connect, fake_api: FakeApi) -> None:
         fake_api.route("openaustralia/getRepresentatives_postcode_0000.json")

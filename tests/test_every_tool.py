@@ -32,6 +32,9 @@ EVERY_CALL = [
 ]
 EVERY_CALL_IDS = ["-".join([call.tool, *call.args]) for call in EVERY_CALL]
 
+# OpenAustralia rejects a bad key the same way, whichever function is called.
+BAD_KEY = "openaustralia/getRepresentatives_bad_key.json"
+
 
 class TestMissingKey:
     @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
@@ -52,3 +55,18 @@ class TestMissingKey:
             await client.call_tool(call.tool, call.args)
 
         assert fake_api.requests == []
+
+
+class TestRejectedKey:
+    @pytest.mark.parametrize("call", EVERY_CALL, ids=EVERY_CALL_IDS)
+    async def test_says_the_key_was_rejected(self, connect: Connect, fake_api: FakeApi, call: Call) -> None:
+        fake_api.serve_fixture(BAD_KEY)
+
+        async with connect() as client:
+            result = await client.call_tool(call.tool, call.args)
+
+        assert result.is_error
+        assert result_text(result) == (
+            f"Error executing tool {call.tool}: The OpenAustralia key was rejected. "
+            "Check it or get a new one at https://www.openaustralia.org.au/api/key."
+        )
